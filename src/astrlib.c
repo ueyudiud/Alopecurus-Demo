@@ -15,17 +15,21 @@
 
 #define MAX_HEAPBUF_LEN 256
 
+/**
+ ** reverse string.
+ ** prototype: stdstr.reverse(string)
+ */
 int str_reverse(astate T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
-	if (len < MAX_HEAPBUF_LEN) {
+	if (len < MAX_HEAPBUF_LEN) { /* for short string, use heap memory */
 		char buf[len];
 		for (size_t i = 0; i < len; ++i) {
 			buf[i] = src[len - 1 - i];
 		}
 		alo_pushlstring(T, buf, len);
 	}
-	else {
+	else { /* or use memory buffer instead */
 		ambuf_t buf;
 		aloL_bempty(T, &buf);
 		aloL_bcheck(&buf, len);

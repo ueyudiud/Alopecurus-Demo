@@ -1,6 +1,8 @@
 /*
  * aaux.h
  *
+ * auxiliary API.
+ *
  *  Created on: 2019年7月26日
  *      Author: ueyudiud
  */

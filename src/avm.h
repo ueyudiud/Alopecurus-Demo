@@ -22,7 +22,6 @@
 
 astr aloV_pushfstring(astate, astr, ...);
 astr aloV_pushvfstring(astate, astr, va_list);
-astr aloV_pushescape(astate, const char*, size_t, astr, astr);
 void aloV_invoke(astate, int);
 int aloV_tointx(const atval_t*, aint*, int);
 int aloV_tofltx(const atval_t*, afloat*);

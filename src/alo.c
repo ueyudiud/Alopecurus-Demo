@@ -11,23 +11,28 @@
 
 #include <stdio.h>
 
+void alo_assert(astr msg, astr file, int line) {
+	fprintf(stderr, "%s:%d %s", file, line, msg);
+}
+
 static char buf[256];
 
 static int readf(astate T, void* context, const char** ps, size_t* pl) {
-	*pl = fread(buf, sizeof(char), 256, (FILE*) context);
+	if (feof((FILE*) context)) {
+		*pl = 0;
+		return 0;
+	}
+	*pl = fread(buf, 1, sizeof(buf), (FILE*) context);
 	*ps = buf;
 	return ferror((FILE*) context);
 }
 
 static int run(astate T) {
-	puts("load libraries");
 	aloL_openlibs(T);
 	alo_bind(T, "run", run); /* put main function name */
-	puts("open file");
 	astr src = alo_tostring(T, 0);
-	FILE* file = fopen(src, "r");
+	FILE* file = stdin;
 	if (file) {
-		puts("compile script");
 		if (alo_compile(T, "run", src, readf, file) != ThreadStateRun) {
 			aloL_error(T, 2, alo_tostring(T, -1));
 		}
@@ -43,6 +48,7 @@ static int run(astate T) {
 }
 
 int main(int argc, const char* argv[]) {
+	setvbuf(stdout, NULL, _IONBF, 0);
 	astate T = aloL_newstate();
 	alo_pushlightcfunction(T, run);
 	alo_pushstring(T, argv[1]);

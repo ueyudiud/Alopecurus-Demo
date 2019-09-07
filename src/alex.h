@@ -1,6 +1,8 @@
 /*
  * alex.h
  *
+ * lexical analyzer.
+ *
  *  Created on: 2019年8月14日
  *      Author: ueyudiud
  */
@@ -51,12 +53,14 @@ astring_t* aloX_getstr(alexer_t*, const char*, size_t);
 int aloX_poll(alexer_t*);
 int aloX_forward(alexer_t*);
 
+/* extra token data */
 union alo_TokenData {
 	aint i;
 	afloat f;
 	astring_t* s;
 };
 
+/* token */
 struct alo_Token {
 	union alo_TokenData d;
 	int t;
@@ -64,8 +68,8 @@ struct alo_Token {
 
 struct alo_Lexer {
 	astate T;
-	astring_t* src;
-	aibuf_t* in;
+	astring_t* src; /* source name */
+	aibuf_t* in; /* input buffer */
 	asbuf_t buf;
 	alist_t* ss; /* used string */
 	int ch; /* current character */

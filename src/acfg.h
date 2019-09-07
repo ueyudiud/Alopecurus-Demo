@@ -13,8 +13,7 @@
 #define ALO_INT_FORMAT "%"PRId64
 #define ALO_FLT_FORMAT "%.8g"
 
-#define ALO_ASSERT(exp,what) ((void) 0)
-
 #define ALO_HARDMEMTEST
+#define ALO_DEBUG
 
 #endif /* ACFG_H_ */

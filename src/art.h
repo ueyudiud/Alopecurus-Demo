@@ -13,6 +13,15 @@
 #include "acfg.h"
 #include "adef.h"
 
+#ifndef ALO_ASSERT
+#if !defined(ALO_DEBUG)
+#define ALO_ASSERT(exp,what) ((void) 0)
+#else
+extern void alo_assert(astr, astr, int);
+#define ALO_ASSERT(exp,what) aloE_void(!!(exp) || (alo_assert(what, __FILE__, __LINE__), 0))
+#endif
+#endif
+
 #include <limits.h>
 #include <setjmp.h>
 

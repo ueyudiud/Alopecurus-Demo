@@ -1,6 +1,8 @@
 /*
  * alo.h
  *
+ * basic API.
+ *
  *  Created on: 2019年7月20日
  *      Author: ueyudiud
  */

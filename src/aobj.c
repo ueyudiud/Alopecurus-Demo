@@ -105,6 +105,18 @@ int aloO_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg
 			write_checked(T, writer, context, s, strlen(s));
 			break;
 		}
+		case 'q': { /* a char sequence */
+			const char* s = va_arg(varg, astr);
+			size_t l = va_arg(varg, size_t);
+			write_checked(T, writer, context, s, l);
+			break;
+		}
+		case '"': { /* a escaped string */
+			const char* s = va_arg(varg, astr);
+			size_t l = va_arg(varg, size_t);
+			aloO_escape(T, writer, context, s, l);
+			break;
+		}
 		case 'c': { /* a character in integer */
 			char ch = aloE_cast(char, va_arg(varg, int));
 			write_checked(T, writer, context, &ch, 1);

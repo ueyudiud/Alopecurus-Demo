@@ -17,6 +17,9 @@
 #define l_lockstream(f) aloE_void(0)
 #define l_unlockstream(f) aloE_void(0)
 
+/**
+ ** input stream type.
+ */
 typedef FILE *fstream;
 
 typedef struct {

@@ -116,7 +116,7 @@ astr aloX_token2str(alexer_t* lex, atoken_t* token) {
 	case TK_FLOAT:
 		return aloV_pushfstring(lex->T, "%f", token->d.f);
 	case TK_STRING:
-		return aloV_pushescape(lex->T, token->d.s->array, aloS_len(token->d.s), "\"", "\"");
+		return aloV_pushfstring(lex->T, "\"%\"\"", token->d.s->array, aloS_len(token->d.s));
 	case TK_IDENT:
 		return token->d.s->array;
 	default:

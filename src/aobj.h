@@ -253,7 +253,7 @@ typedef struct alo_RawData {
  ** tuple value.
  */
 typedef struct alo_Tuple {
-	RefHeader(abyte length);
+	RefHeader(uint16_t length);
 	atval_t array[];
 } atuple_t;
 

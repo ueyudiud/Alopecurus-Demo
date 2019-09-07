@@ -34,6 +34,7 @@ extern "C" {
 #include "ado.h"
 #include "alex.h"
 #include "aparse.h"
+#include "aload.h"
 #include "alo.h"
 #include "aaux.h"
 #include "alibs.h"

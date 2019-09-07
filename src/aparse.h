@@ -1,6 +1,8 @@
 /*
  * aparse.h
  *
+ * script parsing.
+ *
  *  Created on: 2019年7月30日
  *      Author: ueyudiud
  */
