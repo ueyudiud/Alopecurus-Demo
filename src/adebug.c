@@ -15,6 +15,7 @@
 #include "alo.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 #define WRITE_ERROR_LEVEL 3
@@ -22,6 +23,10 @@
 #define NATIVE_SOURCE "<native>"
 
 #define fnname(frame) ((frame)->name ?: "<unknown>")
+
+void alo_assert(astr msg, astr file, int line) {
+	fprintf(stderr, "%s:%d %s", file, line, msg);
+}
 
 void aloU_init(astate T) {
 	Gd(T);

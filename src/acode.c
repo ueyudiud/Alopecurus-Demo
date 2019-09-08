@@ -458,15 +458,23 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 }
 
 /**
+ ** get registry slot
+ */
+void aloK_fromreg(afstat_t* f, aestat_t* o, astring_t* k) {
+	o->t = E_INDEXED;
+	o->v.d.fo = false;
+	o->v.d.o = aloK_registry;
+	o->v.d.fk = true;
+	o->v.d.k = aloK_kstr(f, k);
+}
+
+/**
  ** get field in local scope.
  */
 void aloK_field(afstat_t* f, aestat_t* o, astring_t* k) {
 	o->lf = o->lt = NO_JUMP;
 	if (!getvaraux(f->l->T, f, o, k, true)) {
-		o->t = E_INDEXED;
-		o->v.d.o = aloK_registry;
-		o->v.d.fk = true;
-		o->v.d.k = aloK_kstr(f, k);
+		aloK_fromreg(f, o, k);
 	}
 }
 
@@ -511,6 +519,12 @@ size_t aloK_loadnil(afstat_t* f, int first, int len) {
 	}
 	/* direct load */
 	return aloK_iABC(f, OP_LDN, false, false, false, first, len, 0);
+}
+
+void aloK_loadproto(afstat_t* f, aestat_t* e) {
+	e->t = E_ALLOC;
+	e->lf = e->lt = NO_JUMP;
+	e->v.g = aloK_iABx(f, OP_LDP, false, true, 0, f->nchild - 1);
 }
 
 /**
@@ -692,7 +706,6 @@ void aloK_move(afstat_t* f, aestat_t* e, int reg) {
 
 void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
 	int index;
-	freeexp(f, v);
 	switch (r->t) {
 	case E_LOCAL: {
 		index = aloK_setstack(r->v.g);
@@ -711,7 +724,7 @@ void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
 		typeof(r->v.d) d = r->v.d;
 		aloK_anyR(f, v);
 		aloK_iABC(f, OP_SET, d.fo, d.fk, v->t == E_CONST, d.o, d.k, v->v.g);
-		r->t = E_FIXED;
+		r->t = E_VOID;
 		break;
 	}
 	default: {
@@ -719,6 +732,7 @@ void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
 		break;
 	}
 	}
+	freeexp(f, v);
 }
 
 /**==============================================================*

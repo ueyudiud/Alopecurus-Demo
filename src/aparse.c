@@ -1129,6 +1129,30 @@ static void normstat(alexer_t* lex) {
 	}
 }
 
+static void defstat(alexer_t* lex) {
+	/* defstat -> 'def' IDENT { '(' funcarg ')' } '->' istat */
+	afstat_t* f = lex->f;
+	astring_t* name = check_name(lex);
+	afstat_t f2;
+	ablock_t b;
+	enterfunc(&f2, f, &b);
+	f2.p->name = name; /* bind function name */
+	if (check(lex, '(')) {
+		int line = lex->cl;
+		poll(lex);
+		funcarg(lex);
+		testenclose(lex, '(', ')', line);
+	}
+	testnext(lex, TK_RARR);
+	istat(lex);
+	leavefunc(&f2);
+	aestat_t e1, e2;
+	aloK_loadproto(f, &e1);
+	aloK_fromreg(f, &e2, name);
+	aloK_assign(f, &e2, &e1);
+	aloK_drop(f, &e2);
+}
+
 static void localstat(alexer_t* lex) {
 	afstat_t* f = lex->f;
 	astring_t* name = check_name(lex);
@@ -1148,9 +1172,10 @@ static void localstat(alexer_t* lex) {
 		testnext(lex, TK_RARR);
 		istat(lex);
 		leavefunc(&f2);
-		aloK_iABx(f, OP_LDP, false, true, index, f->nchild - 1);
 		aloE_assert(f->freelocal == index, "illegal local variable index");
-		f->freelocal += 1;
+		aestat_t e;
+		aloK_loadproto(f, &e);
+		aloK_anyR(f, &e);
 	}
 	else {
 		/* localstat -> 'local' IDENT [ ',' IDENT ] { '=' varexpr } */
@@ -1206,6 +1231,11 @@ static int stat(alexer_t* lex, int assign) {
 		}
 		poll(lex);
 		localstat(lex);
+		return false;
+	}
+	case TK_DEF: { /* stat -> defstat */
+		poll(lex);
+		defstat(lex);
 		return false;
 	}
 	case TK_RETURN: { /* stat -> retstat */

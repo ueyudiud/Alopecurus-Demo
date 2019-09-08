@@ -72,6 +72,7 @@ void aloK_evalk(afstat_t*, aestat_t*);
 void aloK_anyR(afstat_t*, aestat_t*);
 int aloK_nextreg(afstat_t*, aestat_t*);
 void aloK_member(afstat_t*, aestat_t*, aestat_t*);
+void aloK_fromreg(afstat_t*, aestat_t*, astring_t*);
 void aloK_field(afstat_t*, aestat_t*, astring_t*);
 void aloK_drop(afstat_t*, aestat_t*);
 
@@ -80,6 +81,7 @@ void aloK_drop(afstat_t*, aestat_t*);
  */
 
 size_t aloK_loadnil(afstat_t*, int, int);
+void aloK_loadproto(afstat_t*, aestat_t*);
 void aloK_return(afstat_t*, int, int);
 int aloK_putreg(afstat_t*, aestat_t*);
 void aloK_singleret(afstat_t*, aestat_t*);
