@@ -142,7 +142,9 @@ struct alo_FuncState {
 	size_t nconst;
 	size_t nchild;
 	size_t firstlocal; /* first local variable offset */
+	size_t nline; /* number of line number */
 	int cjump; /* current label for jump */
+	int lastline; /* line number for last instruction */
 	uint16_t ncap;
 	uint16_t layer; /* layer of nested function depth */
 	uint16_t freelocal; /* first free local variable */

@@ -45,6 +45,7 @@ size_t aloK_insn(afstat_t* f, ainsn_t insn) {
 	aloM_chkb(f->l->T, f->p->code, f->p->ncode, f->ncode, ALO_MAX_BUFSIZE);
 	size_t pc = f->ncode++;
 	f->p->code[pc] = insn;
+	aloK_fixline(f, f->l->pl);
 	return pc;
 }
 
@@ -215,6 +216,27 @@ int aloK_jumpforward(afstat_t* f, int index) {
 void aloK_jumpbackward(afstat_t* f, int index) {
 	alabel* label = f->d->lb.a + index;
 	aloK_iAsBx(f, OP_JMP, label->nactvar != f->nactvar, false, f->nactvar, getoffset(label->pc, f->ncode));
+}
+
+void aloK_fixline(afstat_t* f, int line) {
+	if (f->lastline != line) {
+		alineinfo_t* infos = f->p->lineinfo;
+		if (f->nline > 0 && infos[f->nline - 1].begin == f->ncode - 1) { /* is line begin here */
+			if (f->nline == 1 || infos[f->nline - 2].line != line) { /* not fit to previous line */
+				infos[f->nline - 1].line = line;
+			}
+			else {
+				f->nline -= 1; /* drop previous line information */
+			}
+		}
+		else {
+			aloM_chkb(f->l->T, f->p->lineinfo, f->p->nlineinfo, f->nline, ALO_MAX_BUFSIZE);
+			alineinfo_t* info = f->p->lineinfo + f->nline++;
+			info->begin = f->ncode - 1;
+			info->line = line; /* settle line number */
+		}
+		f->lastline = line;
+	}
 }
 
 static void freereg(afstat_t* f, int index) {
@@ -882,7 +904,7 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 		aloK_gwf(f, e);
 		break;
 	case OPR_ADD ... OPR_BXOR:
-		aloK_anyRK(f, e);
+		aloK_eval(f, e);
 		break;
 	}
 }
@@ -892,7 +914,7 @@ static int cmpjmp(afstat_t* f, aestat_t* l, aestat_t* r, int op, int cond) {
 	return putjump(f, l->lf, OP_JMP, false, false, 0);
 }
 
-void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op) {
+void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 	switch (op) {
 	case OPR_AND:
 		aloE_assert(l->lt == NO_JUMP, "illegal jump label");
@@ -916,6 +938,7 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op) {
 		freeexp(f, l);
 		l->v.g = aloK_iABC(f, op + OP_ADD - OPR_ADD, false, l->t == E_CONST, r->t == E_CONST, 0, l->v.g, r->v.g);
 		l->t = E_ALLOC;
+		aloK_fixline(f, line);
 		break;
 	case OPR_EQ: case OPR_LT: case OPR_LE:
 		if (foldcompare(f, l, r, op + ALO_OPEQ - OPR_EQ)) {
@@ -927,6 +950,7 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op) {
 		freeexp(f, l);
 		l->v.g = cmpjmp(f, l, r, op + OP_EQ - OPR_EQ, true);
 		l->t = E_JMP;
+		aloK_fixline(f, line);
 		break;
 	case OPR_NE: case OPR_GT: case OPR_GE:
 		if (foldcompare(f, l, r, op + ALO_OPEQ - OPR_NE)) {
@@ -939,6 +963,7 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op) {
 		freeexp(f, l);
 		l->v.g = cmpjmp(f, r, l, op + OP_EQ - OPR_NE, true);
 		l->t = E_JMP;
+		aloK_fixline(f, line);
 		break;
 	}
 }

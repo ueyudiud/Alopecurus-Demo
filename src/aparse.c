@@ -175,6 +175,7 @@ static aproto_t* newproto(afstat_t* f) {
 static void initproto(astate T, afstat_t* f) {
 	aproto_t* p = f->p;
 	p->src = f->l->src;
+	p->linefdef = f->l->cl;
 	/* built-in constants */
 	aloM_newb(T, p->consts, p->nconst, 64);
 	p->consts[0] = tnewbool(false);
@@ -184,11 +185,13 @@ static void initproto(astate T, afstat_t* f) {
 
 static void closeproto(astate T, afstat_t* f) {
 	aproto_t* p = f->p;
+	p->lineldef = f->l->pl;
 	aloM_adjb(T, p->code, p->ncode, f->ncode);
 	aloM_adjb(T, p->consts, p->nconst, f->nconst);
 	aloM_adjb(T, p->captures, p->ncap, f->ncap);
 	aloM_adjb(T, p->locvars, p->nlocvar, f->nlocvar);
 	aloM_adjb(T, p->children, p->nchild, f->nchild);
+	aloM_adjb(T, p->lineinfo, p->nlineinfo, f->nline);
 }
 
 static void enterblock(afstat_t* f, ablock_t* b, int isloop) {
@@ -478,11 +481,12 @@ static int subexpr(alexer_t* lex, aestat_t* e, int limit) {
 	monexpr(lex, e);
 	int op = getbinop(lex->ct.t);
 	while (op != OPR_NONE && priorities[op].l > limit) {
+		int line = lex->cl;
 		poll(lex);
 		aloK_infix(lex->f, e, op);
 		aestat_t e2;
 		int op2 = subexpr(lex, &e2, priorities[op].r);
-		aloK_suffix(lex->f, e, &e2, op);
+		aloK_suffix(lex->f, e, &e2, op, line);
 		op = op2;
 	}
 	return op;
@@ -712,7 +716,7 @@ static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
 		initexp(e, E_LOCAL);
 		e->v.g = v->src;
 		e->lf = *fail;
-		aloK_suffix(f, e, &v->expr, OPR_EQ);
+		aloK_suffix(f, e, &v->expr, OPR_EQ, f->l->cl);
 		aloK_gwt(f, e);
 		*fail = e->lf;
 		break;
@@ -811,7 +815,7 @@ static int caseassign(alexer_t* lex, int i) {
 		switch (v->type) {
 		case CV_MATCH:
 			e.lf = fail;
-			aloK_suffix(f, &e, &v->expr, OPR_EQ);
+			aloK_suffix(f, &e, &v->expr, OPR_EQ, lex->cl);
 			aloK_gwt(f, &e);
 			fail = e.lf;
 			break;
@@ -875,7 +879,7 @@ static void partialfun(alexer_t* lex) {
 		e2.v.g = f->d->cv.l;
 		/* check length fitness */
 		aloK_prefix(f, &e1, OPR_LEN);
-		aloK_suffix(f, &e1, &e2, OPR_EQ);
+		aloK_suffix(f, &e1, &e2, OPR_EQ, lex->cl);
 		e1.lf = fail;
 		aloK_gwt(f, &e1);
 		fail = e1.lf;
@@ -888,7 +892,7 @@ static void partialfun(alexer_t* lex) {
 			e1.v.g = aloK_iABC(f, OP_SELV, false, 2, false, 0, j, 0);
 			switch (v->type) {
 			case CV_MATCH:
-				aloK_suffix(f, &e1, &v->expr, OPR_EQ);
+				aloK_suffix(f, &e1, &v->expr, OPR_EQ, lex->cl);
 				e1.lf = fail;
 				aloK_gwt(f, &e1);
 				fail = e1.lf;
@@ -1047,6 +1051,7 @@ static void whilestat(alexer_t* lex) {
 	testenclose(lex, '(', ')', line);
 	stat(lex, false); /* THEN block */
 	aloK_jumpbackward(lex->f, b.labelc);
+	aloK_fixline(lex->f, line); /* fix line to conditional check */
 	leaveblock(lex->f);
 	aloK_putlabel(lex->f, e.lf);
 	if (checknext(lex, TK_ELSE)) {
@@ -1132,6 +1137,7 @@ static void normstat(alexer_t* lex) {
 static void defstat(alexer_t* lex) {
 	/* defstat -> 'def' IDENT { '(' funcarg ')' } '->' istat */
 	afstat_t* f = lex->f;
+	int line = lex->cl;
 	astring_t* name = check_name(lex);
 	afstat_t f2;
 	ablock_t b;
@@ -1148,13 +1154,16 @@ static void defstat(alexer_t* lex) {
 	leavefunc(&f2);
 	aestat_t e1, e2;
 	aloK_loadproto(f, &e1);
+	aloK_fixline(lex->f, line); /* fix line to function */
 	aloK_fromreg(f, &e2, name);
 	aloK_assign(f, &e2, &e1);
+	aloK_fixline(lex->f, line); /* fix line to function */
 	aloK_drop(f, &e2);
 }
 
 static void localstat(alexer_t* lex) {
 	afstat_t* f = lex->f;
+	int line = lex->cl;
 	astring_t* name = check_name(lex);
 	if (check(lex, '(') || check(lex, TK_RARR)) {
 		/* localstat -> 'local' IDENT { '(' funcarg ')' } '->' istat */
@@ -1175,6 +1184,7 @@ static void localstat(alexer_t* lex) {
 		aloE_assert(f->freelocal == index, "illegal local variable index");
 		aestat_t e;
 		aloK_loadproto(f, &e);
+		aloK_fixline(lex->f, line); /* fix line to conditional check */
 		aloK_anyR(f, &e);
 	}
 	else {

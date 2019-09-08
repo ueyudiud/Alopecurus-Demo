@@ -78,7 +78,13 @@ static void dump(astate T, aproto_t* p) {
 			p->name->array, p->src->array, p->linefdef, p->lineldef, p->ncode, p);
 	printf("%d%s params, %d stack, %d captures, %d local, %"PRId64" constants, %"PRId64" functions\n",
 			p->nargs, p->fvararg ? "+" : "", p->nstack, p->ncap, p->nlocvar, p->nconst, p->nchild);
+	alineinfo_t* info = p->lineinfo;
+	int m = -1;
 	for (int i = 0; i < p->ncode; ++i) {
+		if (m + 1 < p->nlineinfo && i >= info->begin) {
+			printf("l%d:\n", (info++)->line);
+			m++;
+		}
 		ainsn_t code = p->code[i];
 		int insn = GET_i(code);
 		printf("\t%-5d %5s ", i + 1, aloK_opname[insn]);
@@ -187,7 +193,7 @@ static void dump(astate T, aproto_t* p) {
 }
 
 static int tmain(astate T) {
-	struct lstr a = lstr_c("def f(x) -> x; println(f(2))");
+	struct lstr a = lstr_c("println(1 \n + \n 3)");
 	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
 		dump(T, tgetclo(T->top - 1)->a.proto);
 //		alo_call(T, 0, 0);
