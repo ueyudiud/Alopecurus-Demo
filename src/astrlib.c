@@ -17,7 +17,7 @@
 
 /**
  ** reverse string.
- ** prototype: stdstr.reverse(string)
+ ** prototype: string.reverse(string)
  */
 int str_reverse(astate T) {
 	size_t len;

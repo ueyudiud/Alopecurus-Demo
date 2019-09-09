@@ -18,8 +18,9 @@ const amodinfo_t stdmods[] = {
 	{ "@", aloopen_clslib },
 	{ "math", aloopen_mathlib },
 	{ "io", aloopen_iolib },
-	{ "stdstr", aloopen_strlib },
-	{ "stdlist", aloopen_lislib },
+	{ "string", aloopen_strlib },
+	{ "list", aloopen_lislib },
+	{ "table", aloopen_tablib },
 	{ "vec", aloopen_veclib },
 	{ NULL, NULL }
 };

@@ -70,8 +70,7 @@ static int list_filter(astate T) {
 	return 1;
 }
 
-static int list_mkstr(astate T) {
-	ambuf_t buf;
+static void l_mkstr_checkarg(astate T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	switch (alo_gettop(T)) {
 	case 1:
@@ -94,6 +93,11 @@ static int list_mkstr(astate T) {
 		break;
 	}
 	alo_getreg(T, "tostring");
+}
+
+static int list_mkstr(astate T) {
+	ambuf_t buf;
+	l_mkstr_checkarg(T);
 	aloL_bempty(T, &buf);
 	size_t n = alo_rawlen(T, 0);
 	aloL_bwrite(&buf, 2);
