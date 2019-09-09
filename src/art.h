@@ -23,6 +23,7 @@ extern void alo_assert(astr, astr, int);
 #endif
 
 #include <limits.h>
+#include <error.h>
 #include <setjmp.h>
 #include <sys/types.h>
 
