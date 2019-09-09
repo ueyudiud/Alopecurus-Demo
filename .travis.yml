@@ -1,5 +1,6 @@
-install: make get-deps
+language: C
 compiler: 
     - gcc
+install: make get-deps
 script:
     - make -C ./src all
