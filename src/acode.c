@@ -252,6 +252,13 @@ static void freeexp(afstat_t* f, aestat_t* e) {
 	}
 }
 
+static void fixR(afstat_t*, aestat_t*, int);
+
+static void newR(afstat_t* f, aestat_t* e) {
+	aloK_checkstack(f, 1);
+	fixR(f, e, f->freelocal++);
+}
+
 #define move(f,a,xb,b) aloK_iABC(f, OP_MOV, false, xb, false, a, b, 0)
 
 void aloK_eval(afstat_t* f, aestat_t* e) {
@@ -386,11 +393,6 @@ static void fixR(afstat_t* f, aestat_t* e, int reg) {
 	e->lf = e->lt = NO_JUMP;
 	e->v.g = reg;
 	e->t = E_FIXED;
-}
-
-static void newR(afstat_t* f, aestat_t* e) {
-	aloK_checkstack(f, 1);
-	fixR(f, e, f->freelocal++);
 }
 
 /**
@@ -656,6 +658,21 @@ void aloK_boxt(afstat_t* f, aestat_t* e, int narg) {
 	}
 	e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, e->v.g - narg + 1, narg);
 	e->t = E_ALLOC;
+}
+
+void aloK_newcol(afstat_t* f, aestat_t* e, int op, size_t narg) {
+	aloE_assert(op == OP_NEWL || op == OP_NEWM, "invalid new collection operation");
+	e->v.g = aloK_iABx(f, op, 0, 0, 0, narg);
+	e->t = E_ALLOC;
+	e->lf = e->lt = NO_JUMP;
+}
+
+void aloK_rawset(afstat_t* f, int index, aestat_t* k, aestat_t* v) {
+	aloK_anyRK(f, k);
+	aloK_anyRK(f, v);
+	aloK_iABC(f, OP_SET, false, k->t == E_CONST, v->t == E_CONST, index, k->v.g, v->v.g);
+	freeexp(f, v);
+	freeexp(f, k);
 }
 
 static void flipcond(afstat_t* f, int index) {

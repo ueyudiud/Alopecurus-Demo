@@ -145,6 +145,10 @@ static void dump(astate T, aproto_t* p) {
 			prtrk(T, p, GET_B(code), GET_xB(code));
 			printf(" %d", GET_C(code));
 			break;
+		case OP_NEWL: case OP_NEWM:
+			prtreg(T, p, GET_A(code));
+			printf(" %d", GET_Bx(code));
+			break;
 		case OP_UNBOX:
 			prtreg(T, p, GET_A(code));
 			putchar(' ');
@@ -193,7 +197,7 @@ static void dump(astate T, aproto_t* p) {
 }
 
 static int tmain(astate T) {
-	struct lstr a = lstr_c("println(a[2] + b)");
+	struct lstr a = lstr_c("println(['a': 2, 'b': 3])");
 	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
 		dump(T, tgetclo(T->top - 1)->a.proto);
 //		alo_call(T, 0, 0);

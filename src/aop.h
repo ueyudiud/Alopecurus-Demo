@@ -60,6 +60,7 @@
 #define SET_A(s,x)  SetVal(s, _A, x)
 #define SET_B(s,x)  SetVal(s, _B, x)
 #define SET_C(s,x)  SetVal(s, _C, x)
+#define SET_Bx(s,x)  SetVal(s, _Bx, x)
 #define SET_sBx(s,x)  SetVal(s, _Bx, aloE_cast(uint32_t, x))
 
 #define MASK_i(x)		(MaskVal(_i, x))

@@ -270,8 +270,57 @@ static int varexpr(alexer_t* lex, aestat_t* e) {
 	return n;
 }
 
+static void primaryexpr(alexer_t*, aestat_t*);
+
+static void colargs(alexer_t* lex, aestat_t* e) {
+	afstat_t* f = lex->f;
+	int line = lex->cl;
+	poll(lex);
+	if (checknext(lex, ':')) { /* colargs -> ':' */
+		aloK_newcol(f, e, OP_NEWM, 0);
+	}
+	else {
+		aloK_newcol(f, e, OP_NEWL, 0);
+		if (!check(lex, ']')) {
+			int narg = 1;
+			size_t i = e->v.g;
+			aloK_anyR(f, e);
+			size_t t = e->v.g;
+			aestat_t e2, e3;
+			expr(lex, &e2);
+			if (checknext(lex, ':')) { /* colargs -> expr ':' expr { [','|';'] expr ':' expr } */
+				SET_i(f->p->code[i], OP_NEWM); /* set to table */
+				aloK_anyRK(f, &e2);
+				expr(lex, &e3);
+				aloK_rawset(f, t, &e2, &e3);
+				while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex)) {
+					expr(lex, &e2);
+					aloK_anyRK(f, &e2);
+					testnext(lex, ':');
+					expr(lex, &e3);
+					aloK_rawset(f, t, &e2, &e3);
+					narg++;
+				}
+			}
+			else { /* colargs -> expr { [','|';'] expr } */
+				initexp(&e3, E_INTEGER);
+				e3.v.i = narg - 1;
+				aloK_rawset(f, t, &e3, &e2);
+				while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex)) {
+					initexp(&e2, E_INTEGER);
+					e2.v.i = narg++;
+					expr(lex, &e3);
+					aloK_rawset(f, t, &e2, &e3);
+				}
+			}
+			SET_Bx(f->p->code[i], narg); /* set collection size */
+		}
+	}
+	testenclose(lex, '[', ']', line);
+}
+
 static void primaryexpr(alexer_t* lex, aestat_t* e) {
-	/* primaryexpr -> IDENT | LITERAL | '(' [varexpr] ')' */
+	/* primaryexpr -> IDENT | LITERAL | '(' [varexpr] ')' | '[' colargs ']' ']' */
 	switch (lex->ct.t) {
 	case TK_IDENT: {
 		aloK_field(lex->f, e, check_name(lex));
@@ -291,6 +340,10 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 			}
 			testenclose(lex, '(', ')', line);
 		}
+		break;
+	}
+	case '[': {
+		colargs(lex, e);
 		break;
 	}
 	case TK_NIL: {
@@ -404,7 +457,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 }
 
 static void suffixexpr(alexer_t* lex, aestat_t* e) {
-	/* suffixexpr -> primaryexpr { '.' ['?'] IDENT | '[' ['?'] expr ']' | '...' | '->' IDENT [ funargs ] | funargs } */
+	/* suffixexpr -> primaryexpr {suffix} */
 	primaryexpr(lex, e);
 	aestat_t e2;
 	afstat_t* f = lex->f;
@@ -412,14 +465,14 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 	int line;
 	while (true) {
 		switch (lex->ct.t) {
-		case '.': {
+		case '.': { /* suffix -> '.' ['?'] IDENT */
 			poll(lex); /* skip '.' */
 			initexp(&e2, E_STRING);
 			e2.v.s = check_name(lex);
 			aloK_member(f, e, &e2);
 			break;
 		}
-		case '[': {
+		case '[': { /* suffix -> '[' */
 			int line = lex->cl;
 			do {
 				poll(lex); /* skip '[' or ',' */
@@ -430,7 +483,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			testenclose(lex, '[', ']', line);
 			break;
 		}
-		case TK_RARR: {
+		case TK_RARR: { /* suffix -> '->' IDENT [funargs] */
 			line = lex->cl;
 			poll(lex); /* skip '->' */
 			aloK_self(f, e, check_name(lex));
@@ -444,7 +497,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			}
 			goto call;
 		}
-		case '(': case '{': case TK_STRING: case '\\': {
+		case '(': case '{': case TK_STRING: case '\\': { /* suffix -> '->' IDENT [funargs] */
 			line = lex->cl;
 			aloK_nextreg(f, e);
 			n = funargs(lex, &e2);
@@ -455,7 +508,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			aloK_fixline(f, line);
 			break;
 		}
-		case TK_TDOT: {
+		case TK_TDOT: { /* suffix -> '...' */
 			poll(lex);
 			aloK_unbox(f, e, ALO_MULTIRET);
 			break;
