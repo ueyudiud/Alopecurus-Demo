@@ -25,7 +25,7 @@
 
 #define ALO_API extern
 
-typedef ssize_t aindex_t;
+typedef ptrdiff_t aindex_t;
 
 #define ALO_GLOBAL_IDNEX (-ALO_MAXSTACKSIZE - 50000)
 #define ALO_REGISTRY_INDEX (-ALO_MAXSTACKSIZE - 100000)

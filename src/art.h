@@ -24,6 +24,7 @@ extern void alo_assert(astr, astr, int);
 
 #include <limits.h>
 #include <setjmp.h>
+#include <sys/types.h>
 
 typedef uint64_t ainsn_t;
 
