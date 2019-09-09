@@ -3,6 +3,7 @@
 CC= gcc
 CFLAGS= -O2 -Wall
 RM= del /f
+LIBS= -lm
 
 CORE_O= aop.o aobj.o astr.o atup.o alis.o atab.o afun.o astate.o \
 	amem.o agc.o abuf.o ameta.o adebug.o avm.o ado.o aeval.o achr.o \
@@ -23,7 +24,7 @@ o: $(ALL_O)
 a: $(ALL_A)
 
 $(ALO_T): $(ALO_O) $(LIB_O) $(CORE_O)
-	$(CC) $(CFLAGS) -o $(@) $(ALO_O) $(LIB_O) $(CORE_O)
+	$(CC) $(CFLAGS) -o $(@) $(ALO_O) $(LIB_O) $(CORE_O) $(LIBS)
 
 clean:
 	$(RM) $(ALL_O) $(ALL_T) $(ALL_A)
