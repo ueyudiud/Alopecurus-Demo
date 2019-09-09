@@ -2,4 +2,4 @@ install: make get-deps
 compiler: 
     - gcc
 script:
-    - make -C all
+    - make -C ./src all
