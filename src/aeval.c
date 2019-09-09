@@ -776,7 +776,7 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_PNM: case OP_UNM: case OP_BNOT: {
 			int op = insn - OP_PNM;
 			tb = X(B);
-			if (!(aloV_nunary[insn])(T, S(A), tb)) {
+			if (!(aloV_nunary[op])(T, S(A), tb)) {
 				if (!aloT_tryunr(T, tb, op + TM_PNM)) {
 					goto notfound;
 				}
