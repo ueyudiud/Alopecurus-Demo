@@ -864,7 +864,7 @@ static void codenot(afstat_t* f, aestat_t* e) {
 	{ int t = e->lf; e->lf = e->lt; e->lt = t; } /* swap label */
 }
 
-void aloK_prefix(afstat_t* f, aestat_t* e, int op) {
+void aloK_prefix(afstat_t* f, aestat_t* e, int op, int line) {
 	switch (op) {
 	case OPR_BNOT: case OPR_PNM: case OPR_UNM:
 		if (foldunary(f, e, op + ALO_OPPOS - OPR_PNM))
@@ -881,6 +881,7 @@ void aloK_prefix(afstat_t* f, aestat_t* e, int op) {
 		freeexp(f, e);
 		e->v.g = aloK_iABC(f, op + OP_PNM - OPR_PNM, false, e->t == E_CONST, false, 0, e->v.g, 0);
 		e->t = E_ALLOC;
+		aloK_fixline(f, line);
 		break;
 	case OPR_NOT:
 		codenot(f, e);
@@ -891,6 +892,7 @@ void aloK_prefix(afstat_t* f, aestat_t* e, int op) {
 		}
 		e->v.g = aloK_iABC(f, OP_REM, false, e->v.d.fo, e->v.d.fk, 0, e->v.d.o, e->v.d.k);
 		e->t = E_ALLOC;
+		aloK_fixline(f, line);
 		break;
 	}
 }

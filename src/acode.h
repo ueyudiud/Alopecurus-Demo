@@ -95,7 +95,7 @@ void aloK_gwt(afstat_t*, aestat_t*);
 void aloK_gwf(afstat_t*, aestat_t*);
 void aloK_move(afstat_t*, aestat_t*, int);
 void aloK_assign(afstat_t*, aestat_t*, aestat_t*);
-void aloK_prefix(afstat_t*, aestat_t*, int);
+void aloK_prefix(afstat_t*, aestat_t*, int, int);
 void aloK_infix(afstat_t*, aestat_t*, int);
 void aloK_suffix(afstat_t*, aestat_t*, aestat_t*, int, int);
 

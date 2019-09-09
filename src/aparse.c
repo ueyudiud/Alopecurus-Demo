@@ -409,6 +409,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 	aestat_t e2;
 	afstat_t* f = lex->f;
 	int n;
+	int line;
 	while (true) {
 		switch (lex->ct.t) {
 		case '.': {
@@ -430,6 +431,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			break;
 		}
 		case TK_RARR: {
+			line = lex->cl;
 			poll(lex); /* skip '->' */
 			aloK_self(f, e, check_name(lex));
 			switch (lex->ct.t) {
@@ -443,12 +445,14 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			goto call;
 		}
 		case '(': case '{': case TK_STRING: case '\\': {
+			line = lex->cl;
 			aloK_nextreg(f, e);
 			n = funargs(lex, &e2);
 			call:
 			f->freelocal = e->v.g + 1; /* remove all arguments and only remain one result */
 			e->v.g = aloK_iABC(f, OP_CALL, false, false, false, e->v.g, n + 1, 0);
 			e->t = E_CALL;
+			aloK_fixline(f, line);
 			break;
 		}
 		case TK_TDOT: {
@@ -466,9 +470,10 @@ static void monexpr(alexer_t* lex, aestat_t* e) {
 	/* monexpr -> unrop monexpr | suffixexpr */
 	int op = getunrop(lex->ct.t);
 	if (op != OPR_NONE) {
+		int line = lex->cl;
 		poll(lex); /* skip operator */
 		monexpr(lex, e);
-		aloK_prefix(lex->f, e, op);
+		aloK_prefix(lex->f, e, op, line);
 	}
 	else {
 		suffixexpr(lex, e);
@@ -878,7 +883,7 @@ static void partialfun(alexer_t* lex) {
 		initexp(&e2, E_INTEGER);
 		e2.v.g = f->d->cv.l;
 		/* check length fitness */
-		aloK_prefix(f, &e1, OPR_LEN);
+		aloK_prefix(f, &e1, OPR_LEN, lex->cl);
 		aloK_suffix(f, &e1, &e2, OPR_EQ, lex->cl);
 		e1.lf = fail;
 		aloK_gwt(f, &e1);
@@ -973,6 +978,7 @@ static void istat(alexer_t* lex) {
 
 static void retstat(alexer_t* lex) {
 	/* retstat -> 'return' (varexpr | '!') [';'] */
+	int line = lex->pl;
 	int first, nret;
 	if (isending(lex) || check(lex, ';')) {
 		first = nret = 0;
@@ -1001,6 +1007,7 @@ static void retstat(alexer_t* lex) {
 		}
 	}
 	aloK_return(lex->f, first, nret);
+	aloK_fixline(lex->f, line);
 	checknext(lex, ';');
 }
 

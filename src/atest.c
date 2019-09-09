@@ -193,7 +193,7 @@ static void dump(astate T, aproto_t* p) {
 }
 
 static int tmain(astate T) {
-	struct lstr a = lstr_c("println(1 \n + \n 3)");
+	struct lstr a = lstr_c("println(a[2] + b)");
 	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
 		dump(T, tgetclo(T->top - 1)->a.proto);
 //		alo_call(T, 0, 0);
