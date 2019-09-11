@@ -26,6 +26,7 @@
 #define poll aloX_poll
 #define foward aloX_forward
 #define lerror aloX_error
+#define literal(l,s) aloX_getstr(l, ""s, (sizeof(s) / sizeof(char)) - 1)
 #define checklimit(l,n,lim,msg) if ((n) > (lim)) lerror(l, msg)
 
 struct alo_Block {
@@ -272,6 +273,15 @@ static int varexpr(alexer_t* lex, aestat_t* e) {
 
 static void primaryexpr(alexer_t*, aestat_t*);
 
+static int funargs(alexer_t*, aestat_t*);
+
+static void memberof(alexer_t* lex, aestat_t* e, astring_t* s) {
+	aestat_t e2;
+	initexp(&e2, E_STRING);
+	e2.v.s = s;
+	aloK_member(lex->f, e, &e2);
+}
+
 static void colargs(alexer_t* lex, aestat_t* e) {
 	afstat_t* f = lex->f;
 	int line = lex->cl;
@@ -320,13 +330,49 @@ static void colargs(alexer_t* lex, aestat_t* e) {
 }
 
 static void primaryexpr(alexer_t* lex, aestat_t* e) {
-	/* primaryexpr -> IDENT | LITERAL | '(' [varexpr] ')' | '[' colargs ']' ']' */
+	afstat_t* f = lex->f;
 	switch (lex->ct.t) {
-	case TK_IDENT: {
-		aloK_field(lex->f, e, check_name(lex));
+	case TK_IDENT: { /* primaryexpr -> IDENT */
+		aloK_field(f, e, check_name(lex));
 		break;
 	}
-	case '(': {
+	case '@': { /* primaryexpr -> '@' [IDENT] */
+		aloK_fromreg(f, e, literal(lex, "@"));
+		if (poll(lex) == TK_IDENT) {
+			memberof(lex, e, check_name(lex));
+		}
+		break;
+	}
+	case TK_THIS: { /* primaryexpr -> 'this' */
+		aloK_fromreg(f, e, lex->T->g->stagnames[TM_THIS]);
+		break;
+	}
+	case TK_NEW: { /* primaryexpr -> 'new' ['@'] IDENT funargs */
+		int line = lex->cl;
+		aestat_t e2;
+		int prev = f->freelocal;
+		aloK_newcol(f, &e2, OP_NEWM, 0);
+		aloK_nextreg(f, &e2);
+		poll(lex);
+		if (checknext(lex, '@')) {
+			aloK_fromreg(f, e, literal(lex, "@"));
+			memberof(lex, e, check_name(lex));
+		}
+		else {
+			aloK_field(f, e, check_name(lex));
+		}
+		memberof(lex, e, lex->T->g->stagnames[TM_NEW]);
+		aloK_nextreg(f, e);
+		aloK_move(f, &e2, f->freelocal++);
+		int n = funargs(lex, &e2);
+		f->freelocal = prev + 1; /* remove all arguments and only remain one result */
+		aloK_iABC(f, OP_CALL, false, false, false, e2.v.g, n != ALO_MULTIRET ? n + 3 : 0, 1);
+		e->t = E_LOCAL;
+		e->v.g = prev;
+		aloK_fixline(f, line);
+		break;
+	}
+	case '(': { /* primaryexpr -> '(' [varexpr] ')' */
 		int line = lex->cl;
 		poll(lex);
 		if (checknext(lex, ')')) { /* enclosed directly? */
@@ -342,38 +388,38 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		}
 		break;
 	}
-	case '[': {
+	case '[': { /* primaryexpr -> '[' colargs ']' */
 		colargs(lex, e);
 		break;
 	}
-	case TK_NIL: {
+	case TK_NIL: { /* primaryexpr -> NIL */
 		initexp(e, E_NIL);
 		poll(lex);
 		break;
 	}
-	case TK_FALSE: {
+	case TK_FALSE: { /* primaryexpr -> FALSE */
 		initexp(e, E_FALSE);
 		poll(lex);
 		break;
 	}
-	case TK_TRUE: {
+	case TK_TRUE: { /* primaryexpr -> TRUE */
 		initexp(e, E_TRUE);
 		poll(lex);
 		break;
 	}
-	case TK_INTEGER: {
+	case TK_INTEGER: { /* primaryexpr -> INTEGER */
 		initexp(e, E_INTEGER);
 		e->v.i = lex->ct.d.i;
 		poll(lex);
 		break;
 	}
-	case TK_FLOAT: {
+	case TK_FLOAT: { /* primaryexpr -> FLOAT */
 		initexp(e, E_FLOAT);
 		e->v.f = lex->ct.d.f;
 		poll(lex);
 		break;
 	}
-	case TK_STRING: {
+	case TK_STRING: { /* primaryexpr -> STRING */
 		initexp(e, E_STRING);
 		e->v.s = lex->ct.d.s;
 		poll(lex);

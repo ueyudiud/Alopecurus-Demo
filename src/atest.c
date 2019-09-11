@@ -197,10 +197,10 @@ static void dump(astate T, aproto_t* p) {
 }
 
 static int tmain(astate T) {
-	struct lstr a = lstr_c("local list = ['a': 1, 'b': 2, 'c': 3]; println(list->mkstr('; '))");
+	struct lstr a = lstr_c("return new @A()");
 	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
-//		dump(T, tgetclo(T->top - 1)->a.proto);
-		alo_call(T, 0, 0);
+		dump(T, tgetclo(T->top - 1)->a.proto);
+//		alo_call(T, 0, 0);
 	}
 	else {
 		fprintf(stderr, "%s\n", alo_tostring(T, -1));

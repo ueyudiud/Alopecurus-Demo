@@ -490,6 +490,7 @@ void aloK_fromreg(afstat_t* f, aestat_t* o, astring_t* k) {
 	o->v.d.o = aloK_registry;
 	o->v.d.fk = true;
 	o->v.d.k = aloK_kstr(f, k);
+	o->lf = o->lt = NO_JUMP;
 }
 
 /**

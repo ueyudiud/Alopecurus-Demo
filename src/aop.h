@@ -115,7 +115,7 @@
 	OP(LDV  , "ldv"  ), /*   A B       R(A) ... R(A+C-2) := vararg                 */ \
 	OP(SELV , "selv" ), /*   A B       S(A) :=  vararg[K(B)]                       */ \
 	                                                                                  \
-	OP(NEWA , "newa" ), /*   A B C     S(A) := (R(B), ... R(B+C-2))                */ \
+	OP(NEWA , "newa" ), /*   A B C     S(A) := (R(B), ... R(B+C-1))                */ \
 	OP(NEWL , "newl" ), /*   A Bx      S(A) := [] (size = Bx)                      */ \
 	OP(NEWM , "newm" ), /*   A Bx      S(A) := {} (size = Bx)                      */ \
 	OP(UNBOX, "unbox"), /*   A B C     R(A) ... R(A+C-2) := unbox S(B)             */ \

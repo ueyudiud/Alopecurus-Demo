@@ -13,11 +13,13 @@ LIB_O= abaselib.o aclslib.o astrlib.o alislib.o atablib.o amathlib.o aveclib.o a
 ALO_O= alo.o
 ALO_T= alo.exe
 
+ALO_A= libalo.a
+
 ALL_O= $(CORE_O) $(LIB_O) $(ALO_O)
 ALL_T= $(ALO_T)
-ALL_A= 
+ALL_A= $(ALO_A)
 
-all: $(ALL_T)
+all: $(ALL_T) $(ALL_A)
 
 o: $(ALL_O)
 
@@ -25,6 +27,9 @@ a: $(ALL_A)
 
 $(ALO_T): $(ALO_O) $(LIB_O) $(CORE_O)
 	$(CC) $(CFLAGS) -o $(@) $(ALO_O) $(LIB_O) $(CORE_O) $(LIBS)
+
+$(ALO_A): $(LIB_O) $(CORE_O)
+	ar -rc $(@) $(LIB_O) $(CORE_O)
 
 clean:
 	$(RM) $(ALL_O) $(ALL_T) $(ALL_A)
