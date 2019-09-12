@@ -139,7 +139,7 @@ static void dump(astate T, aproto_t* p) {
 				break;
 			}
 			break;
-		case OP_NEWA:
+		case OP_NEWA: case OP_CAT:
 			prtreg(T, p, GET_A(code));
 			putchar(' ');
 			prtrk(T, p, GET_B(code), GET_xB(code));
@@ -197,10 +197,10 @@ static void dump(astate T, aproto_t* p) {
 }
 
 static int tmain(astate T) {
-	struct lstr a = lstr_c("return new @A()");
+	struct lstr a = lstr_c("local list = [ '1', '2', '3' ] println(list->group { case s -> return 'head' .. s }->mkstr)");
 	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
-		dump(T, tgetclo(T->top - 1)->a.proto);
-//		alo_call(T, 0, 0);
+//		dump(T, tgetclo(T->top - 1)->a.proto);
+		alo_call(T, 0, 0);
 	}
 	else {
 		fprintf(stderr, "%s\n", alo_tostring(T, -1));

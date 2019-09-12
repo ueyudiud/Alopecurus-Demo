@@ -88,6 +88,7 @@ enum {
 	              d.o = owner index
 	              d.k = key index */
 	E_VARARG, /* variable argument */
+	E_CONCAT, /* concat string, g = pc of instruction */
 	E_CALL, /* variable result from function call, g = pc of instruction */
 	E_UNBOX, /* variable result from unbox, g = pc of instruction */
 	E_JMP, /* jumping to label when false, g = pc of corresponding jump instruction */

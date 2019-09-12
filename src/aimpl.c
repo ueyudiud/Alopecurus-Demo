@@ -489,7 +489,7 @@ int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 	api_checkslots(T, 2);
 	askid_t o = index2addr(T, idown);
 	ptrdiff_t off;
-	const atval_t *t;
+	const atval_t* t;
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE: {
 		off = *poff;
@@ -509,7 +509,7 @@ int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 			T->top += 2;
 			return ttpnv(amval(e));
 		}
-		break;
+		return ALO_TUNDEF;
 	}
 	default: {
 		aloE_assert(false, "object can not be iterated.");

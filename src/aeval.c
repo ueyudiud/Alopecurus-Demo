@@ -816,11 +816,16 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_CAT: {
 			askid_t r = R(B);
-			size_t n = yC;
-			if (n > 1) {
-				T->top = r + n;
-				aloV_concat(T, n);
+			size_t n = yC - 1;
+			if (n == ALO_MULTIRET) {
+				n = T->top - r;
 			}
+			else {
+				n += 2;
+				T->top = r + n;
+			}
+			aloV_concat(T, n);
+			checkGC(T, T->top);
 			goto finish;
 		}
 		case OP_ACAT: {
@@ -976,8 +981,8 @@ void aloV_invoke(astate T, int dofinish) {
 	 ** finish block, used for call after 'yield'
 	 */
 	finish:
-	protect(); /* do protect */
-	switch (GET_i(I = pc[-1])) {
+	protect(I = pc[-1]); /* do protect */
+	switch (GET_i(I)) {
 	case OP_UNBOX: {
 		int succ;
 		int n = T->top - R(A);

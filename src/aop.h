@@ -155,7 +155,7 @@
 	OP(AOR  , "aor"  ), /*   A Bx      S(A) |= X(B)                                */ \
 	OP(AXOR , "axor" ), /*   A Bx      S(A) ~= X(B)                                */ \
 	                                                                                  \
-	OP(CAT  , "cat"  ), /*   A B C     S(A) := R(B) .. ... .. R(B+C-1)             */ \
+	OP(CAT  , "cat"  ), /*   A B C     S(A) := R(B) .. ... .. R(B+C)               */ \
 	OP(ACAT , "acat" ), /*   A Bx      S(A) ..= X(B)                               */ \
 	OP(JMP  , "jmp"  ), /*   A sBx     pc += sBx; if (xA) close captures >= R(A)   */ \
 	OP(JCZ  , "jcz"  ), /*   A sBx     if (S(A) as bool == xC) pc += sBx           */ \

@@ -109,7 +109,7 @@ static int getbinop(int t) {
 	case '^': return OPR_POW;
 	case TK_SHL: return OPR_SHL;
 	case TK_SHR: return OPR_SHR;
-	case TK_BCOL: return OPR_CAT;
+	case TK_BDOT: return OPR_CAT;
 	case '<': return OPR_LT;
 	case '>': return OPR_GT;
 	case TK_LE: return OPR_LE;
@@ -257,7 +257,17 @@ static void leavefunc(afstat_t* f) {
 
 #define hasmultiarg(e) ((e)->t == E_VARARG || (e)->t == E_UNBOX || (e)->t == E_CALL)
 
+static void primaryexpr(alexer_t*, aestat_t*);
+
+static int funargs(alexer_t*, aestat_t*);
+
+static void partialfun(alexer_t*);
+
 static void istat(alexer_t*);
+
+static int stats(alexer_t*);
+
+static int stat(alexer_t*, int);
 
 static int varexpr(alexer_t* lex, aestat_t* e) {
 	/* varexpr -> expr { ',' varexpr } */
@@ -270,10 +280,6 @@ static int varexpr(alexer_t* lex, aestat_t* e) {
 	}
 	return n;
 }
-
-static void primaryexpr(alexer_t*, aestat_t*);
-
-static int funargs(alexer_t*, aestat_t*);
 
 static void memberof(alexer_t* lex, aestat_t* e, astring_t* s) {
 	aestat_t e2;
@@ -431,10 +437,6 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 	}
 }
 
-static void partialfun(alexer_t*);
-
-static int statements(alexer_t*);
-
 static int funargs(alexer_t* lex, aestat_t* e) {
 	int n;
 	switch (lex->ct.t) {
@@ -473,7 +475,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 				partialfun(lex);
 			}
 			else {
-				if (!statements(lex)) {
+				if (!stats(lex)) {
 					aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
 				}
 			}
@@ -534,7 +536,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			poll(lex); /* skip '->' */
 			aloK_self(f, e, check_name(lex));
 			switch (lex->ct.t) {
-			case '(':
+			case '(': case '{': case TK_STRING:
 				n = funargs(lex, &e2) + 1;
 				break;
 			default:
@@ -1011,11 +1013,11 @@ static void partialfun(alexer_t* lex) {
 		}
 		while ((i = v->next) != NO_CASEVAR);
 		mergecasevar(f, &e1, f->b->nactvar, j, &fail);
-		statements(lex);
+		stats(lex);
 		if (check(lex, TK_CASE)) {
 			succ = aloK_jumpforward(f, succ);
 		}
-		lex->f->d->cv.l = 0; /* clear buffer */
+		f->d->cv.l = 0; /* clear buffer */
 		leaveblock(f);
 		f->freelocal = f->nactvar;
 		/* jump when fail to match pattern */
@@ -1025,6 +1027,7 @@ static void partialfun(alexer_t* lex) {
 	while (checknext(lex, TK_CASE));
 	aloK_putlabel(f, succ);
 	aloK_return(f, 0, 0);
+	f->p->fvararg = true;
 }
 
 static void funcarg(alexer_t* lex) {
@@ -1052,7 +1055,7 @@ static void istat(alexer_t* lex) {
 	if (check(lex, '{')) { /* istat -> '{' stats '}' */
 		int line = lex->cl;
 		poll(lex);
-		if (!statements(lex)) {
+		if (!stats(lex)) {
 			aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
 		}
 		testenclose(lex, '{', '}', line);
@@ -1109,8 +1112,6 @@ static void retstat(alexer_t* lex) {
 	aloK_fixline(lex->f, line);
 	checknext(lex, ';');
 }
-
-static int stat(alexer_t*, int);
 
 static int ifstat(alexer_t* lex) {
 	/* ifstat -> 'if' '(' (localexpr | expr) ')' stat { 'else' stat } */
@@ -1319,8 +1320,6 @@ static void localstat(alexer_t* lex) {
 	}
 }
 
-static int statements(alexer_t*);
-
 static int stat(alexer_t* lex, int assign) {
 	switch (lex->ct.t) {
 	case ';': { /* stat -> ';' */
@@ -1362,7 +1361,7 @@ static int stat(alexer_t* lex, int assign) {
 	case '{': { /* stat -> '{' stats '}' */
 		int line = lex->cl;
 		poll(lex);
-		int flag = statements(lex);
+		int flag = stats(lex);
 		testenclose(lex, '{', '}', line);
 		return flag;
 	}
@@ -1373,8 +1372,8 @@ static int stat(alexer_t* lex, int assign) {
 	}
 }
 
-static int statements(alexer_t* lex) {
-	/* statements -> { statement [';'] } */
+static int stats(alexer_t* lex) {
+	/* stats -> { stat {';'} } */
 	while (!isending(lex)) {
 		if (stat(lex, true)) { /* if scanned ending statement */
 			semis(lex);
@@ -1410,7 +1409,7 @@ int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
 		poll(&lex);
 		initproto(T, &f);
 		enterblock(&f, &b, false);
-		if (!statements(&lex)) {
+		if (!stats(&lex)) {
 			aloK_return(&f, 0, 0);
 		}
 		leaveblock(&f);

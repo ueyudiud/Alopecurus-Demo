@@ -16,15 +16,14 @@
 
 #define CHAR_COUNT 256
 
-#define aisprint isprint
-#define aisalpha isalpha
-#define aisdigit isdigit
-#define aisxdigit isxdigit
-#define aisprint isprint
+#define aisprint(ch) (ALO_CHAR_TYPES[ch].fprint)
+#define aisalpha(ch) (ALO_CHAR_TYPES[ch].falpha)
+#define aisdigit(ch) (ALO_CHAR_TYPES[ch].fdigit)
+#define aisxdigit(ch) (ALO_CHAR_TYPES[ch].fxdigit)
 #define aisident(ch) ({ int _ch = (ch); isalnum(_ch) || (_ch) == '_'; })
 #define axdigit(ch) (ALO_CHAR_TYPES[ch].digit)
 
-const struct alo_CharType {
+extern const struct alo_CharType {
 	abyte fprint : 1;
 	abyte fdigit : 1;
 	abyte fxdigit : 1;

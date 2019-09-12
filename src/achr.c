@@ -7,6 +7,9 @@
 
 #include "achr.h"
 
+/**
+ ** character data.
+ */
 const struct alo_CharType ALO_CHAR_TYPES[] = {
 		{ false, false, false, false, 0 },
 		{ false, false, false, false, 0 },

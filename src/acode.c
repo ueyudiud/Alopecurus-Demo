@@ -294,6 +294,11 @@ void aloK_eval(afstat_t* f, aestat_t* e) {
 		aloK_singleret(f, e);
 		break;
 	}
+	case E_CONCAT: {
+		f->freelocal = GET_B(getinsn(f, e));
+		e->t = E_ALLOC;
+		break;
+	}
 	default:
 		break;
 	}
@@ -926,6 +931,11 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 	case OPR_ADD ... OPR_BXOR:
 		aloK_eval(f, e);
 		break;
+	case OPR_CAT:
+		if (e->t != E_CONCAT) {
+			aloK_nextreg(f, e);
+		}
+		break;
 	}
 }
 
@@ -960,6 +970,22 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		l->t = E_ALLOC;
 		aloK_fixline(f, line);
 		break;
+	case OPR_CAT: {
+		if (l->t == E_CONCAT) {
+			ainsn_t* insn = &getinsn(f, l);
+			aloE_assert(GET_i(*insn) == OP_CAT, "illegal instruction");
+			int C = GET_C(*insn);
+			aloE_assert(GET_B(*insn) + C + 1 == f->freelocal, "wrong register allocation");
+			aloK_nextreg(f, r);
+			SET_C(*insn, C + 1);
+		}
+		else {
+			aloK_nextreg(f, r);
+			l->t = E_CONCAT;
+			l->v.g = aloK_iABC(f, OP_CAT, false, false, false, 0, l->v.g, 1);
+		}
+		break;
+	}
 	case OPR_EQ: case OPR_LT: case OPR_LE:
 		if (foldcompare(f, l, r, op + ALO_OPEQ - OPR_EQ)) {
 			break;
