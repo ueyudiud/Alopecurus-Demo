@@ -16,6 +16,8 @@ ALO_API astate aloL_newstate(void);
 
 ALO_API void aloL_checkany(astate, aindex_t);
 ALO_API void aloL_checktype(astate, aindex_t, int);
+ALO_API int aloL_checkbool(astate, aindex_t);
+ALO_API int aloL_getoptbool(astate, aindex_t, int);
 ALO_API aint aloL_checkinteger(astate, aindex_t);
 ALO_API aint aloL_getoptinteger(astate, aindex_t, aint);
 ALO_API afloat aloL_checknumber(astate, aindex_t);

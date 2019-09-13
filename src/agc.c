@@ -81,7 +81,7 @@ void aloG_unfix_(astate T, agct g) {
 	Gd(T);
 	aloE_assert(G->gfixed == g, "object should in head of fixed object list.");
 	setwhite(G, g); /* make object white again */
-	g->mark &= ~aloG_fixed; /* unfix object */
+	g->mark &= ~aloG_fixed; /* release object */
 	/* link object in normal list. */
 	G->gfixed = g->gcprev;
 	g->gcprev = G->gnormal;

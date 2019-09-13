@@ -55,6 +55,17 @@ void aloL_checktype(astate T, aindex_t index, int type) {
 	}
 }
 
+int aloL_checkbool(astate T, aindex_t index) {
+	if (!alo_isboolean(T, index)) {
+		aloL_tagerror(T, index, ALO_TBOOL);
+	}
+	return alo_toboolean(T, index);
+}
+
+int aloL_getoptbool(astate T, aindex_t index, int def) {
+	return alo_isnothing(T, index) ? def : aloL_checkbool(T, index);
+}
+
 aint aloL_checkinteger(astate T, aindex_t index) {
 	if (!alo_isinteger(T, index)) {
 		aloL_tagerror(T, index, ALO_TINT);

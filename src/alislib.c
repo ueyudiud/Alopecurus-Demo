@@ -13,6 +13,10 @@
 
 /* masks for tagged methods */
 
+/**
+ ** return true if target is contained in list.
+ ** prototype: list.contains(self, target)
+ */
 static int list_contains(astate T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	size_t n = alo_rawlen(T, 0);
@@ -31,12 +35,23 @@ static int list_contains(astate T) {
 	return 1;
 }
 
+/**
+ ** transform elements in list by function and
+ ** put them into a new list if create is true.
+ ** prototype: list.map(self, function,[create])
+ */
 static int list_map(astate T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkany(T, 1);
+	int flag = aloL_getoptbool(T, 2, true);
 	alo_settop(T, 2);
 	size_t n = alo_rawlen(T, 0);
-	alo_newlist(T, n);
+	if (flag) {
+		alo_newlist(T, n);
+	}
+	else {
+		alo_push(T, 0);
+	}
 	for (size_t i = 0; i < n; ++i) {
 		alo_push(T, 1);
 		alo_rawgeti(T, 0, i);
@@ -49,9 +64,15 @@ static int list_map(astate T) {
 static int list_filter(astate T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkany(T, 1);
+	int flag = aloL_getoptbool(T, 2, true);
 	alo_settop(T, 2);
 	size_t n = alo_rawlen(T, 0);
-	alo_newlist(T, n);
+	if (flag) {
+		alo_newlist(T, n);
+	}
+	else {
+		alo_push(T, 0);
+	}
 	size_t j = 0;
 	for (size_t i = 0; i < n; ++i) {
 		alo_rawgeti(T, 0, i);

@@ -91,7 +91,7 @@ void aloX_close(alexer_t* lex) {
 }
 
 anoret aloX_error(alexer_t* lex, astr msg) {
-	aloV_pushfstring(lex->T, "%s:%d: %s", lex->src, lex->cl, msg);
+	aloV_pushfstring(lex->T, "%s:%d: %s", lex->src->array, lex->cl, msg);
 	aloD_throw(lex->T, ThreadStateErrCompile);
 }
 

@@ -69,6 +69,7 @@ ALO_API int alo_isnumber(astate, aindex_t);
 ALO_API int alo_iscfunction(astate, aindex_t);
 ALO_API int alo_israwdata(astate, aindex_t);
 
+#define alo_isboolean(T,index) (alo_typeid(T, index) == ALO_TBOOL)
 #define alo_isstring(T,index) (alo_typeid(T, index) == ALO_TSTRING)
 #define alo_isnothing(T,index) (alo_typeid(T, index) <= ALO_TNIL)
 #define alo_isnone(T,index) (alo_typeid(T, index) == ALO_TUNDEF)

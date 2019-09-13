@@ -269,6 +269,12 @@ static int stats(alexer_t*);
 
 static int stat(alexer_t*, int);
 
+static void rootstats(alexer_t* lex) {
+	if (!stats(lex)) {
+		aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
+	}
+}
+
 static int varexpr(alexer_t* lex, aestat_t* e) {
 	/* varexpr -> expr { ',' varexpr } */
 	int n = 1;
@@ -475,9 +481,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 				partialfun(lex);
 			}
 			else {
-				if (!stats(lex)) {
-					aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
-				}
+				rootstats(lex);
 			}
 			testenclose(lex, '{', '}', line);
 			leavefunc(&f);
@@ -567,14 +571,44 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 	}
 }
 
+static void lambdaexpr(alexer_t* lex, aestat_t* e) {
+	afstat_t f;
+	ablock_t b;
+	enterfunc(&f, lex->f, &b);
+	if (checknext(lex, '{')) {
+		/* lambdaexpr -> '\\' '{' stats '}' */
+		int line = lex->pl;
+		rootstats(lex);
+		testenclose(lex, '{', '}', line);
+	}
+	else {
+		/* lambdaexpr -> '\\' IDENT { ',' IDENT } '->' istat */
+		regloc(lex->f, check_name(lex));
+		int n = 1;
+		while (checknext(lex, ',')) {
+			regloc(lex->f, check_name(lex));
+			n++;
+		}
+		f.freelocal = n;
+		testnext(lex, TK_RARR);
+		istat(lex);
+	}
+	leavefunc(&f);
+	initexp(e, E_ALLOC);
+	e->v.g = aloK_iABx(lex->f, OP_LDP, false, true, 0, lex->f->nchild - 1);
+}
+
 static void monexpr(alexer_t* lex, aestat_t* e) {
-	/* monexpr -> unrop monexpr | suffixexpr */
+	/* monexpr -> unrop monexpr | suffixexpr | lambdaexpr */
 	int op = getunrop(lex->ct.t);
 	if (op != OPR_NONE) {
 		int line = lex->cl;
 		poll(lex); /* skip operator */
 		monexpr(lex, e);
 		aloK_prefix(lex->f, e, op, line);
+	}
+	else if (checknext(lex, '\\')) {
+		lambdaexpr(lex, e);
 	}
 	else {
 		suffixexpr(lex, e);
@@ -1055,9 +1089,7 @@ static void istat(alexer_t* lex) {
 	if (check(lex, '{')) { /* istat -> '{' stats '}' */
 		int line = lex->cl;
 		poll(lex);
-		if (!stats(lex)) {
-			aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
-		}
+		rootstats(lex);
 		testenclose(lex, '{', '}', line);
 	}
 	else { /* istat -> expr */
@@ -1409,9 +1441,7 @@ int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
 		poll(&lex);
 		initproto(T, &f);
 		enterblock(&f, &b, false);
-		if (!stats(&lex)) {
-			aloK_return(&f, 0, 0);
-		}
+		rootstats(&lex);
 		leaveblock(&f);
 		closeproto(T, &f);
 	}

@@ -197,7 +197,13 @@ static void dump(astate T, aproto_t* p) {
 }
 
 static int tmain(astate T) {
-	struct lstr a = lstr_c("local list = [ '1', '2', '3' ] println(list->group { case s -> return 'head' .. s }->mkstr)");
+	struct lstr a = lstr_c(
+			"local list = [ '1', '2', '3' ]"
+			"println(list->mkstr)"
+			"list->map(\\x -> x .. '1')"
+			"println(list->mkstr)"
+			"list->map(\\x -> x .. '1', false)"
+			"println(list->mkstr)");
 	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
 //		dump(T, tgetclo(T->top - 1)->a.proto);
 		alo_call(T, 0, 0);
