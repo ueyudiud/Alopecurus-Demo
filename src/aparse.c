@@ -238,7 +238,7 @@ static void enterfunc(afstat_t* f, afstat_t* parent, ablock_t* b) {
 		e: parent,
 		b: b,
 		d: parent->d,
-		cjump: parent->cjump,
+		cjump: NO_JUMP,
 		firstlocal: parent->d->ss.l,
 		layer: parent->layer + 1
 	};
