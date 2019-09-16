@@ -46,10 +46,10 @@ static int list_map(astate T) {
 	int flag = aloL_getoptbool(T, 2, true);
 	alo_settop(T, 2);
 	size_t n = alo_rawlen(T, 0);
-	if (flag) {
+	if (flag) { /* copy to a new list */
 		alo_newlist(T, n);
 	}
-	else {
+	else { /* put in it self */
 		alo_push(T, 0);
 	}
 	for (size_t i = 0; i < n; ++i) {
@@ -67,10 +67,10 @@ static int list_filter(astate T) {
 	int flag = aloL_getoptbool(T, 2, true);
 	alo_settop(T, 2);
 	size_t n = alo_rawlen(T, 0);
-	if (flag) {
+	if (flag) { /* copy to a new list */
 		alo_newlist(T, n);
 	}
-	else {
+	else { /* put in it self */
 		alo_push(T, 0);
 	}
 	size_t j = 0;
@@ -87,7 +87,7 @@ static int list_filter(astate T) {
 			alo_settop(T, -2);
 		}
 	}
-	alo_trim(T, 2);
+	alo_trim(T, 2); /* remove extra slot in array */
 	return 1;
 }
 

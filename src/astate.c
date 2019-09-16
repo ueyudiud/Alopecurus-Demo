@@ -77,7 +77,7 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	G->gcstep = GCStepPause;
 	G->gckind = GCKindNormal;
 	G->gcrunning = false;
-	tsetnil(&G->registry);
+	tsetnil(&G->registry); /* registry = nil */
 	G->flags = 0;
 	G->itable.length = 0;
 	G->itable.capacity = 0;
@@ -105,6 +105,8 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	T->base_frame.c.kfun = NULL;
 	T->base_frame.c.ctx = NULL;
 	T->captures = NULL;
+
+	/* run initializer with memory allocation, if failed, delete thread directly */
 	if (aloD_prun(T, initialize, NULL) != ThreadStateRun) {
 		alo_deletestate(T);
 		return NULL;
@@ -153,6 +155,9 @@ void alo_deletestate(astate rawT) {
 	G->alloc(G->context, T, sizeof(TG), 0);
 }
 
+/**
+ ** delete thread.
+ */
 void aloR_deletethread(astate T, athread_t* v) {
 	destory_thread(T, v, true);
 	aloM_delo(T, v);

@@ -42,16 +42,8 @@ struct alo_Block {
 
 static void expr(alexer_t*, aestat_t*);
 
-static anoret lerrorf(alexer_t* lex, astr fmt, ...) {
-	va_list varg;
-	va_start(varg, fmt);
-	astr s = aloV_pushvfstring(lex->T, fmt, varg);
-	va_end(varg);
-	lerror(lex, s);
-}
-
 static anoret error_expected(alexer_t* lex, int type) {
-	lerrorf(lex, "%s expected, got %s", aloX_tkid2str(lex, type), aloX_token2str(lex, &lex->ct));
+	lerror(lex, "%s expected, got %s", aloX_tkid2str(lex, type), aloX_token2str(lex, &lex->ct));
 }
 
 static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
@@ -59,7 +51,7 @@ static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
 		error_expected(lex, r);
 	}
 	else {
-		lerrorf(lex, "'%c' expected (to close '%c' at line %d)", l, r, line);
+		lerror(lex, "'%c' expected (to close '%c' at line %d)", l, r, line);
 	}
 }
 
@@ -438,7 +430,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		break;
 	}
 	default: {
-		lerrorf(lex, "illegal primary expression.");
+		lerror(lex, "illegal primary expression.");
 	}
 	}
 }
@@ -492,7 +484,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 		break;
 	}
 	default:
-		lerrorf(lex, "illegal function arguments");
+		lerror(lex, "illegal function arguments");
 		break;
 	}
 	if (hasmultiarg(e)) {
@@ -749,7 +741,7 @@ static void patterns(alexer_t* lex) {
 			testenclose(lex, '[', ']', var->line);
 			break;
 		default:
-			lerrorf(lex, "unexpected token");
+			lerror(lex, "unexpected token");
 			break;
 		}
 		parent = var->parent;

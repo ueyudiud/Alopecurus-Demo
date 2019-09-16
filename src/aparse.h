@@ -88,7 +88,7 @@ enum {
 	              d.o = owner index
 	              d.k = key index */
 	E_VARARG, /* variable argument */
-	E_CONCAT, /* concat string, g = pc of instruction */
+	E_CONCAT, /* concat string, c.s = concat starting index, c.l = concat length */
 	E_CALL, /* variable result from function call, g = pc of instruction */
 	E_UNBOX, /* variable result from unbox, g = pc of instruction */
 	E_JMP, /* jumping to label when false, g = pc of corresponding jump instruction */
@@ -106,12 +106,16 @@ typedef struct alo_ExprStat {
 		afloat f; /* float value */
 		astring_t* s; /* string value */
 		size_t g; /* generic use */
-		struct {
+		struct { /* index data */
 			uint16_t o; /* owner index */
 			uint16_t k; /* key index */
 			abyte fo: 1; /* owner type */
 			abyte fk: 1; /* key type */
 		} d;
+		struct { /* array data */
+			uint16_t s; /* start index */
+			uint16_t l; /* length */
+		} a;
 	} v;
 	int lt, lf; /* unpredicted label for true/false */
 } aestat_t;

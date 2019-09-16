@@ -58,6 +58,9 @@ static inline astr lmake(alexer_t* lex) {
 	return lex->buf.array;
 }
 
+/**
+ ** initialize lexer environment, called by initialize(void) in 'astate.c'.
+ */
 void aloX_init(astate T) {
 	for (int i = 0; i < ALO_NUMRESERVED; ++i) {
 		astring_t* s = aloS_of(T, aloX_tokenid[i]);
@@ -67,6 +70,9 @@ void aloX_init(astate T) {
 	}
 }
 
+/**
+ ** open lexer.
+ */
 void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
 	lex->T = T;
 	lex->in = in;
@@ -86,15 +92,35 @@ void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
 	lex->src = aloX_getstr(lex, src, strlen(src));
 }
 
+/**
+ ** close lexer.
+ */
 void aloX_close(alexer_t* lex) {
 	aloB_bfree(lex->T, lex->buf);
 }
 
-anoret aloX_error(alexer_t* lex, astr msg) {
-	aloV_pushfstring(lex->T, "%s:%d: %s", lex->src->array, lex->cl, msg);
+/**
+ ** throw an error by lexer.
+ */
+anoret aloX_error(alexer_t* lex, astr msg, ...) {
+	va_list varg;
+	va_start(varg, msg);
+	aloV_pushfstring(lex->T, "%s:%d: %r", lex->src->array, lex->cl, msg, varg);
+	va_end(varg);
 	aloD_throw(lex->T, ThreadStateErrCompile);
 }
 
+/**
+ ** throw an error by lexer.
+ */
+anoret aloX_verror(alexer_t* lex, astr msg, va_list varg) {
+	aloV_pushfstring(lex->T, "%s:%d: %r", lex->src->array, lex->cl, msg, varg);
+	aloD_throw(lex->T, ThreadStateErrCompile);
+}
+
+/**
+ ** get string from token index.
+ */
 astr aloX_tkid2str(alexer_t* lex, int id) {
 	if (id == TK_ERR) {
 		return "<error>";
@@ -109,6 +135,9 @@ astr aloX_tkid2str(alexer_t* lex, int id) {
 	}
 }
 
+/**
+ ** get string from token.
+ */
 astr aloX_token2str(alexer_t* lex, atoken_t* token) {
 	switch (token->t) {
 	case TK_INTEGER:
@@ -124,6 +153,9 @@ astr aloX_token2str(alexer_t* lex, atoken_t* token) {
 	}
 }
 
+/**
+ ** get cached string.
+ */
 astring_t* aloX_getstr(alexer_t* lex, const char* src, size_t len) {
 	alist_t *list = lex->ss;
 	astring_t *s;
@@ -138,18 +170,11 @@ astring_t* aloX_getstr(alexer_t* lex, const char* src, size_t len) {
 	return s;
 }
 
-static anoret lerror(alexer_t* lex, astr fmt, ...) {
-	astr msg;
-	if (fmt) {
-		va_list varg;
-		va_start(varg, fmt);
-		msg = aloV_pushvfstring(lex->T, fmt, varg);
-		va_end(varg);
-	}
-	else {
-		msg = "unknown compilation error";
-	}
-	aloX_error(lex, msg);
+static anoret lerror(alexer_t* lex, astr msg, ...) {
+	va_list varg;
+	va_start(varg, msg);
+	aloX_verror(lex, msg ?: "unknown compilation error", varg);
+	va_end(varg);
 }
 
 static int peekidt(alexer_t* lex, union alo_TokenData* data) {
@@ -343,7 +368,7 @@ static void peekdstr(alexer_t* lex, union alo_TokenData* data) {
 static int peek(alexer_t* lex, union alo_TokenData* data) {
 	next:
 	switch (lex->ch) {
-	case EOB:
+	case EOB: /* end of buffer */
 		lgetc(lex);
 		return TK_EOF;
 	case ' ':

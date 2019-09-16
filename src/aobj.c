@@ -106,9 +106,15 @@ int aloO_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg
 			break;
 		}
 		case 'q': { /* a char sequence */
-			const char* s = va_arg(varg, astr);
+			const char* s = va_arg(varg, char*);
 			size_t l = va_arg(varg, size_t);
 			write_checked(T, writer, context, s, l);
+			break;
+		}
+		case 'r': { /* a format string */
+			const char* s = va_arg(varg, astr);
+			va_list v = va_arg(varg, va_list);
+			aloO_vformat(T, writer, context, s, v);
 			break;
 		}
 		case '"': { /* a escaped string */

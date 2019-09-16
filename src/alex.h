@@ -47,7 +47,8 @@ extern const astr aloX_tokenid[];
 void aloX_init(astate);
 void aloX_open(astate, alexer_t*, astr, aibuf_t*);
 void aloX_close(alexer_t*);
-anoret aloX_error(alexer_t*, astr);
+anoret aloX_error(alexer_t*, astr, ...);
+anoret aloX_verror(alexer_t*, astr, va_list);
 astr aloX_tkid2str(alexer_t*, int);
 astr aloX_token2str(alexer_t*, atoken_t*);
 astring_t* aloX_getstr(alexer_t*, const char*, size_t);
@@ -63,7 +64,7 @@ union alo_TokenData {
 
 /* token */
 struct alo_Token {
-	union alo_TokenData d;
+	union alo_TokenData d; /* token data */
 	int t;
 };
 
