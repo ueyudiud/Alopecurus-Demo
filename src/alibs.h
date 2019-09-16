@@ -28,6 +28,8 @@ ALO_API int aloopen_veclib(astate);
 
 ALO_API int aloopen_iolib(astate);
 
+ALO_API int aloopen_syslib(astate);
+
 void aloL_openlibs(astate);
 
 #endif /* ALIBS_H_ */
