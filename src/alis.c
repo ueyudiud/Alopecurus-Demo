@@ -136,7 +136,7 @@ int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
 			tsetobj(T, out, self->array + i);
 		}
 		for (size_t j = i + 1; j < self->length; ++j) {
-			tsetobj(T, self->array + j - 1, self->array);
+			tsetobj(T, self->array + j - 1, self->array + j);
 		}
 		self->length--;
 		return true;
