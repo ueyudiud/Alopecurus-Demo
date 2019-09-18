@@ -102,22 +102,10 @@ void aloX_close(alexer_t* lex) {
 /**
  ** throw an error by lexer.
  */
-anoret aloX_error(alexer_t* lex, astr msg, ...) {
-	va_list varg;
-	va_start(varg, msg);
-	aloV_pushfstring(lex->T, "%s:%d: %r", lex->src->array, lex->cl, msg, varg);
-	va_end(varg);
+anoret aloX_error(alexer_t* lex, astr msg) {
+	aloV_pushfstring(lex->T, "%s:%d: %s", lex->src->array, lex->cl, msg);
 	aloD_throw(lex->T, ThreadStateErrCompile);
 }
-
-/**
- ** throw an error by lexer.
- */
-anoret aloX_verror(alexer_t* lex, astr msg, va_list varg) {
-	aloV_pushfstring(lex->T, "%s:%d: %r", lex->src->array, lex->cl, msg, varg);
-	aloD_throw(lex->T, ThreadStateErrCompile);
-}
-
 /**
  ** get string from token index.
  */
@@ -173,8 +161,9 @@ astring_t* aloX_getstr(alexer_t* lex, const char* src, size_t len) {
 static anoret lerror(alexer_t* lex, astr msg, ...) {
 	va_list varg;
 	va_start(varg, msg);
-	aloX_verror(lex, msg ?: "unknown compilation error", varg);
+	astr s = aloV_pushvfstring(lex->T, msg, varg);
 	va_end(varg);
+	aloX_error(lex, s);
 }
 
 static int peekidt(alexer_t* lex, union alo_TokenData* data) {

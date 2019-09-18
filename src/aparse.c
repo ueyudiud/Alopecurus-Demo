@@ -42,8 +42,16 @@ struct alo_Block {
 
 static void expr(alexer_t*, aestat_t*);
 
+static anoret lerrorf(alexer_t* lex, astr fmt, ...) {
+	va_list varg;
+	va_start(varg, fmt);
+	astr s = aloV_pushvfstring(lex->T, fmt, varg);
+	va_end(varg);
+	lerror(lex, s);
+}
+
 static anoret error_expected(alexer_t* lex, int type) {
-	lerror(lex, "%s expected, got %s", aloX_tkid2str(lex, type), aloX_token2str(lex, &lex->ct));
+	lerrorf(lex, "%s expected, got %s", aloX_tkid2str(lex, type), aloX_token2str(lex, &lex->ct));
 }
 
 static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
@@ -51,7 +59,7 @@ static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
 		error_expected(lex, r);
 	}
 	else {
-		lerror(lex, "'%c' expected (to close '%c' at line %d)", l, r, line);
+		lerrorf(lex, "'%c' expected (to close '%c' at line %d)", l, r, line);
 	}
 }
 
