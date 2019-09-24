@@ -379,10 +379,11 @@ typedef struct {
 static void adjbox(astate T, MB* box, size_t sz) {
 	void* context;
 	aalloc alloc = alo_getalloc(T, &context);
-	box->m = alloc(context, box->m, box->s, sz);
-	if (box->m == NULL && sz > box->s) {
+	void* newblock = alloc(context, box->m, box->s, sz);
+	if (newblock == NULL && sz > box->s) {
 		aloL_error(T, 2, "no enough memory for buffer.");
 	}
+	box->m = newblock;
 	box->s = sz;
 }
 

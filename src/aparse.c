@@ -541,7 +541,10 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			aloK_self(f, e, check_name(lex));
 			switch (lex->ct.t) {
 			case '(': case '{': case TK_STRING:
-				n = funargs(lex, &e2) + 1;
+				n = funargs(lex, &e2);
+				if (n != ALO_MULTIRET) {
+					n += 1;
+				}
 				break;
 			default:
 				n = 1;
