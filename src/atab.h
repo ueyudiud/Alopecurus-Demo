@@ -12,9 +12,14 @@
 
 #include "aobj.h"
 
+/* get key in entry */
 #define amkey(e) (&(e)->key)
+/* get value in entry */
 #define amval(e) (&(e)->value)
 
+/**
+ ** call when entries are updated.
+ */
 #define aloH_markdirty(self) aloE_void((self)->reserved = 0)
 
 #define aloH_length(self) ((self)->length)
