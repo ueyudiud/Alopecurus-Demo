@@ -13,6 +13,7 @@
 #include "abuf.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #define l_lockstream(f) aloE_void(0)
 #define l_unlockstream(f) aloE_void(0)
@@ -88,6 +89,17 @@ static int f_getline(astate T) {
 	aloL_binit(T, &buf, array);
 	l_getline(T, file, &buf);
 	return 1;
+}
+
+static int f_put(astate T) {
+	afile* file = self(T);
+	l_checkopen(T, file);
+	size_t l;
+	astr s = aloL_tostring(T, 1, &l);
+	l_lockstream(file);
+	fwrite(s, sizeof(char), l, file->stream);
+	l_unlockstream(file);
+	return 0;
 }
 
 static int f_puts(astate T) {
@@ -204,13 +216,36 @@ static int l_emptyclose(fstream stream) {
 }
 
 /**
- ** get standard output file
+ ** open standard stream
  */
-static int io_stdout(astate T) {
-	afile* file = l_preopen(T);
-	file->stream = stdout;
-	file->closer = l_emptyclose;
-	return 1;
+static int l_openstd(astate T, astr name, FILE* stream, size_t len, const char* src) {
+	if (len == strlen(name) && strcmp(src, name) == 0) {
+		afile* file = l_preopen(T);
+		file->stream = stream;
+		file->closer = l_emptyclose;
+		alo_push(T, -1);
+		alo_rawsets(T, 0, name);
+		return true;
+	}
+	return false;
+}
+
+static int io_index(astate T) {
+	alo_push(T, 1);
+	if (alo_rawget(T, 0) != ALO_TUNDEF) {
+		return 1;
+	}
+	alo_drop(T);
+	if (alo_isstring(T, 1)) {
+		size_t len;
+		const char* src = alo_tolstring(T, 1, &len);
+		if (l_openstd(T, "stdout", stdout, len, src) ||
+			l_openstd(T, "stdin", stdin, len, src) ||
+			l_openstd(T, "stderr", stderr, len, src)) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 static const acreg_t cls_funcs[] = {
@@ -222,21 +257,30 @@ static const acreg_t cls_funcs[] = {
 	{ "getline", f_getline },
 	{ "isclosed", f_isclosed },
 	{ "lines", f_lines },
+	{ "put", f_put },
 	{ "puts", f_puts },
 	{ "setbuf", f_setbuf },
 	{ NULL, NULL }
 };
 
+static const acreg_t mod_metafuncs[] = {
+	{ "__idx", io_index },
+	{ NULL, NULL }
+};
+
 static const acreg_t mod_funcs[] = {
 	{ "open", io_open },
-	{ "stderr", NULL },
-	{ "stdin", NULL },
-	{ "stdout", io_stdout },
 	{ NULL, NULL }
 };
 
 int aloopen_iolib(astate T) {
-	alo_newtable(T, 0);
+	alo_bind(T, "io.open", io_open);
+	alo_bind(T, "io.meta.__idx", io_index);
+	alo_bind(T, "file.puts", f_puts);
+	alo_newtable(T, 16);
 	aloL_setfuns(T, -1, mod_funcs);
+	alo_newtable(T, 16);
+	aloL_setfuns(T, -1, mod_metafuncs);
+	alo_setmetatable(T, -2);
 	return 1;
 }
