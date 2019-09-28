@@ -101,7 +101,6 @@ ALO_API void aloL_bputm(ambuf_t*, const void*, size_t);
 ALO_API void aloL_bputls(ambuf_t*, const char*, size_t);
 ALO_API void aloL_bputs(ambuf_t*, astr);
 ALO_API void aloL_bwrite(ambuf_t*, aindex_t);
-ALO_API void aloL_bgrowputc(ambuf_t*, int);
 ALO_API void aloL_bpushstring(ambuf_t*);
 
 #endif /* AAUX_H_ */
