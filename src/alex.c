@@ -24,13 +24,12 @@ static const atoken_t undef = { { }, TK_UNDEF };
 
 const astr aloX_tokenid[] = {
 		"alias", "break", "case", "continue", "def", "delete", "do", "end",
-		"enum", "else", "false", "for", "goto", "if", "in", "interrupt",
-		"local", "new", "nil", "return", "struct", "then", "this", "true",
-		"while", "'..'", "'...'", "'::'", "'..='", "'<-'", "'->'", "':='",
-		"'//'", "'=='", "'!='", "'<='", "'>='", "'<<'", "'>>'", "'&&'",
-		"'||'", "'+='", "'-='", "'*='", "'/='", "'//='", "'%='", "'^='",
-		"'<<='", "'>>='", "'&='", "'|='", "'~='", "<eof>", "<identifier>",
-		"<integer>", "<float>", "<string>"
+		"else", "false", "for", "goto", "if", "in", "local", "new", "nil",
+		"return", "struct", "then", "this", "true", "while", "'..'", "'...'",
+		"'::'", "'..='", "'<-'", "'->'", "':='", "'//'", "'=='", "'!='",
+		"'<='", "'>='", "'<<'", "'>>'", "'&&'", "'||'", "'+='", "'-='", "'*='",
+		"'/='", "'//='", "'%='", "'^='", "'<<='", "'>>='", "'&='", "'|='",
+		"'~='", "<eof>", "<identifier>", "<integer>", "<float>", "<string>"
 };
 
 #define lisnl(lex) ((lex)->ch == '\n' || (lex)->ch == '\r')

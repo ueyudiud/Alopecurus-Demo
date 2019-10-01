@@ -81,10 +81,10 @@ int aloO_flt2int(afloat in, aint* out, int mode) {
 	return true;
 }
 
-int aloO_format(astate T, awriter writer, void* context, astr fmt, ...) {
+int alo_format(astate T, awriter writer, void* context, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	int r = aloO_vformat(T, writer, context, fmt, varg);
+	int r = alo_vformat(T, writer, context, fmt, varg);
 	va_end(varg);
 	return r;
 }
@@ -94,7 +94,9 @@ int aloO_format(astate T, awriter writer, void* context, astr fmt, ...) {
  */
 #define write_checked(T,w,c,s,l) if (((T)->berrno = (w)(T, c, s, l))) return (T)->berrno
 
-int aloO_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg) {
+#define UTF8BUFSIZE 8
+
+int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg) {
 	char buf[ALO_SPRIBUFLEN];
 	astr p = fmt, q;
 	while ((q = strchr(p, '%'))) {
@@ -115,6 +117,9 @@ int aloO_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg
 			const char* s = va_arg(varg, astr);
 			size_t l = va_arg(varg, size_t);
 			aloO_escape(T, writer, context, s, l);
+			if (T->berrno) {
+				return T->berrno;
+			}
 			break;
 		}
 		case 'c': { /* a character in integer */
@@ -151,6 +156,26 @@ int aloO_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg
 			write_checked(T, writer, context, &ch, 1);
 			break;
 		}
+		case 'u': {
+			char buf[UTF8BUFSIZE];
+			char* p = buf + (UTF8BUFSIZE - 1); /* get end of buffer */
+			uint32_t ch = va_arg(varg, uint32_t); /* in UTF-32 */
+			if (ch < 0x80) { /* ASCii */
+				*p = aloE_byte(ch);
+			}
+			else { /* need continuation bytes */
+				abyte mfb = 0x3f; /* first byte mask */
+				do {
+					*(p--) = 0x80 | (ch & 0x3F);
+					ch >>= 6;
+					mfb >>= 1;
+				}
+				while (ch > mfb);
+				*p = ch & mfb; /* get first byte */
+			}
+			write_checked(T, writer, context, p, buf + UTF8BUFSIZE - p);
+			break;
+		}
 		default: {
 			aloU_rterror(T, "invalid format option, got '%%%c'", q[1]);
 		}
@@ -160,25 +185,25 @@ int aloO_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg
 	if (*p) {
 		write_checked(T, writer, context, p, strlen(p));
 	}
-	return T->berrno = 0;
+	return 0;
 }
 
 int aloO_tostring(astate T, awriter writer, void* context, const atval_t* o) {
 	switch (ttype(o)) {
 	case ALO_TBOOL: {
-		if (aloO_format(T, writer, context, "%s", tgetbool(o) ? "true" : "false")) {
+		if (alo_format(T, writer, context, "%s", tgetbool(o) ? "true" : "false")) {
 			return T->berrno;
 		}
 		break;
 	}
 	case ALO_TINT: {
-		if (aloO_format(T, writer, context, "%i", tgetint(o))) {
+		if (alo_format(T, writer, context, "%i", tgetint(o))) {
 			return T->berrno;
 		}
 		break;
 	}
 	case ALO_TFLOAT: {
-		if (aloO_format(T, writer, context, "%f", tgetflt(o))) {
+		if (alo_format(T, writer, context, "%f", tgetflt(o))) {
 			return T->berrno;
 		}
 		break;

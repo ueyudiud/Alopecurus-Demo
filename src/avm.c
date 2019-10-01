@@ -41,7 +41,7 @@ astr aloV_pushvfstring(astate T, astr fmt, va_list varg) {
 	astring_t* value;
 
 	void builder(astate T, asbuf_t* buf) {
-		aloO_vformat(T, aloB_bwrite, buf, fmt, varg);
+		alo_vformat(T, aloB_bwrite, buf, fmt, varg);
 		value = aloS_new(T, buf->array, buf->length);
 	}
 

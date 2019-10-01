@@ -136,10 +136,10 @@ static void write_stacktrace(astate T, asbuf_t* buf, int level) {
 			line = 0;
 		}
 		if (line > 0) {
-			aloO_format(T, aloB_bwrite, buf, "\nat %s (%s:%d)", name, src, line);
+			alo_format(T, aloB_bwrite, buf, "\nat %s (%s:%d)", name, src, line);
 		}
 		else {
-			aloO_format(T, aloB_bwrite, buf, "\nat %s (%s)", name, src);
+			alo_format(T, aloB_bwrite, buf, "\nat %s (%s)", name, src);
 		}
 	}
 	while ((frame = frame->prev) && --level > 0);
@@ -159,7 +159,7 @@ anoret aloU_rterror(astate T, astr fmt, ...) {
 	 ** builder string in protection.
 	 */
 	void builder(astate T, asbuf_t* buf) {
-		aloO_vformat(T, aloB_bwrite, buf, fmt, varg);
+		alo_vformat(T, aloB_bwrite, buf, fmt, varg);
 		write_stacktrace(T, buf, WRITE_ERROR_LEVEL);
 		value = aloS_new(T, buf->array, buf->length);
 	}

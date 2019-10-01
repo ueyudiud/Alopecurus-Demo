@@ -397,9 +397,10 @@ extern const atval_t aloO_nil;
 int aloO_str2int(astr, atval_t*);
 int aloO_str2num(astr, atval_t*);
 int aloO_flt2int(afloat, aint*, int);
-int aloO_format(astate, awriter, void*, astr, ...);
-int aloO_vformat(astate, awriter, void*, astr, va_list);
 int aloO_tostring(astate, awriter, void*, const atval_t*);
 void aloO_escape(astate, awriter, void*, const char*, size_t);
+
+int alo_format(astate, awriter, void*, astr, ...);
+int alo_vformat(astate, awriter, void*, astr, va_list);
 
 #endif /* AOBJ_H_ */
