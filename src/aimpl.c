@@ -681,6 +681,16 @@ int alo_getmeta(astate T, aindex_t index, astr name, int lookup) {
 	return ttpnv(tm);
 }
 
+int alo_getdelegate(astate T, aindex_t index) {
+	api_checkslots(T, 1);
+	askid_t o = index2addr(T, index);
+	if (ttisccl(o) || ttisacl(o)) {
+		tsettab(T, api_incrtop(T), &tgetclo(o)->delegate);
+		return true;
+	}
+	return false;
+}
+
 amem alo_newdata(astate T, size_t size) {
 	api_checkslots(T, 1);
 	arawdata_t* value = aloS_newr(T, size);
@@ -890,6 +900,16 @@ int alo_setmetatable(astate T, aindex_t index) {
 	aloG_checkfnzobj(T, g, mt);
 	T->top -= 1;
 	return true;
+}
+
+int alo_setdelegate(astate T, aindex_t index) {
+	api_checkelems(T, 1);
+	askid_t o = index2addr(T, index);
+	if (ttisccl(o) || ttisacl(o)) {
+		tsettab(T, &tgetclo(o)->delegate, api_decrtop(T));
+		return true;
+	}
+	return false;
 }
 
 void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {

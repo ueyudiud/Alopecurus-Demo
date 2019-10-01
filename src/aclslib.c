@@ -13,6 +13,10 @@
 
 #include <string.h>
 
+/**
+ ** create new class.
+ ** prototype: class.meta.__new(classes, name, parents...)
+ */
 static int class_meta_new(astate T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	aloL_checkclassname(T, 1);

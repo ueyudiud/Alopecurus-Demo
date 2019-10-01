@@ -906,7 +906,7 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			break;
 		}
-		case OP_TCALL: {
+		case OP_TCALL: { /* tail call function */
 			askid_t r = R(A);
 			askid_t f = frame->fun;
 			int narg = yB - 1; /* get argument count. */

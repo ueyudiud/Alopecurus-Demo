@@ -275,10 +275,14 @@ void aloL_require(astate T, astr name, acfun openf, int putreg) {
 /**
  ** append stack trace in the string in the top of stack.
  */
-void aloL_appendwhere(astate T, int level) {
+void aloL_appendwhere_(astate T, int level, astr file, int line) {
 	int size = 1;
 
 	void formatter(astate T, __attribute__((unused)) int l, aframeinfo_t* info) {
+		if (size == 1) {
+			info->src = file;
+			info->line = line;
+		}
 		if (info->line > 0) {
 			alo_pushfstring(T, "\nat %s (%s:%d)", info->name, info->src, info->line);
 		}
@@ -310,11 +314,11 @@ void aloL_where(astate T, int level) {
 /**
  ** throw a runtime error.
  */
-void aloL_error(astate T, int level, astr fmt, ...) {
+void aloL_error_(astate T, int level, astr file, int line, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	alo_pushvfstring(T, fmt, varg);
-	aloL_appendwhere(T, level);
+	aloL_appendwhere_(T, level, file, line);
 	va_end(varg);
 	alo_throw(T);
 }
@@ -467,6 +471,17 @@ void aloL_bputs(ambuf_t* buf, astr src) {
 	aloL_bputls(buf, src, strlen(src));
 }
 
+void aloL_bputf(ambuf_t* buf, astr fmt, ...) {
+	va_list varg;
+	va_start(varg, fmt);
+	aloL_bputvf(buf, fmt, varg);
+	va_end(varg);
+}
+
+void aloL_bputvf(ambuf_t* buf, astr fmt, va_list varg) {
+	alo_vformat(buf->T, aloL_bwriter, buf, fmt, varg);
+}
+
 void aloL_bwrite(ambuf_t* buf, aindex_t index) {
 	size_t len;
 	const char* src = alo_tolstring(buf->T, index, &len);
@@ -475,4 +490,10 @@ void aloL_bwrite(ambuf_t* buf, aindex_t index) {
 
 void aloL_bpushstring(ambuf_t* buf) {
 	alo_pushlstring(buf->T, aloE_cast(char*, buf->p), buf->l / sizeof(char));
+}
+
+int aloL_bwriter(astate T, void* rbuf, const void* src, size_t len) {
+	ambuf_t* buf = aloE_cast(ambuf_t*, rbuf);
+	aloL_bputm(buf, src, len);
+	return 0;
 }

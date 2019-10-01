@@ -132,6 +132,7 @@ ALO_API int alo_gets(astate, aindex_t, astr);
 ALO_API int alo_put(astate, aindex_t);
 ALO_API int alo_getmetatable(astate, aindex_t);
 ALO_API int alo_getmeta(astate, aindex_t, astr, int);
+ALO_API int alo_getdelegate(astate, aindex_t);
 
 #define alo_getreg(T,key) alo_gets(T, ALO_REGISTRY_INDEX, key)
 
@@ -154,6 +155,7 @@ ALO_API int alo_rawrem(astate, aindex_t);
 ALO_API void alo_setx(astate, aindex_t, int);
 ALO_API int alo_remove(astate, aindex_t);
 ALO_API int alo_setmetatable(astate, aindex_t);
+ALO_API int alo_setdelegate(astate, aindex_t);
 
 #define alo_rawset(T,index) alo_rawset(T, index, false)
 #define alo_set(T,index) alo_setx(T, index, false)
@@ -183,6 +185,8 @@ ALO_API anoret alo_throw(astate);
 
 ALO_API size_t alo_memused(astate);
 ALO_API void alo_fullgc(astate);
+ALO_API int alo_format(astate, awriter, void*, astr, ...);
+ALO_API int alo_vformat(astate, awriter, void*, astr, va_list);
 
 /**
  ** debugger

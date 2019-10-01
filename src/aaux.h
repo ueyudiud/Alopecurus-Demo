@@ -47,9 +47,12 @@ ALO_API void aloL_require(astate, astr, acfun, int);
  ** error handling
  */
 
-ALO_API void aloL_appendwhere(astate, int);
+ALO_API void aloL_appendwhere_(astate, int, astr, int);
 ALO_API void aloL_where(astate, int);
-ALO_API void aloL_error(astate, int, astr, ...);
+ALO_API void aloL_error_(astate, int, astr, int, astr, ...);
+
+#define aloL_appendwhere(T,level) aloL_appendwhere_(T, level, __FILE__, __LINE__)
+#define aloL_error(T,level,fmt,args...) aloL_error_(T, level, __FILE__, __LINE__, fmt, ##args)
 
 ALO_API void aloL_argerror(astate, aindex_t, astr, ...);
 ALO_API void aloL_typeerror(astate, aindex_t, astr);
@@ -91,7 +94,7 @@ typedef struct aloL_MemoryBuffer {
 
 #define aloL_bempty(T,buf) aloL_binit_(T, buf, NULL, 0)
 #define aloL_binit(T,buf,mem) aloL_binit_(T, buf, mem, sizeof(mem))
-#define aloL_bputc(buf,ch) (((buf)->l < (buf)->c || (aloL_bcheck(buf), true)), (buf)->p[(buf)->l++] = aloE_byte(ch))
+#define aloL_bputc(buf,ch) (aloE_cast(void, (buf)->l < (buf)->c || (aloL_bcheck(buf, 1), true)), (buf)->p[(buf)->l++] = aloE_byte(ch))
 #define aloL_bsetc(buf,i,ch) ((buf)->p[i] = aloE_byte(ch))
 #define aloL_bsetlen(buf,len) ((buf)->l = (len))
 
@@ -100,7 +103,11 @@ ALO_API void aloL_bcheck(ambuf_t*, size_t);
 ALO_API void aloL_bputm(ambuf_t*, const void*, size_t);
 ALO_API void aloL_bputls(ambuf_t*, const char*, size_t);
 ALO_API void aloL_bputs(ambuf_t*, astr);
+ALO_API void aloL_bputf(ambuf_t*, astr, ...);
+ALO_API void aloL_bputvf(ambuf_t*, astr, va_list);
 ALO_API void aloL_bwrite(ambuf_t*, aindex_t);
 ALO_API void aloL_bpushstring(ambuf_t*);
+
+ALO_API int aloL_bwriter(astate, void*, const void*, size_t);
 
 #endif /* AAUX_H_ */
