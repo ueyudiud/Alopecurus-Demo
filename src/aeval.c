@@ -144,26 +144,6 @@ static aclosure_t* aloV_nloadproto(astate T, aproto_t* p, aclosure_t* en, askid_
 }
 
 /**
- ** A := B[C]
- */
-static int aloV_nget(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	switch (ttpnv(B)) {
-	case ALO_TTUPLE:
-		tsetobj(T, A, aloA_get(T, tgettup(B), C));
-		break;
-	case ALO_TLIST:
-		tsetobj(T, A, aloI_get(T, tgetlis(B), C));
-		break;
-	case ALO_TTABLE:
-		tsetobj(T, A, aloH_get(T, tgettab(B), C));
-		break;
-	default:
-		return false;
-	}
-	return true;
-}
-
-/**
  ** A[B] := C
  */
 static int aloV_nset(astate T, const atval_t* A, const atval_t* B, const atval_t* C) {
@@ -714,16 +694,21 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_GET: {
+			const atval_t* tv;
 			tb = X(B);
-			protect(tm = aloT_fastget(T, tb, TM_IDX));
-			if (tm) {
-				aloT_vmput3(T, tm, tb, X(C));
-				aloD_call(T, T->top - 3, 1);
-				goto finish;
+			tc = X(C);
+			if (ttiscol(tb)) {
+				tv = aloO_get(T, tb, tc);
+				if (tv != aloO_tnil) {
+					tsetobj(T, S(A), tv);
+					break;
+				}
 			}
-			else if (!aloV_nget(T, S(A), tb, X(C))) {
+			protect(tv = aloT_index(T, tb, X(C)));
+			if (tv == NULL) {
 				goto notfound;
 			}
+			tsetobj(T, S(A), tv);
 			break;
 		}
 		case OP_SET: {

@@ -28,6 +28,7 @@
 
 /* useful masks */
 #define ALO_TMASKNUMBER (1 << ALO_TINT | 1 << ALO_TFLOAT)
+#define ALO_TMASKCOLLECTION (1 << ALO_TTUPLE | 1 << ALO_TLIST | 1 << ALO_TTABLE)
 
 /**
  ** header predefined.
@@ -91,6 +92,7 @@ typedef atval_t *askid_t;
 #define ttistup(o) checktype(o, ALO_TTUPLE)
 #define ttislis(o) checktype(o, ALO_TLIST)
 #define ttistab(o) checktype(o, ALO_TTABLE)
+#define ttiscol(o) matchtypes(o, ALO_TMASKCOLLECTION)
 #define ttisfun(o) checktype(o, ALO_TFUNCTION)
 #define ttislcf(o) checktag(o, ALO_TLCF)
 #define ttisccl(o) checktag(o, ALO_TCCL)
@@ -399,6 +401,7 @@ int aloO_str2num(astr, atval_t*);
 int aloO_flt2int(afloat, aint*, int);
 int aloO_tostring(astate, awriter, void*, const atval_t*);
 void aloO_escape(astate, awriter, void*, const char*, size_t);
+const atval_t* aloO_get(astate, const atval_t*, const atval_t*);
 
 int alo_format(astate, awriter, void*, astr, ...);
 int alo_vformat(astate, awriter, void*, astr, va_list);

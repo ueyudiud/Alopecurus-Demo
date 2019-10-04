@@ -8,6 +8,9 @@
 #include "achr.h"
 #include "aobj.h"
 #include "astr.h"
+#include "atup.h"
+#include "alis.h"
+#include "atab.h"
 #include "ameta.h"
 #include "ado.h"
 #include "adebug.h"
@@ -290,5 +293,19 @@ void aloO_escape(astate T, awriter writer, void* context, const char* src, size_
 			}
 		}
 		writer(T, context, buf, p - buf);
+	}
+}
+
+const atval_t* aloO_get(astate T, const atval_t* o, const atval_t* k) {
+	switch (ttpnv(o)) {
+	case ALO_TTUPLE:
+		return aloA_get(T, tgettup(o), k);
+	case ALO_TLIST:
+		return aloI_get(T, tgetlis(o), k);
+	case ALO_TTABLE:
+		return aloH_get(T, tgettab(o), k);
+	default:
+		api_check(T, false, "illegal owner for 'get'");
+		return aloO_tnil;
 	}
 }

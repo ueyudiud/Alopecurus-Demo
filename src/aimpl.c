@@ -182,6 +182,7 @@ void alo_insert(astate T, aindex_t index) {
 	askid_t i = bot;
 	while (i < top) {
 		tsetobj(T, i + 1, i);
+		i += 1;
 	}
 	trsetvalx(T, bot, cache);
 }
@@ -532,24 +533,7 @@ int alo_rawget(astate T, aindex_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	askid_t k = T->top - 1;
-	const atval_t* v;
-	switch (ttpnv(o)) {
-	case ALO_TTUPLE:
-		v = aloA_get(T, tgettup(o), k);
-		break;
-	case ALO_TLIST: {
-		v = aloI_get(T, tgetlis(o), k);
-		break;
-	}
-	case ALO_TTABLE: {
-		v = aloH_get(T, tgettab(o), k);
-		break;
-	}
-	default: {
-		api_check(T, false, "illegal owner for 'rawget'");
-		return ALO_TUNDEF;
-	}
-	}
+	const atval_t* v = aloO_get(T, o, k);
 	tsetobj(T, k, v);
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
@@ -590,42 +574,50 @@ int alo_rawgets(astate T, aindex_t idown, astr key) {
 
 int alo_get(astate T, aindex_t idown) {
 	askid_t o = index2addr(T, idown);
-	const atval_t* tm = aloT_fastget(T, o, TM_IDX);
-	if (tm) { /* call tagged method */
-		tsetobj(T, T->top + 1, T->top - 1);
-		tsetobj(T, T->top - 1, tm);
-		tsetstr(T, T->top    , o);
-		T->top += 2;
-		ptrdiff_t res = getstkoff(T, T->top - 3);
-		aloD_callnoyield(T, T->top - 3, ALO_MULTIRET);
-		askid_t r = putstkoff(T, res);
-		return T->top != r ? /* find value? */
-				ttpnv(r) : /* get object type */
-				ALO_TUNDEF; /* return 'none' */
+	askid_t k = T->top - 1;
+	const atval_t* v;
+	if (ttiscol(o)) {
+		v = aloO_get(T, o, k);
+	}
+	else goto find;
+	if (v == aloO_tnil) {
+		find:
+		v = aloT_index(T, o, k);
+		k = T->top - 1; /* adjust index */
+		if (v) {
+			tsetobj(T, k, v);
+			return ttpnv(v);
+		}
+		else {
+			tsetnil(k);
+			return ALO_TUNDEF;
+		}
 	}
 	else {
-		return alo_rawget(T, idown);
+		tsetobj(T, k, v);
+		return ttpnv(v);
 	}
 }
 
 int alo_gets(astate T, aindex_t idown, astr key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
-	const atval_t* tm = aloT_fastget(T, o, TM_IDX);
-	if (tm) { /* call tagged method */
-		tsetobj(T, T->top    , tm);
-		tsetobj(T, T->top + 1, o);
-		tsetstr(T, T->top + 2, aloS_of(T, key));
-		ptrdiff_t res = getstkoff(T, T->top);
-		T->top += 3;
-		aloD_callnoyield(T, T->top - 3, ALO_MULTIRET);
-		askid_t r = putstkoff(T, res);
-		return T->top != r ? /* find value? */
-				ttpnv(r) : /* get object type */
-				ALO_TUNDEF; /* return 'none' */
+	if (ttistab(o)) {
+		const atval_t* v = aloH_gets(tgettab(o), key, strlen(key));
+		if (v != aloO_tnil) {
+			tsetobj(T, api_incrtop(T), v);
+			return ttpnv(v);
+		}
+	}
+	tsetstr(T, api_incrtop(T), aloS_of(T, key));
+	const atval_t* v = aloT_index(T, o, T->top - 1);
+	if (v) {
+		tsetobj(T, T->top - 1, v);
+		return ttpnv(v);
 	}
 	else {
-		return alo_rawgets(T, idown, key);
+		tsetnil(T->top - 1);
+		return ALO_TUNDEF;
 	}
 }
 
@@ -906,7 +898,13 @@ int alo_setdelegate(astate T, aindex_t index) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, index);
 	if (ttisccl(o) || ttisacl(o)) {
-		tsettab(T, &tgetclo(o)->delegate, api_decrtop(T));
+		aclosure_t* closure = tgetclo(o);
+		askid_t t = api_decrtop(T);
+		if (ttisnil(t)) {
+			t = index2addr(T, ALO_REGISTRY_INDEX);
+		}
+		api_check(T, ttistab(t), "delegate should be table");
+		tsetobj(T, &closure->delegate, t);
 		return true;
 	}
 	return false;

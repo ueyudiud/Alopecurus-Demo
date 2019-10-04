@@ -27,6 +27,16 @@ astate aloL_newstate(void) {
 	return alo_newstate(aux_alloc, NULL);
 }
 
+void aloL_pushscopedcfunction(astate T, acfun value) {
+	alo_pushcclosure(T, value, 0);
+	alo_newtable(T, 0);
+	alo_newtable(T, 1); /* meta table of scope */
+	alo_push(T, ALO_REGISTRY_INDEX); /* push current environment */
+	alo_rawsets(T, -2, "__idx"); /* set lookup table */
+	alo_setmetatable(T, -2);
+	alo_setdelegate(T, -2);
+}
+
 void aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
@@ -270,6 +280,30 @@ void aloL_require(astate T, astr name, acfun openf, int putreg) {
 		alo_push(T, -2);
 		alo_set(T, ALO_REGISTRY_INDEX);
 	}
+}
+
+/* string with length */
+struct LS {
+	const char* src;
+	size_t len;
+};
+
+int LSReader(astate T, void* context, const char** pdest, size_t* psize) {
+	struct LS* l = (struct LS*) context;
+	*psize = l->len;
+	*pdest = l->src;
+	l->src = NULL;
+	l->len = 0;
+	return 0;
+}
+
+/**
+ ** compile string as script in the stack, the string will not be removed.
+ */
+int aloL_compiles(astate T, aindex_t index, astr name, astr src) {
+	struct LS context;
+	context.src = alo_tolstring(T, index, &context.len);
+	return alo_compile(T, name, src, LSReader, &context);
 }
 
 /**

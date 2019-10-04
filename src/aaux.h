@@ -14,6 +14,8 @@
 
 ALO_API astate aloL_newstate(void);
 
+ALO_API void aloL_pushscopedcfunction(astate, acfun);
+
 ALO_API void aloL_checkany(astate, aindex_t);
 ALO_API void aloL_checktype(astate, aindex_t, int);
 ALO_API int aloL_checkbool(astate, aindex_t);
@@ -42,6 +44,7 @@ ALO_API int aloL_callselfmeta(astate, aindex_t, astr);
 #define aloL_getmodfield(T,mod,key) aloL_getsubfield(T, ALO_REGISTRY_INDEX, mod, key)
 
 ALO_API void aloL_require(astate, astr, acfun, int);
+ALO_API int aloL_compiles(astate, aindex_t, astr, astr);
 
 /**
  ** error handling

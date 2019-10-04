@@ -27,7 +27,7 @@
 
 void alo_assert(astr msg, astr file, int line) {
 	fprintf(stderr, "%s:%d %s", file, line, msg);
-	exit(1);
+	exit(EXIT_FAILURE);
 }
 
 void aloU_init(astate T) {

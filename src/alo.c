@@ -10,47 +10,193 @@
 #include "alibs.h"
 
 #include <stdio.h>
-
-static char buf[256];
+#include <stdlib.h>
+#include <string.h>
 
 static int readf(astate T, void* context, const char** ps, size_t* pl) {
-	if (feof((FILE*) context)) {
-		*pl = 0;
-		return 0;
-	}
-	*pl = fread(buf, 1, sizeof(buf), (FILE*) context);
-	*ps = buf;
-	return ferror((FILE*) context);
-}
-
-static int run(astate T) {
-	aloL_openlibs(T);
-	alo_bind(T, "run", run); /* put main function name */
-	astr src = alo_tostring(T, 0);
-	FILE* file = stdin;
-	if (file) {
-		if (alo_compile(T, "run", src, readf, file) != ThreadStateRun) {
-			aloL_error(T, 2, alo_tostring(T, -1));
-		}
-		else if (alo_pcall(T, 0, 0) != ThreadStateRun) {
-			aloL_error(T, 2, alo_tostring(T, -1));
-		}
-		alo_settop(T, 1);
+	static char ch;
+	FILE* file = aloE_cast(FILE*, context);
+	int c = fgetc(file);
+	if (c != EOF) {
+		ch = c;
+		*ps = &ch;
+		*pl = 1;
 	}
 	else {
-		aloL_error(T, 1, "fail to open file '%s'", src);
+		*ps = NULL;
+		*pl = 0;
+	}
+	return ferror(file);
+}
+
+static void compilef(astate T, astr name) {
+	FILE* file = fopen(name, "r");
+	if (file) {
+		if (alo_compile(T, "run", name, readf, file) != ThreadStateRun) { /* compile prototype */
+			aloL_error(T, 2, alo_tostring(T, -1));
+		}
+		alo_call(T, 0, 0); /* call function */
+	}
+	else {
+		aloL_error(T, 1, "fail to open file '%s'", name);
+	}
+}
+
+/* mark in error messages for incomplete statements */
+#define EOFMARK "<eof>"
+#define marklen (sizeof(EOFMARK) / sizeof(char) - 1)
+
+static int incomplete(astate T, int status) {
+	if (status == ThreadStateErrCompile) {
+		size_t lmsg;
+		const char* smsg = alo_tolstring(T, -1, &lmsg);
+		if (lmsg > marklen && strcmp(smsg + lmsg - marklen, EOFMARK) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static int compilec(astate T, astr name, int strict) {
+	int status = aloL_compiles(T, -1, "main", "<stdin>");
+	if (status == ThreadStateRun) {
+		return true;
+	}
+	else if (strict && !incomplete(T, status)) {
+		alo_throw(T);
+	}
+	alo_settop(T, -2);
+	return false;
+}
+
+#define MAXINPUT 1024
+
+static char* readline(astate T) {
+	static char buf[MAXINPUT + 1];
+	char* p = fgets(buf, MAXINPUT, stdin);
+	if (p == NULL) {
+		alo_pushstring(T, strerror(errno));
+	}
+	size_t l = strlen(p);
+	if (l == MAXINPUT + 1 && buf[MAXINPUT] != '\n') {
+		alo_pushstring(T, "script too long.");
+		alo_throw(T);
+	}
+	buf[l - 1] = '\0';
+	return p;
+}
+
+/**
+ ** run script in console
+ */
+static int runc(astate T) {
+	while (true) {
+		fputs("> ", stdout);
+		astr s = readline(T);
+		if (*s == ':') { /* command */
+			switch (s[1]) {
+			case 'q': case 'Q': exit(EXIT_SUCCESS);
+			default:
+				aloL_error(T, 1, "unknown command '%s'", s + 1);
+				break;
+			}
+			continue;
+		}
+		alo_pushstring(T, s);
+		alo_pushfstring(T, "return %s;", s);
+		if (!compilec(T, "main", false)) {
+			alo_push(T, 0);
+			while (!compilec(T, "main", true)) {
+				alo_pushstring(T, "\n");
+				fputs(">> ", stdout);
+				alo_pushstring(T, readline(T));
+				alo_rawcat(T, 3);
+				alo_push(T, 0);
+			}
+		}
+		alo_pop(T, 0);
+		alo_settop(T, 1);
+		alo_call(T, 0, ALO_MULTIRET);
+		int n = alo_gettop(T);
+		if (n > 0) {
+			alo_getreg(T, "println");
+			alo_insert(T, 0);
+			if (alo_pcall(T, n, 0) != ThreadStateRun) {
+				printf("error calling 'println', %s\n", alo_tostring(T, -1));
+			}
+		}
+		alo_settop(T, 0);
 	}
 	return 0;
 }
 
-int main(int argc, const char* argv[]) {
-	setvbuf(stdout, NULL, _IONBF, 0);
+static int run(astate T) {
+	astr src = alo_tostring(T, 0);
+	if (*src) {
+		compilef(T, src);
+	}
+	else {
+		alo_settop(T, 0);
+		while (true) {
+			alo_pushlightcfunction(T, runc);
+			alo_push(T, 0);
+			if (alo_pcall(T, 0, 0) != ThreadStateRun) {
+				fprintf(stderr, "%s\n", alo_tostring(T, -1));
+				alo_settop(T, 1);
+			}
+		}
+	}
+	return 0;
+}
+
+static __attribute__((noreturn)) int panic(__attribute__((unused)) astate T) {
+	exit(EXIT_FAILURE);
+}
+
+static int initialize(astate T, int argc, const astr argv[]) {
+	alo_setpanic(T, panic); /* set error callback */
+	aloL_openlibs(T); /* open libraries */
+	alo_bind(T, "run", run); /* put main function name */
+
+	astr filename = NULL; /* source name, use stdin if absent */
+	for (int i = 1; i < argc; ++i) {
+		if (argv[i][0] == '-') { /* setting */
+			switch (argv[i][1]) {
+			case '-':
+				fprintf(stderr, "illegal command '%s'", &argv[i][2]);
+				break;
+			default:
+				fprintf(stderr, "illegal abbreviation of command '%s'", &argv[i][1]);
+				break;
+			}
+		}
+		else if (filename != NULL) {
+			fprintf(stderr, "file name already settled.");
+			return false;
+		}
+		else {
+			filename = argv[i];
+		}
+	}
+
+	aloL_pushscopedcfunction(T, run);
+	alo_pushstring(T, filename);
+
+	return true;
+}
+
+int main(int argc, astr argv[]) {
 	astate T = aloL_newstate();
-	alo_pushlightcfunction(T, run);
-	alo_pushstring(T, argv[1]);
+	if (T == NULL) {
+		fputs("fail to initialize VM.", stderr);
+	}
+	if (!initialize(T, argc, argv)) {
+		alo_deletestate(T);
+		return EXIT_FAILURE;
+	}
 	if (alo_pcall(T, 1, 0)) {
 		fputs(alo_tostring(T, -1), stderr);
 	}
 	alo_deletestate(T);
-	return 0;
+	return EXIT_SUCCESS;
 }

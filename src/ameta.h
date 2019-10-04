@@ -94,12 +94,10 @@ typedef enum {
 
 #undef TM
 
-/**
- ** get fast tagged method from GC object.
- */
-#define aloT_fastget(T,o,e) aloT_gfastget((T)->g, aloT_getmt(o), e)
+/* check tagged method not in table */
+#define aloT_fastxcontain(t,e) ((t) == NULL || ((t)->reserved & (1 << (e))))
 
-#define aloT_gfastget(G,t,e) ((t) == NULL || ((t)->reserved & (1 << (e))) ? NULL : aloT_fastgetaux(t, (G)->stagnames[e], e))
+#define aloT_gfastget(G,t,e) (aloT_fastxcontain(t, e) ? NULL : aloT_fastgetaux(t, (G)->stagnames[e], e))
 
 #define aloT_gmode(G,t) ({ const atval_t* imode = aloT_gfastget(G, t, TM_MODE); imode && ttisstr(imode) ? tgetstr(imode)->array : ""; })
 
@@ -121,7 +119,9 @@ void aloT_init(astate);
 atable_t* aloT_getmt(const atval_t*);
 const atval_t* aloT_gettm(astate, const atval_t*, atmi, int);
 const atval_t* aloT_fastgetaux(atable_t*, astring_t*, atmi);
+const atval_t* aloT_fastget(astate, const atval_t*, atmi);
 const atval_t* aloT_fastgetx(astate, const atval_t*, atmi);
+const atval_t* aloT_index(astate, const atval_t*, const atval_t*);
 const atval_t* aloT_lookup(astate, const atval_t*, const atval_t*);
 void aloT_callunr(astate, const atval_t*, const atval_t*, atval_t*);
 void aloT_callbin(astate, const atval_t*, const atval_t*, const atval_t*, atval_t*);

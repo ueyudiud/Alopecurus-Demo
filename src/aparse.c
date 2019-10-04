@@ -59,7 +59,7 @@ static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
 		error_expected(lex, r);
 	}
 	else {
-		lerrorf(lex, "'%c' expected (to close '%c' at line %d)", l, r, line);
+		lerrorf(lex, "'%c' expected (to close '%c' at line %d), got %s", l, r, line, aloX_token2str(lex, &lex->ct));
 	}
 }
 

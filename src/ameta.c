@@ -73,18 +73,19 @@ atable_t* aloT_getmt(const atval_t* o) {
 	}
 }
 
-static const atval_t* aloT_fullget(astate T, const atval_t* self, atable_t* table, atmi id) {
+/**
+ ** get field in meta table with lookup.
+ */
+static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* table, astring_t* name) {
 	aloE_assert(table, "meta table should not be NULL.");
-	const atval_t* result;
+	atval_t temp = tnewstr(name);
+	const atval_t *result, *lookup;
 	Gd(T);
-	astring_t* const name = G->stagnames[id];
-	find:  /* find tagged method directly */
+	find:
 	if (!ttisnil(result = aloH_getis(table, name))) {
 		return result;
 	}
-	/* failed get tagged method directly, call 'lookup' method */
-	const atval_t* lookup = aloT_gfastget(G, table, TM_LKUP);
-	if (lookup) {
+	if ((lookup = aloT_gfastget(G, table, TM_LKUP))) {
 		switch (ttpnv(lookup)) {
 		case ALO_TTABLE: /* find method in parent meta table */
 			table = tgettab(lookup);
@@ -96,28 +97,25 @@ static const atval_t* aloT_fullget(astate T, const atval_t* self, atable_t* tabl
 				while (--i >= mro->array) {
 					switch (ttpnv(i)) {
 					case ALO_TTABLE: /* static target */
-						if (!ttisnil(result = aloH_getis(tgettab(i), name))) {
-							return result;
-						}
+						result = aloH_getis(tgettab(i), name);
 						break; /* no tagged method found */
 					case ALO_TFUNCTION: { /* dynamic target */
-						atval_t t = tnewstr(name);
-						callbin(T, i, self, &t);
-						if (!ttisnil(T->top)) { /* find target? */
-							return T->top;
-						}
+						callbin(T, i, self, &temp);
+						result = T->top;
 						break; /* no tagged method found */
 					}
 					default:
-						break; /* illegal MRO value */
+						continue; /* illegal MRO value */
+					}
+					if (!ttisnil(result)) { /* find target? */
+						return result;
 					}
 				}
 			}
 			break;
 		}
 		case ALO_TFUNCTION: {
-			atval_t t = tnewstr(G->stagnames[id]);
-			callbin(T, lookup, self, &t);
+			callbin(T, lookup, self, &temp);
 			if (!ttisnil(T->top)) { /* find target? */
 				return T->top;
 			}
@@ -134,11 +132,19 @@ const atval_t* aloT_gettm(astate T, const atval_t* self, atmi id, int dolookup) 
 	atable_t* table = aloT_getmt(self);
 	if (table == NULL)
 		return NULL;
-	if (dolookup)
-		return aloT_fullget(T, self, table, id);
 	Gd(T);
-	const atval_t* result = aloH_getis(table, G->stagnames[id]);
-	return ttisnil(result) ? NULL : result;
+	if (dolookup) {
+		return aloT_fullgetis(T, self, table, G->stagnames[id]);
+	}
+	else {
+		const atval_t* result = aloH_getis(table, G->stagnames[id]);
+		return ttisnil(result) ? NULL : result;
+	}
+}
+
+const atval_t* aloT_fastget(astate T, const atval_t* self, atmi id) {
+	atable_t* table = aloT_getmt(self);
+	return aloT_gfastget(T->g, table, id);
 }
 
 const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
@@ -159,6 +165,9 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 		switch (ttpnv(lookup)) {
 		case ALO_TTABLE: /* find method in parent meta table */
 			table = tgettab(lookup);
+			if (table == NULL) {
+				break;
+			}
 			goto find;
 		case ALO_TLIST: { /* find method in MRO */
 			alist_t* mro = tgetlis(lookup);
@@ -199,6 +208,33 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 		}
 	}
 	return NULL;
+}
+
+const atval_t* aloT_index(astate T, const atval_t* self, const atval_t* key) {
+	const atval_t *meta, *result;
+	meta = aloT_fastgetx(T, self, TM_IDX);
+	if (meta == NULL) {
+		return NULL;
+	}
+	find:
+	switch (ttpnv(meta)) {
+	case ALO_TFUNCTION: {
+		callbin(T, meta, self, key);
+		return T->top;
+	}
+	case ALO_TTABLE: {
+		if (!ttisnil(result = aloH_get(T, tgettab(meta), key))) {
+			return result;
+		}
+		self = meta;
+		meta = aloT_fastgetx(T, self, TM_IDX);
+		if (meta != NULL) {
+			goto find;
+		}
+		break;
+	}
+	}
+	return aloO_tnil;
 }
 
 static const atval_t* lookup_mro(astate T, const atval_t* self, const atval_t* key, alist_t* mro) {
@@ -264,7 +300,7 @@ const atval_t* aloT_lookup(astate T, const atval_t* self, const atval_t* key) {
 		}
 	}
 	const atval_t* delegate = aloT_getreg(T);
-	if (ttistab(delegate) && (result = aloH_getis(tgettab(delegate), T->g->stagnames[TM_DLGT]))) { /* check by delegate function */
+	if (ttistab(delegate) && !ttisnil(result = aloH_getis(tgettab(delegate), T->g->stagnames[TM_DLGT]))) { /* check by delegate function */
 		aloT_vmput3(T, result, self, key);
 		aloD_callnoyield(T, T->top - 3, 1);
 		if (!ttisnil(--T->top)) { /* found object? */
