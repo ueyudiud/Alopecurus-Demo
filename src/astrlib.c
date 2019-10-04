@@ -87,10 +87,12 @@ struct alo_MatchNode {
 	abyte extra; /* extra data */
 };
 
+/* matching group */
 typedef struct alo_MatchGroup {
 	astr begin, end; /* begin and end of matched string */
 } amgroup_t;
 
+/* match state */
 typedef struct alo_MatchState {
 	astate T;
 	astr sbegin, send; /* begin and end of source */
@@ -98,6 +100,7 @@ typedef struct alo_MatchState {
 	amgroup_t* groups; /* group buffer */
 } amstat_t;
 
+/* compile state */
 typedef struct alo_CompileState {
 	astate T;
 	aalloc alloc;
@@ -118,18 +121,21 @@ typedef struct alo_CompileState {
 #define sgetc(M,s) ((M)->send == (s) ? EOS : *((s)++))
 
 /* matching continuation */
-typedef int (*amcon_t)(astr);
+typedef astr (*amcon_t)(astr);
 
 /* matching function */
-typedef int (*amfun_t)(amstat_t*, amnode_t*, amgroup_t*, astr, amcon_t);
+typedef astr (*amfun_t)(amstat_t*, amnode_t*, amgroup_t*, astr, amcon_t);
 
 /* matcher function */
 
-static int nocon(astr s) {
-	return true;
+static astr nocon(astr s) {
+	return s; /* identical function */
 }
 
-static int matchx(amstat_t*, amnode_t*, amgroup_t*, astr, int(*)(astr));
+static astr matchx(amstat_t*, amnode_t*, amgroup_t*, astr, amcon_t);
+
+#define matchs(M,node,group,s,con) \
+	((node)->mode == M_NORMAL ? handles[(node)->type] : matchx)(M, node, group, s, con)
 
 /* character used in class */
 #define CLASS_CHAR "acdglpsuwx"
@@ -155,19 +161,21 @@ static int match_class(int ch, int cl) {
 	return ((cl) & ~('a' ^ 'A') ? res : !res);
 }
 
-static int m_bol(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
-	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') && con(s);
+static const amfun_t handles[];
+
+static astr m_bol(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') ? con(s) : NULL;
 }
 
-static int m_eol(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
-	return (s == M->send || s[1] == '\r' || s[1] == '\n') && con(s);
+static astr m_eol(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+	return (s == M->send || s[1] == '\r' || s[1] == '\n') ? con(s) : NULL;
 }
 
-static int m_chr(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
-	return node->data == sgetc(M, s) && con(s);
+static astr m_chr(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+	return node->data == sgetc(M, s) ? con(s) : NULL;
 }
 
-static int m_str(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
+static astr m_str(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
 	astr p = node->str;
 	next:
 	switch (*p) {
@@ -180,14 +188,14 @@ static int m_str(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*co
 		break;
 	case '\\': {
 		if (!match_class(sgetc(M, s), *(p + 1))) {
-			return false;
+			return NULL;
 		}
 		p += 2;
 		goto next;
 	}
 	default: {
 		if (sgetc(M, s) != *p) {
-			return false;
+			return NULL;
 		}
 		p += 1;
 		goto next;
@@ -196,7 +204,7 @@ static int m_str(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*co
 	return con(s);
 }
 
-static int m_set(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
+static astr m_set(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
 	astr p = node->str;
 	int ch = sgetc(M, s);
 	while (*p) {
@@ -219,51 +227,59 @@ static int m_set(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*co
 			p += 1;
 		}
 	}
-	return false;
+	return NULL;
 }
 
-static int m_sub(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
-	int con1(astr result) {
-		if (!group->end) {
-			group->end = result;
+static astr m_sub(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+	astr con1(astr t) {
+		if (node->extra > 0) { /* settle group position */
+			group->end = group->end ?: t;
 		}
-		return con(result);
+		return con(t);
 	}
-
+	if (node->extra > 0) {
+		group = &M->groups[node->extra];
+	}
+	astr e;
 	for (size_t i = 0; i < node->data; ++i) {
-		if (node->extra >= 0) {
-			group = &M->groups[node->extra];
-			group->begin = s;
-			group->end = NULL;
-		}
-
-		if (matchx(M, node->arr[i], group, s, con1)) {
-			return true;
+		group->begin = group->end = NULL;
+		if ((e = matchs(M, node->arr[i], group, s, con1))) {
+			if (node->extra > 0) { /* settle group position */
+				group->begin = group->end ?: s;
+			}
+			return e;
 		}
 	}
-	return false;
+	return NULL;
 }
 
-static int m_seq(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
-	int check(astr s, int index) {
-		int con1(astr s1) {
+//astr seqcheck(amstat_t* M, amnode_t* node, size_t index, amgroup_t* group, astr s, amcon_t con) {
+//	astr con1(astr t) {
+//		if (M->depth-- == 0) {
+//			aloL_error(M->T, 2, "matching string is too complex.");
+//		}
+//		return index + 1 == node->data ? con(t) : seqcheck(M, node, index + 1, group, t, con);
+//	}
+//	return matchs(M, node->arr[index], group, s, con1);
+//}
+
+static astr m_seq(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+	astr seqcheck(astr t, size_t index) {
+		astr con1(astr e) {
 			if (M->depth-- == 0) {
 				aloL_error(M->T, 2, "matching string is too complex.");
 			}
-			int result = index + 1 == node->data ? con(s1) : check(s1, index + 1);
-			return result;
+			return seqcheck(e, index + 1);
 		}
-		return matchx(M, node->arr[index], group, s, con1);
+		return matchs(M, node->arr[index], group, t, index + 1 == node->data ? con : con1);
 	}
-	return check(s, 0);
+//	return seqcheck(M, node, 0, group, s, con);
+	return seqcheck(s, 0);
 }
 
-static int matchx(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*con)(astr)) {
-	static const amfun_t handles[] = { NULL, m_bol, m_eol, m_chr, m_str, m_set, m_sub, m_seq };
-	int norm_con(astr result) {
-		s = result;
-		return true;
-	}
+static const amfun_t handles[] = { NULL, m_bol, m_eol, m_chr, m_str, m_set, m_sub, m_seq };
+
+static astr matchx(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
 	if (M->depth-- == 0) {
 		aloL_error(M->T, 2, "matching string is too complex.");
 	}
@@ -273,33 +289,32 @@ static int matchx(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, int (*c
 		return handle(M, node, group, s, con);
 	}
 	case M_MORE: {
-		if (!handle(M, node, group, s, norm_con)) {
-			return false;
+		if (!(s = handle(M, node, group, s, nocon))) {
+			return NULL;
 		}
-	case M_ANY:
-		do if (con(s)) {
-			return true;
+	case M_ANY: {}
+		astr t;
+		do if ((t = con(s))) {
+			return t;
 		}
-		while (handle(M, node, group, s, norm_con));
-		return false;
+		while ((s = handle(M, node, group, s, nocon)));
+		return NULL;
 	}
 	case M_MOREG: case M_ANYG: {
-		int greedy_con(astr result) {
-			if (handle(M, node, group, result, norm_con) && greedy_con(s)) {
-				return true;
-			}
-			return con(result);
+		astr cong(astr t) {
+			astr e = handle(M, node, group, t, nocon);
+			return e && (e = cong(e)) ? e : con(t);
 		}
-		return handle(M, node, group, s, greedy_con) || (node->mode == M_ANYG && con(s));
+		return handle(M, node, group, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
 	}
 	case M_OPT: {
-		return con(s) || handle(M, node, group, s, con);
+		return con(s) ?: handle(M, node, group, s, con);
 	}
 	case M_OPTG: {
-		return handle(M, node, group, s, con) || con(s);
+		return handle(M, node, group, s, con) ?: con(s);
 	}
 	default: { /* illegal error */
-		return false;
+		return NULL;
 	}
 	}
 }
@@ -311,11 +326,20 @@ static void minit(amstat_t* M, astate T, astr src, size_t len, amgroup_t* groups
 	M->groups = groups;
 }
 
-static int match(amstat_t* M, amnode_t* node, astr s) {
+static int match(amstat_t* M, amnode_t* node, astr s, int full) {
 	M->depth = MAX_MATCH_DEPTH;
-	M->groups[0].begin = s;
-	M->groups[0].end = NULL;
-	return matchx(M, node, NULL, s, nocon);
+	amgroup_t* group = &M->groups[0];
+	group->begin = group->end = NULL;
+	astr begin = s, end = M->send;
+	astr fullcon(astr s) {
+		return s == end ? s : NULL;
+	}
+	if ((end = matchx(M, node, M->groups, s, full ? fullcon : nocon))) {
+		group->begin = group->begin ?: begin;
+		group->end = group->end ?: end;
+		return true;
+	}
+	return false;
 }
 
 static void destory(astate T, amnode_t* node) {
@@ -373,6 +397,7 @@ static amnode_t** alloc(acstat_t* C, amnode_t* node, int len) {
 			children[i] = NULL;
 		}
 		node->arr = children;
+		node->data = newsize;
 	}
 	return &node->arr[len];
 }
@@ -399,7 +424,7 @@ static void p_str(acstat_t* C, amnode_t** pnode) {
 	int flag = (*C->pos == '\\') && strchr(CLASS_CHAR, *(C->pos + 1));
 	next:
 	switch (*C->pos) {
-	case '+': case '*': case '?': case '(':
+	case '+': case '*': case '?': case '(': case ')':
 	case '[': case '^': case '$': case '|':
 		break;
 	case '\0':
@@ -476,10 +501,12 @@ static void p_atom(acstat_t* C, amnode_t** node) {
 	}
 	case '^': {
 		*node = construct(C, T_BOL);
+		C->pos += 1;
 		break;
 	}
 	case '$': {
 		*node = construct(C, T_EOL);
+		C->pos += 1;
 		break;
 	}
 	default: {
@@ -519,6 +546,7 @@ static void p_mono(acstat_t* C, amnode_t** node) {
 	*node = construct(C, T_SEQ);
 	p_suffix(C, alloc(C, *node, 0));
 	size_t len = 1;
+	next:
 	switch (*C->pos) {
 	case '\0':
 		if (C->pos == C->end) { /* end of string */
@@ -527,7 +555,7 @@ static void p_mono(acstat_t* C, amnode_t** node) {
 		goto single;
 	single: default:
 		p_suffix(C, alloc(C, *node, len++));
-		break;
+		goto next;
 	case ']': case '}':
 		cerror(C, "illegal pattern.");
 		break;
@@ -589,7 +617,7 @@ static int str_match(astate T) {
 	amgroup_t groups[matcher.ngroup];
 	src = alo_tolstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
-	alo_pushboolean(T, match(&M, matcher.node, src) && M.groups[0].end - M.groups[0].begin == len);
+	alo_pushboolean(T, match(&M, matcher.node, src, true) && M.groups[0].end - M.groups[0].begin == len);
 	destory(T, matcher.node);
 	return 1;
 }
@@ -611,6 +639,18 @@ static Matcher* self(astate T) {
 	return matcher;
 }
 
+static int matcher_test(astate T) {
+	Matcher* matcher = self(T);
+	amstat_t M;
+	amgroup_t groups[matcher->ngroup];
+	const char* src;
+	size_t len;
+	src = alo_tolstring(T, 1, &len);
+	minit(&M, T, src, len, groups);
+	alo_pushboolean(T, match(&M, matcher->node, src, true));
+	return 1;
+}
+
 static int matcher_match(astate T) {
 	Matcher* matcher = self(T);
 	amstat_t M;
@@ -619,8 +659,70 @@ static int matcher_match(astate T) {
 	size_t len;
 	src = alo_tolstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
-	int flag = match(&M, matcher->node, src);
-	alo_pushboolean(T, flag && groups[0].end - groups[0].begin == len);
+	int flag = match(&M, matcher->node, src, true);
+	if (!flag) return 0;
+	alo_ensure(T, matcher->ngroup);
+	for (int i = 0; i < matcher->ngroup; ++i) {
+		amgroup_t* group = &groups[i];
+		if (group->begin != NULL) {
+			alo_pushlstring(T, group->begin, group->end - group->begin);
+		}
+		else {
+			alo_pushnil(T);
+		}
+	}
+	return matcher->ngroup;
+}
+
+static void addnodeinfo(amnode_t* node, ambuf_t* buf) {
+	switch (node->type) {
+	case T_END: break;
+	case T_BOL:
+		aloL_bputc(buf, '^');
+		break;
+	case T_EOL:
+		aloL_bputc(buf, '$');
+		break;
+	case T_CHR:
+		aloL_bputf(buf, "%u", node->data);
+		break;
+	case T_STR:
+		aloL_bputf(buf, "%\"", node->str, aloE_cast(size_t, node->data));
+		break;
+	case T_SUB:
+		aloL_bputc(buf, '(');
+		for (int i = 0; i < node->data; ++i) {
+			addnodeinfo(node->arr[i], buf);
+			aloL_bputc(buf, '|');
+		}
+		buf->l -= 1;
+		aloL_bputc(buf, ')');
+		break;
+	case T_SEQ:
+		for (int i = 0; i < node->data; ++i) {
+			addnodeinfo(node->arr[i], buf);
+		}
+		break;
+	case T_SET:
+		aloL_bputf(buf, "[%\"]", node->str, aloE_cast(size_t, node->data));
+		break;
+	}
+	switch (node->mode) {
+	case M_MORE: aloL_bputs(buf, "+?"); break;
+	case M_MOREG: aloL_bputs(buf, "+"); break;
+	case M_ANY: aloL_bputs(buf, "*?"); break;
+	case M_ANYG: aloL_bputs(buf, "*"); break;
+	case M_OPT: aloL_bputs(buf, "??"); break;
+	case M_OPTG: aloL_bputs(buf, "?"); break;
+	}
+}
+
+static int matcher_tostr(astate T) {
+	Matcher* matcher = self(T);
+	ambuf_t buf;
+	aloL_bempty(T, &buf);
+	addnodeinfo(matcher->node, &buf);
+	alo_pushfstring(T, "__matcher: { ngroup: %d, expr: %q }", (int) matcher->ngroup, buf.p, buf.l);
 	return 1;
 }
 
@@ -631,7 +733,9 @@ static int str_matcher(astate T) {
 	if (aloL_getsimpleclass(T, "__matcher")) {
 		static const acreg_t funcs[] = {
 				{ "__del", matcher_gc },
-				{ "__call", matcher_match },
+				{ "__call", matcher_test },
+				{ "__tostr", matcher_tostr },
+				{ "match", matcher_match },
 				{ NULL, NULL }
 		};
 		aloL_setfuns(T, -1, funcs);
