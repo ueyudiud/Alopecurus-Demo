@@ -201,18 +201,18 @@ static int initialize(astate T, int argc, const astr argv[]) {
 	return true;
 }
 
-//int main(int argc, astr argv[]) {
-//	astate T = aloL_newstate();
-//	if (T == NULL) {
-//		fputs("fail to initialize VM.", stderr);
-//	}
-//	if (!initialize(T, argc, argv)) {
-//		alo_deletestate(T);
-//		return EXIT_FAILURE;
-//	}
-//	if (alo_pcall(T, 1, 0)) {
-//		fputs(alo_tostring(T, -1), stderr);
-//	}
-//	alo_deletestate(T);
-//	return EXIT_SUCCESS;
-//}
+int main(int argc, astr argv[]) {
+	astate T = aloL_newstate();
+	if (T == NULL) {
+		fputs("fail to initialize VM.", stderr);
+	}
+	if (!initialize(T, argc, argv)) {
+		alo_deletestate(T);
+		return EXIT_FAILURE;
+	}
+	if (alo_pcall(T, 1, 0)) {
+		fputs(alo_tostring(T, -1), stderr);
+	}
+	alo_deletestate(T);
+	return EXIT_SUCCESS;
+}
