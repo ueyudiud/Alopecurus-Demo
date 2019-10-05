@@ -14,6 +14,8 @@
 #include <string.h>
 #include <errno.h>
 
+#define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
+
 static int readf(astate T, void* context, const char** ps, size_t* pl) {
 	static char ch;
 	FILE* file = aloE_cast(FILE*, context);
@@ -96,7 +98,7 @@ static char* readline(astate T) {
  */
 static int runc(astate T) {
 	while (true) {
-		fputs("> ", stdout);
+		l_msg("> ");
 		astr s = readline(T);
 		if (*s == ':') { /* command */
 			if (s[2] == '\0') {
@@ -112,7 +114,7 @@ static int runc(astate T) {
 					continue;
 				}
 			}
-			printf("unknown command '%s'", s + 1);
+			l_msg("unknown command '%s'", s + 1);
 			continue;
 		}
 		alo_pushstring(T, s);
@@ -121,7 +123,7 @@ static int runc(astate T) {
 			alo_push(T, 0);
 			while (!compilec(T, "main", true)) {
 				alo_pushstring(T, "\n");
-				fputs(">> ", stdout);
+				l_msg(">> ");
 				alo_pushstring(T, readline(T));
 				alo_rawcat(T, 3);
 				alo_push(T, 0);
@@ -135,7 +137,7 @@ static int runc(astate T) {
 			alo_getreg(T, "println");
 			alo_insert(T, 0);
 			if (alo_pcall(T, n, 0) != ThreadStateRun) {
-				printf("error calling 'println', %s\n", alo_tostring(T, -1));
+				l_msg("error calling 'println', %s\n", alo_tostring(T, -1));
 			}
 		}
 		alo_settop(T, 0);
@@ -149,7 +151,7 @@ static int run(astate T) {
 		compilef(T, src);
 	}
 	else {
-		puts(ALO_COPYRIGHT);
+		l_msg(ALO_COPYRIGHT"\n");
 		alo_settop(T, 0);
 		while (true) {
 			alo_pushlightcfunction(T, runc);
@@ -199,18 +201,18 @@ static int initialize(astate T, int argc, const astr argv[]) {
 	return true;
 }
 
-int main(int argc, astr argv[]) {
-	astate T = aloL_newstate();
-	if (T == NULL) {
-		fputs("fail to initialize VM.", stderr);
-	}
-	if (!initialize(T, argc, argv)) {
-		alo_deletestate(T);
-		return EXIT_FAILURE;
-	}
-	if (alo_pcall(T, 1, 0)) {
-		fputs(alo_tostring(T, -1), stderr);
-	}
-	alo_deletestate(T);
-	return EXIT_SUCCESS;
-}
+//int main(int argc, astr argv[]) {
+//	astate T = aloL_newstate();
+//	if (T == NULL) {
+//		fputs("fail to initialize VM.", stderr);
+//	}
+//	if (!initialize(T, argc, argv)) {
+//		alo_deletestate(T);
+//		return EXIT_FAILURE;
+//	}
+//	if (alo_pcall(T, 1, 0)) {
+//		fputs(alo_tostring(T, -1), stderr);
+//	}
+//	alo_deletestate(T);
+//	return EXIT_SUCCESS;
+//}

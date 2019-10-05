@@ -137,12 +137,13 @@ static void linkcjmp(afstat_t* f, int* p, int jmp) {
 			*p = jmp;
 		}
 		else {
-			int list = *p, next;
+			int list, next = *p;
 			do {
+				list = next;
 				next = nextjump(f, list);
 			}
-			while ((list = next) != NO_JUMP);
-			fixjmp(f, *p, jmp);
+			while (next != NO_JUMP);
+			fixjmp(f, list, jmp);
 		}
 	}
 }

@@ -858,8 +858,8 @@ static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
 	case CV_MATCH: {
 		initexp(e, E_LOCAL);
 		e->v.g = v->src;
-		e->lf = *fail;
 		aloK_suffix(f, e, &v->expr, OPR_EQ, f->l->cl);
+		e->lf = *fail;
 		aloK_gwt(f, e);
 		*fail = e->lf;
 		break;
@@ -1019,7 +1019,7 @@ static void partialfun(alexer_t* lex) {
 		testnext(lex, TK_RARR);
 		initexp(&e1, E_VARARG);
 		initexp(&e2, E_INTEGER);
-		e2.v.g = f->d->cv.l;
+		e2.v.g = f->d->cv.nchild;
 		/* check length fitness */
 		aloK_prefix(f, &e1, OPR_LEN, lex->cl);
 		aloK_suffix(f, &e1, &e2, OPR_EQ, lex->cl);
@@ -1033,19 +1033,17 @@ static void partialfun(alexer_t* lex) {
 			v = f->d->cv.a + i;
 			initexp(&e1, E_ALLOC);
 			e1.v.g = aloK_iABC(f, OP_SELV, false, 2, false, 0, j, 0);
-			switch (v->type) {
-			case CV_MATCH:
+			if (v->type == CV_MATCH) {
 				aloK_suffix(f, &e1, &v->expr, OPR_EQ, lex->cl);
 				e1.lf = fail;
 				aloK_gwt(f, &e1);
 				fail = e1.lf;
-				break;
-			default:
+			}
+			else {
 				v->src = aloK_nextreg(f, &e1);
 				if (v->name != NULL) {
 					v->dest = j++;
 				}
-				break;
 			}
 		}
 		while ((i = v->next) != NO_CASEVAR);
