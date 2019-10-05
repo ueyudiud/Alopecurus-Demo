@@ -697,7 +697,8 @@ void aloV_invoke(astate T, int dofinish) {
 			const atval_t* tv;
 			tb = X(B);
 			tc = X(C);
-			if (ttiscol(tb)) {
+			int f = ttiscol(tb);
+			if (f) {
 				tv = aloO_get(T, tb, tc);
 				if (tv != aloO_tnil) {
 					tsetobj(T, S(A), tv);
@@ -706,7 +707,10 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			protect(tv = aloT_index(T, tb, X(C)));
 			if (tv == NULL) {
-				goto notfound;
+				if (!f) {
+					goto notfound;
+				}
+				tv = aloO_tnil;
 			}
 			tsetobj(T, S(A), tv);
 			break;

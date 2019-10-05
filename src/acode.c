@@ -648,7 +648,7 @@ void aloK_self(afstat_t* f, aestat_t* e, astring_t* name) {
 	aloK_iABC(f, OP_SELF, false, e->t == E_CONST, true, f->freelocal, e->v.g, index);
 	e->t = E_FIXED;
 	e->v.g = f->freelocal;
-	f->freelocal += 2;
+	aloK_incrstack(f, 2);
 }
 
 void aloK_unbox(afstat_t* f, aestat_t* e, int narg) {

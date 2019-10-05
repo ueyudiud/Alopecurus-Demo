@@ -171,26 +171,24 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 			goto find;
 		case ALO_TLIST: { /* find method in MRO */
 			alist_t* mro = tgetlis(lookup);
-			{
-				atval_t* i = mro->array + mro->length;
-				while (--i >= mro->array) {
-					switch (ttpnv(i)) {
-					case ALO_TTABLE: /* static target */
-						if ((result = aloT_gfastget(G, tgettab(i), id))) {
-							return result;
-						}
-						break; /* no tagged method found */
-					case ALO_TFUNCTION: { /* dynamic target */
-						atval_t t = tnewstr(G->stagnames[id]);
-						callbin(T, i, self, &t);
-						if (!ttisnil(T->top)) { /* find target? */
-							return T->top;
-						}
-						break; /* no tagged method found */
+			atval_t* i = mro->array + mro->length;
+			while (--i >= mro->array) {
+				switch (ttpnv(i)) {
+				case ALO_TTABLE: /* static target */
+					if ((result = aloT_gfastget(G, tgettab(i), id))) {
+						return result;
 					}
-					default:
-						break; /* illegal MRO value */
+					break; /* no tagged method found */
+				case ALO_TFUNCTION: { /* dynamic target */
+					atval_t t = tnewstr(G->stagnames[id]);
+					callbin(T, i, self, &t);
+					if (!ttisnil(T->top)) { /* find target? */
+						return T->top;
 					}
+					break; /* no tagged method found */
+				}
+				default:
+					break; /* illegal MRO value */
 				}
 			}
 			break;
@@ -237,6 +235,23 @@ const atval_t* aloT_index(astate T, const atval_t* self, const atval_t* key) {
 	return aloO_tnil;
 }
 
+/**
+ ** get registry from current environment.
+ */
+const atval_t* aloT_getreg(astate T) {
+	aframe_t* frame = T->frame;
+	while (frame->prev) {
+		switch (ttype(frame->fun)) {
+		case ALO_TACL: case ALO_TCCL: {
+			aclosure_t* c = tgetclo(frame->fun);
+			return &c->delegate; /* return delegate registry */
+		}
+		}
+		frame = frame->prev;
+	}
+	return &T->g->registry; /* no local registry found, return global registry. */
+}
+
 static const atval_t* lookup_mro(astate T, const atval_t* self, const atval_t* key, alist_t* mro) {
 	if (mro->length == 0)
 		return NULL;
@@ -258,6 +273,25 @@ static const atval_t* lookup_mro(astate T, const atval_t* self, const atval_t* k
 		}
 		default:
 			break; /* illegal MRO value */
+		}
+	}
+	return NULL;
+}
+
+static const atval_t* lookupenv(astate T, const atval_t* self, const atval_t* key) {
+	const atval_t* reg = aloT_getreg(T);
+	if (ttistab(reg)) { /* check by delegate function */
+		atval_t t = tnewstr(T->g->stagnames[TM_DLGT]);
+		const atval_t* result = aloH_getis(tgettab(reg), T->g->stagnames[TM_DLGT]);
+		if (result == aloO_tnil) {
+			result = aloT_index(T, reg, &t);
+		}
+		if (result) {
+			aloT_vmput3(T, result, self, key);
+			aloD_callnoyield(T, T->top - 3, 1);
+			if (!ttisnil(--T->top)) { /* found object? */
+				return T->top;
+			}
 		}
 	}
 	return NULL;
@@ -299,15 +333,7 @@ const atval_t* aloT_lookup(astate T, const atval_t* self, const atval_t* key) {
 			}
 		}
 	}
-	const atval_t* delegate = aloT_getreg(T);
-	if (ttistab(delegate) && !ttisnil(result = aloH_getis(tgettab(delegate), T->g->stagnames[TM_DLGT]))) { /* check by delegate function */
-		aloT_vmput3(T, result, self, key);
-		aloD_callnoyield(T, T->top - 3, 1);
-		if (!ttisnil(--T->top)) { /* found object? */
-			return T->top;
-		}
-	}
-	return NULL;
+	return lookupenv(T, self, key);
 }
 
 /**
@@ -333,23 +359,6 @@ int aloT_callcmp(astate T, const atval_t* f, const atval_t* t1, const atval_t* t
 	callbin(T, f, t1, t2);
 	return aloV_getbool(T->top); /* cast object to boolean value */
 }
-
-/**
- ** get registry from current environment.
- */
-const atval_t* aloT_getreg(astate T) {
-	aframe_t* frame = T->frame;
-	while (frame->prev) {
-		switch (ttype(frame->fun)) {
-		case ALO_TACL:
-		case ALO_TCCL:
-			return &tgetclo(frame->fun)->delegate; /* return delegate registry */
-		}
-		frame = frame->prev;
-	}
-	return &T->g->registry; /* no local registry found, return global registry. */
-}
-
 
 /**
  ** try take meta unary operation, return true if success and false for otherwise.

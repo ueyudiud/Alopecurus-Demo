@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 static int readf(astate T, void* context, const char** ps, size_t* pl) {
 	static char ch;
@@ -75,7 +76,11 @@ static char* readline(astate T) {
 	static char buf[MAXINPUT + 1];
 	char* p = fgets(buf, MAXINPUT, stdin);
 	if (p == NULL) {
+		if (feof(stdin)) {
+			exit(EXIT_SUCCESS);
+		}
 		alo_pushstring(T, strerror(errno));
+		alo_throw(T);
 	}
 	size_t l = strlen(p);
 	if (l == MAXINPUT + 1 && buf[MAXINPUT] != '\n') {
@@ -94,12 +99,20 @@ static int runc(astate T) {
 		fputs("> ", stdout);
 		astr s = readline(T);
 		if (*s == ':') { /* command */
-			switch (s[1]) {
-			case 'q': case 'Q': exit(EXIT_SUCCESS);
-			default:
-				aloL_error(T, 1, "unknown command '%s'", s + 1);
-				break;
+			if (s[2] == '\0') {
+				switch (s[1]) {
+				case 'q': case 'Q': /* quit */
+					exit(EXIT_SUCCESS);
+				case 'v': case 'V': /* display local values */
+					alo_getreg(T, "println");
+					aloL_getsubfield(T, ALO_GLOBAL_IDNEX, "table", "mkstr");
+					alo_push(T, ALO_REGISTRY_INDEX);
+					alo_call(T, 1, 1);
+					alo_call(T, 1, 0);
+					continue;
+				}
 			}
+			printf("unknown command '%s'", s + 1);
 			continue;
 		}
 		alo_pushstring(T, s);
@@ -136,6 +149,7 @@ static int run(astate T) {
 		compilef(T, src);
 	}
 	else {
+		puts(ALO_COPYRIGHT);
 		alo_settop(T, 0);
 		while (true) {
 			alo_pushlightcfunction(T, runc);

@@ -303,10 +303,14 @@ const aentry_t* aloH_next(atable_t* self, ptrdiff_t* poff) {
 	}
 	aentry_t* e = self->array + off;
 	aentry_t* const end = self->array + self->capacity;
-	while (ttisnil(e)) { /* find next non-nil key */
-		if (++e == end) { /* reach to end? */
+	label: { /* find next non-nil key */
+		if (e == end) { /* reach to end? */
 			*poff = -1;
 			return NULL;
+		}
+		if (ttisnil(e)) {
+			e += 1;
+			goto label;
 		}
 	}
 	*poff = (e - self->array) + 1;
