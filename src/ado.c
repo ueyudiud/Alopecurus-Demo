@@ -279,8 +279,12 @@ static void stackerror(astate T) {
 void aloD_call(astate T, askid_t fun, int nresult) {
 	if (++T->nccall >= ALO_MAXCCALL)
 		stackerror(T);
+	aframe_t* frame = T->frame;
 	if (!aloD_precall(T, fun, nresult)) {
+		int oldact = frame->fact;
+		frame->fact = false;
 		aloV_invoke(T, false); /* invoke Alopecurus function */
+		frame->fact = oldact;
 	}
 	T->nccall--;
 }

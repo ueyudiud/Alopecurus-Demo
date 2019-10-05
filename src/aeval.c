@@ -131,6 +131,7 @@ static aclosure_t* aloV_nloadproto(astate T, aproto_t* p, aclosure_t* en, askid_
 	}
 	c = aloF_new(T, p->ncap, p);
 	tsetclo(T, T->top++, c);
+	trsetvalx(T, &c->delegate, en->delegate);
 	acapinfo_t* infos = p->captures;
 	for (int i = 0; i < p->ncap; ++i) {
 		if (infos[i].finstack) {
@@ -518,6 +519,8 @@ void aloV_invoke(astate T, int dofinish) {
 		proto = c->a.proto;
 		consts = proto->consts;
 		base = frame->a.base;
+
+		frame->fact = true; /* start active */
 	}
 
 	ainsn_t I;
@@ -689,7 +692,6 @@ void aloV_invoke(astate T, int dofinish) {
 						tsetnil(R(A + i));
 					}
 				}
-				pc += 1;
 			}
 			break;
 		}
@@ -927,12 +929,12 @@ void aloV_invoke(astate T, int dofinish) {
 
 			if (aloD_precall(T, f, nres)) {
 				/* called by C function */
-				if (frame->falo) { /* still in Alopecurus frame? */
+				if (frame->falo && frame->fact) { /* still in Alopecurus frame? */
 					goto invoke;
 				}
 				return;
 			}
-			else { /* can be execute by this function */
+			else if (frame->fact) { /* can be execute by this function */
 				frame = T->frame;
 				goto invoke; /* execute it */
 			}
@@ -948,8 +950,10 @@ void aloV_invoke(astate T, int dofinish) {
 			aloD_postcall(T, r, nres);
 			if (T->frame->falo) { /* can be execute by this function */
 				frame = T->frame;
-				dofinish = true; /* mark calling end */
-				goto invoke; /* execute it */
+				if (frame->fact) { /* is frame actived */
+					dofinish = true; /* mark calling end */
+					goto invoke; /* execute it */
+				}
 			}
 			return;
 		}
@@ -997,7 +1001,7 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_AADD: case OP_ASUB: case OP_AMUL: case OP_ADIV: case OP_AIDIV:
 	case OP_AMOD: case OP_APOW: case OP_ASHL: case OP_ASHR: case OP_AAND:
 	case OP_AOR: case OP_AXOR:
-		tsetobj(T, S(A), --T->top);
+		tsetobj(T, S(A), T->top);
 		break;
 	case OP_CAT: case OP_ACAT:
 		tsetobj(T, S(A), T->top - 1);

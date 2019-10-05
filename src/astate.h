@@ -111,6 +111,7 @@ struct alo_Frame {
 			abyte falo : 1; /* is frame called by Alopecurus function */
 			abyte ffnz : 1; /* is calling finalizer */
 			abyte fypc : 1; /* is function calling in yieldable protection */
+			abyte fact : 1; /* is active calling by VM */
 		};
 		abyte flags;
 	};
