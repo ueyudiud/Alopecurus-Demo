@@ -73,7 +73,7 @@ static aint vm_mod(astate T, aint a, aint b) {
 		return 0;
 	}
 	aint n = a % b;
-	return n && (n ^ b) ? n + b : n; /* a-floor(a/b)*b */
+	return n && n * b < 0 ? n + b : n; /* a-floor(a/b)*b */
 }
 
 static afloat vm_modf(astate T, afloat a, afloat b) {
