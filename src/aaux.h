@@ -15,6 +15,9 @@
 ALO_API astate aloL_newstate(void);
 
 ALO_API void aloL_pushscopedcfunction(astate, acfun);
+ALO_API void aloL_newstringlist_(astate, size_t, ...);
+
+#define aloL_newstringlist(T,args...) aloL_newstringlist_(T, sizeof((astr[]) { args }) / sizeof(astr), ##args)
 
 ALO_API void aloL_checkany(astate, aindex_t);
 ALO_API void aloL_checktype(astate, aindex_t, int);
@@ -45,17 +48,15 @@ ALO_API int aloL_callselfmeta(astate, aindex_t, astr);
 
 ALO_API void aloL_require(astate, astr, acfun, int);
 ALO_API int aloL_compiles(astate, aindex_t, astr, astr);
+ALO_API int aloL_compilef(astate, astr, astr);
 
 /**
  ** error handling
  */
 
-ALO_API void aloL_appendwhere_(astate, int, astr, int);
+ALO_API int aloL_getframe(astate, int, astr, aframeinfo_t*);
 ALO_API void aloL_where(astate, int);
-ALO_API void aloL_error_(astate, int, astr, int, astr, ...);
-
-#define aloL_appendwhere(T,level) aloL_appendwhere_(T, level, __FILE__, __LINE__)
-#define aloL_error(T,level,fmt,args...) aloL_error_(T, level, __FILE__, __LINE__, fmt, ##args)
+ALO_API void aloL_error(astate, int, astr, ...);
 
 ALO_API void aloL_argerror(astate, aindex_t, astr, ...);
 ALO_API void aloL_typeerror(astate, aindex_t, astr);

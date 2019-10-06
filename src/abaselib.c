@@ -81,7 +81,7 @@ static int base_rawget(astate T) {
 
 /**
  ** set element to structure.
- ** prototype: rawset(arg, idx)
+ ** prototype: rawset(arg, idx, key)
  */
 static int base_rawset(astate T) {
 	aloL_checkany(T, 2);
@@ -95,7 +95,7 @@ static int base_rawset(astate T) {
  ** prototype: rawrem(arg, idx)
  */
 static int base_rawrem(astate T) {
-	aloL_checkany(T, 2);
+	aloL_checkany(T, 1);
 	int succ = alo_rawrem(T, 0) != ALO_TUNDEF;
 	return succ ? 1 : 0;
 }
@@ -144,7 +144,7 @@ static int base_throw(astate T) {
 		level = 1;
 		break;
 	}
-	aloL_appendwhere(T, level);
+	aloL_where(T, level);
 	alo_throw(T);
 	return 0;
 }
@@ -232,6 +232,23 @@ static int base_delegate(astate T) {
 	return 1;
 }
 
+/**
+ ** set meta table for object.
+ ** prototype: setmeta(obj, metatable)
+ */
+static int base_setmeta(astate T) {
+	aloL_checkany(T, 0);
+	if (alo_isnonnil(T, 1)) {
+		aloL_checktype(T, 1, ALO_TTABLE);
+		alo_setmetatable(T, 0);
+	}
+	else {
+		alo_pushnil(T);
+		alo_setmetatable(T, 0);
+	}
+	return 1;
+}
+
 const acreg_t mod_funcs[] = {
 	{ "assert", base_assert },
 	{ "boxarg", base_boxarg },
@@ -242,6 +259,7 @@ const acreg_t mod_funcs[] = {
 	{ "rawlen", base_rawlen },
 	{ "rawrem", base_rawrem },
 	{ "rawset", base_rawset },
+	{ "setmeta", base_setmeta },
 	{ "tostring", base_tostring },
 	{ "throw", base_throw },
 	{ "typeof", base_typeof },
@@ -261,6 +279,7 @@ int aloopen_baselib(astate T) {
 	alo_bind(T, "base.rawlen", base_rawlen);
 	alo_bind(T, "base.rawset", base_rawset);
 	alo_bind(T, "base.rawrem", base_rawrem);
+	alo_bind(T, "base.setmeta", base_setmeta);
 	alo_bind(T, "base.tostring", base_tostring);
 	alo_bind(T, "base.throw", base_throw);
 	alo_bind(T, "base.newiterator", base_newiterator);

@@ -10,6 +10,7 @@
 #include "achr.h"
 
 #include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 #include <malloc.h>
 
@@ -35,6 +36,17 @@ void aloL_pushscopedcfunction(astate T, acfun value) {
 	alo_rawsets(T, -2, "__idx"); /* set lookup table */
 	alo_setmetatable(T, -2);
 	alo_setdelegate(T, -2);
+}
+
+void aloL_newstringlist_(astate T, size_t size, ...) {
+	alo_newlist(T, size);
+	va_list varg;
+	va_start(varg, size);
+	for (int i = 0; i < size; ++i) {
+		alo_pushstring(T, va_arg(varg, astr));
+		alo_rawseti(T, -2, i);
+	}
+	va_end(varg);
 }
 
 void aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
@@ -297,6 +309,25 @@ int LSReader(astate T, void* context, const char** pdest, size_t* psize) {
 	return 0;
 }
 
+struct FS {
+	FILE* stream;
+	char buf[256];
+};
+
+static int FSReader(astate T, void* context, const char** ps, size_t* pl) {
+	struct FS* fs = aloE_cast(struct FS*, context);
+	size_t len = fread(fs->buf, sizeof(char), sizeof(fs->buf) / sizeof(char), fs->stream);
+	if (len > 0) {
+		*ps = fs->buf;
+		*pl = len;
+	}
+	else {
+		*ps = NULL;
+		*pl = 0;
+	}
+	return ferror(fs->stream);
+}
+
 /**
  ** compile string as script in the stack, the string will not be removed.
  */
@@ -307,52 +338,70 @@ int aloL_compiles(astate T, aindex_t index, astr name, astr src) {
 }
 
 /**
- ** append stack trace in the string in the top of stack.
+ ** compile script in file, if file not found, return -1.
  */
-void aloL_appendwhere_(astate T, int level, astr file, int line) {
-	int size = 1;
-
-	void formatter(astate T, __attribute__((unused)) int l, aframeinfo_t* info) {
-		if (size == 1) {
-			info->src = file;
-			info->line = line;
-		}
-		if (info->line > 0) {
-			alo_pushfstring(T, "\nat %s (%s:%d)", info->name, info->src, info->line);
-		}
-		else {
-			alo_pushfstring(T, "\nat %s (%s)", info->name, info->src);
-		}
-		size ++;
+int aloL_compilef(astate T, astr name, astr src) {
+	struct FS context;
+	context.stream = fopen(src, "rb");
+	if (context.stream == NULL) {
+		return -1;
 	}
-
-	alo_foreachframe(T, level, "nsl", formatter);
-	alo_rawcat(T, size);
+	int result = alo_compile(T, name, src, FSReader, &context);
+	fclose(context.stream);
+	return result;
 }
 
-void aloL_where(astate T, int level) {
-	aframeinfo_t info;
-	if (alo_getframe(T, level, "nsl", &info)) {
-		if (info.line > 0) {
-			alo_pushfstring(T, "at %s (%s:%d)", info.name, info.src, info.line);
-		}
-		else {
-			alo_pushfstring(T, "at %s (%s)", info.name, info.src);
-		}
+/**
+ ** get frame with level
+ */
+int aloL_getframe(astate T, int level, astr what, aframeinfo_t* info) {
+	if (level == 1) {
+		alo_getframe(T, what, info);
+		return true;
 	}
 	else {
-		aloL_error(T, 1, "no frame information with level %d", level);
+		alo_getframe(T, "", info);
+		for (int i = 1; i < level; ++i) {
+			if (!alo_prevframe(T, "", info)) {
+				return false;
+			}
+		}
+		return alo_prevframe(T, what, info);
 	}
+}
+
+static void printstacktrace(astate T, astr name, astr src, int line) {
+	if (line > 0) {
+		alo_pushfstring(T, "\nat %s (%s:%d)", name, src, line);
+	}
+	else {
+		alo_pushfstring(T, "\nat %s (%s)", name, src);
+	}
+}
+
+/**
+ ** append stack trace in the string in the top of stack.
+ */
+void aloL_where(astate T, int level) {
+	aframeinfo_t info;
+	size_t n = 2;
+	alo_getframe(T, "nsl", &info);
+	printstacktrace(T, info.name, info.src, info.line);
+	while (n <= level && alo_prevframe(T, "nsl", &info)) {
+		printstacktrace(T, info.name, info.src, info.line);
+		n += 1;
+	}
+	alo_rawcat(T, n);
 }
 
 /**
  ** throw a runtime error.
  */
-void aloL_error_(astate T, int level, astr file, int line, astr fmt, ...) {
+void aloL_error(astate T, int level, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	alo_pushvfstring(T, fmt, varg);
-	aloL_appendwhere_(T, level, file, line);
+	aloL_where(T, level);
 	va_end(varg);
 	alo_throw(T);
 }
