@@ -707,7 +707,7 @@ void aloV_invoke(astate T, int dofinish) {
 					break;
 				}
 			}
-			protect(tv = aloT_index(T, tb, X(C)));
+			protect(tv = aloT_index(T, tb, tc));
 			if (tv == NULL) {
 				if (!f) {
 					goto notfound;
@@ -723,7 +723,6 @@ void aloV_invoke(astate T, int dofinish) {
 			if (tm) {
 				aloT_vmput4(T, tm, S(A), tb, X(C));
 				aloD_call(T, T->top - 4, 0);
-				goto finish;
 			}
 			else if (!aloV_nset(T, S(A), tb, X(C))) {
 				goto notfound;
@@ -736,7 +735,7 @@ void aloV_invoke(astate T, int dofinish) {
 			if (tm) {
 				aloT_vmput3(T, tm, tb, X(C));
 				aloD_call(T, T->top - 3, 1);
-				goto finish;
+				tsetobj(T, S(A), --T->top);
 			}
 			else if (!aloV_nremove(T, S(A), tb, X(C))) {
 				goto notfound;
@@ -760,7 +759,7 @@ void aloV_invoke(astate T, int dofinish) {
 				if (!aloT_trybin(T, tb, tc, op + TM_ADD)) {
 					goto notfound;
 				}
-				goto finish;
+				tsetobj(T, S(A), T->top);
 			}
 			break;
 		}
@@ -771,7 +770,7 @@ void aloV_invoke(astate T, int dofinish) {
 				if (!aloT_tryunr(T, tb, op + TM_PNM)) {
 					goto notfound;
 				}
-				goto finish;
+				tsetobj(T, S(A), T->top);
 			}
 			break;
 		}
@@ -884,9 +883,7 @@ void aloV_invoke(astate T, int dofinish) {
 			if (yB != 0) {
 				T->top = r + yB;
 			}
-			int flag;
-			protect(flag = aloD_precall(T, r, nresult));
-			if (flag) {
+			if (aloD_precall(T, r, nresult)) {
 				if (nresult >= 0) {
 					T->top = frame->top; /* adjust results */
 				}
@@ -895,9 +892,11 @@ void aloV_invoke(astate T, int dofinish) {
 				frame = T->frame;
 				goto invoke; /* execute it */
 			}
+			protect();
 			break;
 		}
 		case OP_TCALL: { /* tail call function */
+			aloF_close(T, base); /* close captures */
 			askid_t r = R(A);
 			askid_t f = frame->fun;
 			int narg = yB - 1; /* get argument count. */
@@ -934,14 +933,14 @@ void aloV_invoke(astate T, int dofinish) {
 				}
 				return;
 			}
-			else if (frame->fact) { /* can be execute by this function */
+			else { /* can be execute by this function */
 				frame = T->frame;
 				goto invoke; /* execute it */
 			}
-			break;
+			return;
 		}
 		case OP_RET: {
-			aloF_close(T, frame->a.base); /* close captures */
+			aloF_close(T, base); /* close captures */
 			askid_t r = R(A);
 			int nres = yB - 1;
 			if (nres == ALO_MULTIRET) {
@@ -1001,7 +1000,7 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_AADD: case OP_ASUB: case OP_AMUL: case OP_ADIV: case OP_AIDIV:
 	case OP_AMOD: case OP_APOW: case OP_ASHL: case OP_ASHR: case OP_AAND:
 	case OP_AOR: case OP_AXOR:
-		tsetobj(T, S(A), T->top);
+		tsetobj(T, S(A), --T->top);
 		break;
 	case OP_CAT: case OP_ACAT:
 		tsetobj(T, S(A), T->top - 1);
