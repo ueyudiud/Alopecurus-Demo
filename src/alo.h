@@ -13,7 +13,7 @@
 #define ALO_VERSION_MAJOR	"0"
 #define ALO_VERSION_MINOR	"1"
 #define ALO_VERSION_NUM		0, 1
-#define ALO_VERSION_RELEASE	"0"
+#define ALO_VERSION_RELEASE	"1"
 
 #define ALO_NAME "Alopecurus"
 #define ALO_VERSION ALO_NAME" "ALO_VERSION_MAJOR"."ALO_VERSION_MINOR
@@ -194,8 +194,8 @@ ALO_API int alo_vformat(astate, awriter, void*, astr, va_list);
 
 typedef struct alo_FrameDebug aframeinfo_t;
 
-ALO_API int alo_getframe(astate, int, astr, aframeinfo_t*);
-ALO_API void alo_foreachframe(astate, int, astr, void(*)(astate, int, aframeinfo_t*));
+ALO_API void alo_getframe(astate, astr, aframeinfo_t*);
+ALO_API int alo_prevframe(astate, astr, aframeinfo_t*);
 
 struct alo_FrameDebug {
 	astr name; /* apply by 'n' */
@@ -206,6 +206,8 @@ struct alo_FrameDebug {
 	unsigned nargument; /* apply by 'a' */
 	unsigned ncapture; /* apply by 'a' */
 	abyte vararg; /* apply by 'a' */
+	/* for private use */
+	void* _frame;
 };
 
 #endif /* ALO_H_ */

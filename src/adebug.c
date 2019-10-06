@@ -105,7 +105,7 @@ static int lineof(alineinfo_t* ls, size_t nl, size_t index) {
 	if (ls == NULL)
 		return 0; /* no line information provided */
 	size_t h = nl - 1, l = 0, m;
-	while (l + 1 < nl) {
+	while (l + 1 < h) {
 		m = (l + h) / 2;
 		if (ls[m].begin > index) {
 			h = m - 1;
@@ -172,6 +172,7 @@ anoret aloU_rterror(astate T, astr fmt, ...) {
 }
 
 static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {
+	info->_frame = frame;
 	if (strchr(what, 'n')) {
 		info->name = fnname(frame);
 		info->kind =
@@ -215,27 +216,15 @@ static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {
 	}
 }
 
-int alo_getframe(astate T, int level, astr what, aframeinfo_t* info) {
-	aframe_t* frame = T->frame;
-	while (frame) {
-		if (--level == 0) {
-			if (info) { /* apply information */
-				getframeinfo(frame, what, info);
-			}
-			return true;
-		}
-		frame = frame->prev;
-	}
-	return false;
+void alo_getframe(astate T, astr what, aframeinfo_t* info) {
+	getframeinfo(T->frame, what, info);
 }
 
-void alo_foreachframe(astate T, int level, astr what, void (*handlef)(astate, int, aframeinfo_t*)) {
-	aframe_t* frame = T->frame;
-	aframeinfo_t info;
-	int i = 0;
-	while (frame && ++i <= level) {
-		getframeinfo(frame, what, &info);
-		handlef(T, i, &info);
-		frame = frame->prev;
+int alo_prevframe(__attribute__((unused)) astate T, astr what, aframeinfo_t* info) {
+	aframe_t* frame = aloE_cast(aframe_t*, info->_frame);
+	if (frame->prev == NULL) {
+		return false;
 	}
+	getframeinfo(frame->prev, what, info);
+	return true;
 }
