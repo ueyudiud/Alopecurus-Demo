@@ -1,0 +1,28 @@
+-- literal test
+
+-- boolean literal
+assert(true)
+assert(!false)
+
+-- number literal
+assert(1)
+assert(1 + 0)
+assert(0 + 1)
+assert(2 * 3)
+assert(1, 2)
+assert(0xA9BED9AB)
+assert(2.4)
+assert(5.3e+30)
+assert(0x49p-3)
+
+-- string literal
+assert('abc')
+assert("\nb")
+assert("\\\\")
+
+assert('\n' == "\\n")
+assert("\n" == "\12")
+assert('"' == "\"")
+
+-- other literal
+assert(!nil)
