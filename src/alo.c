@@ -49,6 +49,9 @@ static void compilef(astate T, astr name) {
 #define EOFMARK "<eof>"
 #define marklen (sizeof(EOFMARK) / sizeof(char) - 1)
 
+/**
+ ** return true if script is incomplete.
+ */
 static int incomplete(astate T, int status) {
 	if (status == ThreadStateErrCompile) {
 		size_t lmsg;
@@ -60,6 +63,10 @@ static int incomplete(astate T, int status) {
 	return false;
 }
 
+/**
+ ** compile script in top of stack, return true if compile success,
+ ** return false if statement is incomplete and throw an error otherwise.
+ */
 static int compilec(astate T, astr name, int strict) {
 	int status = aloL_compiles(T, -1, "main", "<stdin>");
 	if (status == ThreadStateRun) {
@@ -74,6 +81,9 @@ static int compilec(astate T, astr name, int strict) {
 
 #define MAXINPUT 1024
 
+/**
+ ** read line from stdin.
+ */
 static char* readline(astate T) {
 	static char buf[MAXINPUT + 1];
 	char* p = fgets(buf, MAXINPUT, stdin);
@@ -91,6 +101,35 @@ static char* readline(astate T) {
 	}
 	buf[l - 1] = '\0';
 	return p;
+}
+
+static void loadscript(astate T, astr s) {
+	alo_pushstring(T, s);
+	alo_pushfstring(T, "return %s;", s);
+	if (!compilec(T, "main", false)) { /* try add return statement */
+		alo_push(T, 0);
+		while (!compilec(T, "main", true)) { /* unclosed statement, try multi-line statement */
+			alo_pushstring(T, "\n");
+			l_msg(">> ");
+			alo_pushstring(T, readline(T));
+			alo_rawcat(T, 3);
+			alo_push(T, 0);
+		}
+	}
+	alo_pop(T, 0);
+	alo_settop(T, 1);
+}
+
+static void runscript(astate T) {
+	alo_call(T, 0, ALO_MULTIRET);
+	int n = alo_gettop(T);
+	if (n > 0) {
+		alo_getreg(T, "println");
+		alo_insert(T, 0);
+		if (alo_pcall(T, n, 0) != ThreadStateRun) {
+			l_msg("error calling 'println', %s\n", alo_tostring(T, -1));
+		}
+	}
 }
 
 /**
@@ -117,29 +156,9 @@ static int runc(astate T) {
 			l_msg("unknown command '%s'", s + 1);
 			continue;
 		}
-		alo_pushstring(T, s);
-		alo_pushfstring(T, "return %s;", s);
-		if (!compilec(T, "main", false)) {
-			alo_push(T, 0);
-			while (!compilec(T, "main", true)) {
-				alo_pushstring(T, "\n");
-				l_msg(">> ");
-				alo_pushstring(T, readline(T));
-				alo_rawcat(T, 3);
-				alo_push(T, 0);
-			}
-		}
-		alo_pop(T, 0);
-		alo_settop(T, 1);
-		alo_call(T, 0, ALO_MULTIRET);
-		int n = alo_gettop(T);
-		if (n > 0) {
-			alo_getreg(T, "println");
-			alo_insert(T, 0);
-			if (alo_pcall(T, n, 0) != ThreadStateRun) {
-				l_msg("error calling 'println', %s\n", alo_tostring(T, -1));
-			}
-		}
+		/* load and run run script */
+		loadscript(T, s);
+		runscript(T);
 		alo_settop(T, 0);
 	}
 	return 0;
@@ -172,7 +191,8 @@ static __attribute__((noreturn)) int panic(__attribute__((unused)) astate T) {
 static int initialize(astate T, int argc, const astr argv[]) {
 	alo_setpanic(T, panic); /* set error callback */
 	aloL_openlibs(T); /* open libraries */
-	alo_bind(T, "run", run); /* put main function name */
+	alo_bind(T, "<run>", run); /* put main function name */
+	alo_bind(T, "<runc>", runc); /* put main function name */
 
 	astr filename = NULL; /* source name, use stdin if absent */
 	for (int i = 1; i < argc; ++i) {
