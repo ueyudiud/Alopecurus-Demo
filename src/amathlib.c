@@ -149,6 +149,9 @@ static int math_ceil(astate T) {
 }
 
 static const acreg_t mod_funcs[] = {
+	{ "E", NULL },
+	{ "NAN", NULL },
+	{ "PI", NULL },
 	{ "abs", math_abs },
 	{ "acos", math_acos },
 	{ "asin", math_asin },
@@ -191,5 +194,11 @@ int aloopen_mathlib(astate T) {
 	alo_bind(T, "math.tan", math_tan);
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
+	alo_pushnumber(T, NAN);
+	alo_rawsets(T, -2, "NAN");
+	alo_pushnumber(T, PI);
+	alo_rawsets(T, -2, "PI");
+	alo_pushnumber(T, E);
+	alo_rawsets(T, -2, "E");
 	return 1;
 }
