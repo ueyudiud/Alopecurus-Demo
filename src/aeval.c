@@ -56,7 +56,7 @@ static aint vm_idiv(astate T, aint a, aint b) {
 		return a;
 	}
 	aint n = a / b;
-	return n * a > b ? n - 1 : n; /* floor(a/b) */
+	return a != b * n && (a ^ b) < 0 ? n - 1 : n; /* floor(a/b) */
 }
 
 #define vm_idivf(T,a,b) floor(vm_div(T, a, b))
