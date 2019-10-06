@@ -33,8 +33,8 @@ struct alo_Block {
 	ablock_t* prev; /* previous block */
 	size_t flabel; /* index of first label in this block */
 	size_t fjump; /* index of first jump in this block */
-	int labelc; /* index of continue */
-	int labelb; /* index of jump from break */
+	int lcon; /* index of continue */
+	int lout; /* index of jump from break */
 	uint16_t nactvar; /* number of local variable at beginning of this block */
 	abyte incap; /* true when some local variable in this block is capture */
 	abyte loop; /* true when block is loop */
@@ -201,8 +201,8 @@ static void enterblock(afstat_t* f, ablock_t* b, int isloop) {
 		nactvar: f->nactvar,
 		flabel: f->d->lb.l,
 		fjump: f->d->lb.l,
-		labelc: isloop ? aloK_newlabel(f) : NO_JUMP,
-		labelb: NO_JUMP,
+		lcon: isloop ? aloK_newlabel(f) : NO_JUMP,
+		lout: NO_JUMP,
 		incap: false,
 		prev: f->b
 	};
@@ -1086,31 +1086,6 @@ static void funcarg(alexer_t* lex) {
 	aloK_incrstack(lex->f, n);
 }
 
-static void istat(alexer_t* lex) {
-	if (check(lex, '{')) { /* istat -> '{' stats '}' */
-		int line = lex->cl;
-		poll(lex);
-		rootstats(lex);
-		testenclose(lex, '{', '}', line);
-	}
-	else { /* istat -> expr */
-		aestat_t e;
-		expr(lex, &e);
-		if (hasmultiarg(&e)) {
-			if (e.t == E_CALL) {
-				SET_i(getinsn(lex->f, &e), OP_TCALL);
-			}
-			else {
-				aloK_multiret(lex->f, &e);
-				aloK_return(lex->f, aloK_putreg(lex->f, &e), ALO_MULTIRET);
-			}
-		}
-		else {
-			aloK_return(lex->f, aloK_putreg(lex->f, &e), 1);
-		}
-	}
-}
-
 static void retstat(alexer_t* lex) {
 	/* retstat -> 'return' (varexpr | '!') [';'] */
 	int line = lex->pl;
@@ -1144,6 +1119,33 @@ static void retstat(alexer_t* lex) {
 	aloK_return(lex->f, first, nret);
 	aloK_fixline(lex->f, line);
 	checknext(lex, ';');
+}
+
+static void istat(alexer_t* lex) {
+	if (check(lex, '{')) { /* istat -> '{' stats '}' */
+		int line = lex->cl;
+		poll(lex);
+		rootstats(lex);
+		testenclose(lex, '{', '}', line);
+	}
+	else { /* istat -> expr */
+		aestat_t e;
+		expr(lex, &e);
+		if (hasmultiarg(&e)) {
+			if (e.t == E_CALL) {
+				SET_i(getinsn(lex->f, &e), OP_TCALL);
+			}
+			else {
+				aloK_multiret(lex->f, &e);
+				int reg = aloK_putreg(lex->f, &e);
+				aloK_return(lex->f, reg, ALO_MULTIRET);
+			}
+		}
+		else {
+			int reg = aloK_putreg(lex->f, &e);
+			aloK_return(lex->f, reg, 1);
+		}
+	}
 }
 
 static int ifstat(alexer_t* lex) {
@@ -1190,14 +1192,14 @@ static void whilestat(alexer_t* lex) {
 	aloK_gwt(lex->f, &e);
 	testenclose(lex, '(', ')', line);
 	stat(lex, false); /* THEN block */
-	aloK_jumpbackward(lex->f, b.labelc);
+	aloK_jumpbackward(lex->f, b.lcon);
 	aloK_fixline(lex->f, line); /* fix line to conditional check */
 	leaveblock(lex->f);
 	aloK_putlabel(lex->f, e.lf);
 	if (checknext(lex, TK_ELSE)) {
 		stat(lex, false); /* ELSE block */
 	}
-	aloK_putlabel(lex->f, b.labelb);
+	aloK_putlabel(lex->f, b.lout);
 }
 
 static void dowhilestat(alexer_t* lex) {
@@ -1212,12 +1214,12 @@ static void dowhilestat(alexer_t* lex) {
 	expr(lex, &e);
 	testenclose(lex, '(', ')', line);
 	aloK_gwf(lex->f, &e);
-	aloK_marklabel(lex->f, b.labelc, e.lt);
+	aloK_marklabel(lex->f, b.lcon, e.lt);
 	leaveblock(lex->f);
 	if (checknext(lex, TK_ELSE)) {
 		stat(lex, false); /* ELSE block */
 	}
-	aloK_putlabel(lex->f, b.labelb);
+	aloK_putlabel(lex->f, b.lout);
 }
 
 static void assignment(alexer_t* lex, alhsa_t* a, int nvar) {

@@ -55,7 +55,7 @@ static atval_t* newconst(afstat_t* f) {
 }
 
 static ainsn_t* getctrl(afstat_t* f, int index) {
-	ainsn_t* i = f->p->code + f->d->jp.a[index].pc;
+	ainsn_t* i = f->p->code + index;
 	switch (GET_i(*i)) {
 	case OP_JMP:
 		return i - 1;
@@ -128,7 +128,7 @@ static alabel* newlabel(afstat_t* f, altable_t* table) {
 }
 
 int aloK_newlabel(afstat_t* f) {
-	return newlabel(f, &f->d->lb)->pc;
+	return newlabel(f, &f->d->lb) - f->d->lb.a;
 }
 
 static void linkcjmp(afstat_t* f, int* p, int jmp) {
@@ -163,10 +163,9 @@ void aloK_putlabel(afstat_t* f, int pc) {
 	}
 }
 
-void aloK_marklabel(afstat_t* f, int index, int jmp) {
-	if (jmp != NO_JUMP) {
+void aloK_marklabel(afstat_t* f, int index, int list) {
+	if (list != NO_JUMP) {
 		size_t dest = f->d->lb.a[index].pc;
-		size_t list = f->d->jp.a[jmp].pc;
 		int next;
 		do {
 			next = nextjump(f, list);
@@ -385,7 +384,7 @@ static void fixR(afstat_t* f, aestat_t* e, int reg) {
 	if (hasjump(e)) {
 		end = NO_JUMP;
 		next:
-		if (e->lt != NO_JUMP) {
+		if (e->lt != NO_JUMP || e->t == E_JMP) {
 			aloK_putlabel(f, e->lt);
 			loadbool(f, reg, true);
 			if (e->lf != NO_JUMP)
@@ -997,8 +996,21 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		l->t = E_JMP;
 		aloK_fixline(f, line);
 		break;
-	case OPR_NE: case OPR_GT: case OPR_GE:
-		if (foldcompare(f, l, r, op + ALO_OPEQ - OPR_NE)) {
+	case OPR_NE:
+		if (foldcompare(f, l, r, ALO_OPEQ)) {
+			l->t ^= (E_TRUE ^ E_FALSE); /* flip value */
+			break;
+		}
+		aloK_anyRK(f, l);
+		aloK_anyRK(f, r);
+		freeexp(f, r);
+		freeexp(f, l);
+		l->v.g = cmpjmp(f, l, r, OP_EQ, false);
+		l->t = E_JMP;
+		aloK_fixline(f, line);
+		break;
+	case OPR_GT: case OPR_GE:
+		if (foldcompare(f, r, l, op + ALO_OPEQ - OPR_NE)) {
 			codenot(f, l);
 			break;
 		}
