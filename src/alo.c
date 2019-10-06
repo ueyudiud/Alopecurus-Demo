@@ -13,8 +13,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
+#define l_err(fmt,args...) fprintf(stderr, fmt, ##args)
 
 static int readf(astate T, void* context, const char** ps, size_t* pl) {
 	static char ch;
@@ -176,7 +178,7 @@ static int run(astate T) {
 			alo_pushlightcfunction(T, runc);
 			alo_push(T, 0);
 			if (alo_pcall(T, 0, 0) != ThreadStateRun) {
-				fprintf(stderr, "%s\n", alo_tostring(T, -1));
+				l_err("%s\n", alo_tostring(T, -1));
 				alo_settop(T, 1);
 			}
 		}
@@ -186,6 +188,25 @@ static int run(astate T) {
 
 static __attribute__((noreturn)) int panic(__attribute__((unused)) astate T) {
 	exit(EXIT_FAILURE);
+}
+
+static int movedir(astr f) {
+	astr p = f;
+	astr l = NULL;
+	while (*p) {
+		if (*p == '\\' || *p == '/') {
+			l = p;
+		}
+		p++;
+	}
+	if (l == NULL || l == f) {
+		return false;
+	}
+	size_t len = l - f;
+	char path[len + 1];
+	memcpy(path, f, len);
+	path[len] = '\0';
+	return chdir(path);
 }
 
 static int initialize(astate T, int argc, const astr argv[]) {
@@ -199,19 +220,23 @@ static int initialize(astate T, int argc, const astr argv[]) {
 		if (argv[i][0] == '-') { /* setting */
 			switch (argv[i][1]) {
 			case '-':
-				fprintf(stderr, "illegal command '%s'", &argv[i][2]);
-				break;
+				l_err("illegal command '%s'.\n", &argv[i][2]);
+				return false;
 			default:
-				fprintf(stderr, "illegal abbreviation of command '%s'", &argv[i][1]);
-				break;
+				l_err("illegal abbreviation of command '%s'.\n", &argv[i][1]);
+				return false;
 			}
 		}
 		else if (filename != NULL) {
-			fprintf(stderr, "file name already settled.");
+			l_err("file name already settled.");
 			return false;
 		}
 		else {
 			filename = argv[i];
+			if (movedir(filename)) {
+				l_err("fail to move directory to target place.\n");
+				return false;
+			}
 		}
 	}
 
@@ -224,7 +249,7 @@ static int initialize(astate T, int argc, const astr argv[]) {
 int main(int argc, astr argv[]) {
 	astate T = aloL_newstate();
 	if (T == NULL) {
-		fputs("fail to initialize VM.", stderr);
+		l_err("fail to initialize VM.");
 	}
 	if (!initialize(T, argc, argv)) {
 		alo_deletestate(T);
