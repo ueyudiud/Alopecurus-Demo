@@ -25,6 +25,12 @@
 
 #define ALO_LIB_DIR "/lib"
 
+/**
+ ** when enable this option, the float number will not transfer to
+ ** integer number while compiling and taking operation.
+ */
+#define ALO_STRICT_NUMTYPE false
+
 #define ALO_HARDMEMTEST
 #define ALO_DEBUG
 

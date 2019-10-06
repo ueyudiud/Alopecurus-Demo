@@ -29,7 +29,11 @@
 #define mcall(T,f,x...) (aloE_void(T), aloE_flt(f(x)))
 
 /* only take conversion from number to integer */
+#if ALO_STRICT_NUMTYPE
+#define vm_toint(o,i) (ttisint(o) && (i = tgetint(o), true))
+#else
 #define vm_toint(o,i) (ttisint(o) ? (i = tgetint(o), true) : ttisflt(o) && aloO_flt2int(tgetflt(o), &i, 0))
+#endif
 
 #define vm_ibin(T,op,x,y) (aloE_void(T), aloE_int(i2x(x) op i2x(y)))
 #define vm_fbin(T,op,x,y) (aloE_void(T), aloE_flt((x) op (y)))
@@ -266,7 +270,7 @@ static int aloV_nidiv(astate T, atval_t* A, const atval_t* B, const atval_t* C) 
  */
 static int aloV_nmod(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 	aint i1, i2;
-	if (vm_toint(B, i1) && vm_toint(C, i2)) {
+	if (vm_toint(B, i1) && (vm_toint(C, i2) && (ttisint(C) || i2 != 0))) {
 		tsetint(A, vm_mod(T, i1, i2));
 	}
 	else if (ttisnum(B) && ttisnum(C)) {

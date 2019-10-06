@@ -77,10 +77,12 @@ static int aloK_kint(afstat_t* f, aint value) {
 }
 
 static int aloK_kflt(afstat_t* f, afloat value) {
+#if !ALO_STRICT_NUMTYPE
 	aint t;
 	if (aloO_flt2int(value, &t, 0)) {
 		return aloK_kint(f, t);
 	}
+#endif
 	size_t i;
 	kfind(i, f->p->consts, f->nconst, value, ttisflt, tgetflt);
 	tsetflt(newconst(f), value);
