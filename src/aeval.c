@@ -56,7 +56,7 @@ static aint vm_idiv(astate T, aint a, aint b) {
 		return a;
 	}
 	aint n = a / b;
-	return a != b * n && (a ^ b) < 0 ? n - 1 : n; /* floor(a/b) */
+	return a != b * n && a * b < 0 ? n - 1 : n; /* floor(a/b) */
 }
 
 #define vm_idivf(T,a,b) floor(vm_div(T, a, b))
@@ -78,7 +78,7 @@ static aint vm_mod(astate T, aint a, aint b) {
 
 static afloat vm_modf(astate T, afloat a, afloat b) {
 	afloat m = fmod(a, b);
-	return m * b < 0 ? /* has same operator? */
+	return a * b >= 0 ? /* has same operator? */
 			m : m + b;
 }
 
