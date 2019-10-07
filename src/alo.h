@@ -22,6 +22,7 @@
 #define ALO_AUTHOR "ueyudiud"
 
 #include "adef.h"
+#include "acfg.h"
 
 #define ALO_API extern
 
