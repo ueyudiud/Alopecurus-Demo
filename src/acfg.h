@@ -25,6 +25,9 @@
 
 #define ALO_LIB_DIR "/lib"
 
+/* max stack size of each thread */
+#define ALO_MAXSTACKSIZE 100000
+
 /**
  ** when enable this option, the float number will not transfer to
  ** integer number while compiling and taking operation.

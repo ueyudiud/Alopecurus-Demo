@@ -115,8 +115,8 @@ enum {
 
 #define ALO_MULTIRET (-1)
 
-/* max stack size of each thread */
-#define ALO_MAXSTACKSIZE 100000
+#define ALO_INT_PROP(field) INT64_##field
+#define ALO_FLT_PROP(field) DOUBLE##field
 
 #define aloE_assert(exp,what) ALO_ASSERT(exp,what)
 #define aloE_void(exp...) ((void) (exp))

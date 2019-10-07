@@ -150,6 +150,8 @@ static int math_ceil(astate T) {
 
 static const acreg_t mod_funcs[] = {
 	{ "E", NULL },
+	{ "INTMAX", NULL },
+	{ "INTMIN", NULL },
 	{ "NAN", NULL },
 	{ "PI", NULL },
 	{ "abs", math_abs },
@@ -200,5 +202,9 @@ int aloopen_mathlib(astate T) {
 	alo_rawsets(T, -2, "PI");
 	alo_pushnumber(T, E);
 	alo_rawsets(T, -2, "E");
+	alo_pushinteger(T, ALO_INT_PROP(MAX));
+	alo_rawsets(T, -2, "INTMAX");
+	alo_pushinteger(T, ALO_INT_PROP(MIN));
+	alo_rawsets(T, -2, "INTMIN");
 	return 1;
 }

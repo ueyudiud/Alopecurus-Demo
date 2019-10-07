@@ -46,8 +46,8 @@ typedef struct alo_SBuf asbuf_t;
 
 #define BYTE_MAX UCHAR_MAX
 
-#define AINT_MAX INT64_MAX
-#define AINT_MIN INT64_MIN
+#define AINT_MAX ALO_INT_PROP(MAX)
+#define AINT_MIN ALO_INT_PROP(MIN)
 
 /* the length of buffer used in 'sprintf' function */
 #define ALO_SPRIBUFLEN 32
