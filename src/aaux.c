@@ -351,6 +351,17 @@ int aloL_compilef(astate T, astr name, astr src) {
 	return result;
 }
 
+int aloL_loadf(astate T, astr src) {
+	struct FS context;
+	context.stream = fopen(src, "rb");
+	if (context.stream == NULL) {
+		return -1;
+	}
+	int result = alo_load(T, src, FSReader, &context);
+	fclose(context.stream);
+	return result;
+}
+
 /**
  ** get frame with level
  */
