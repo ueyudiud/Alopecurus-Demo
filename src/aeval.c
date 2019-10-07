@@ -908,7 +908,7 @@ void aloV_invoke(astate T, int dofinish) {
 			askid_t f = frame->fun;
 			int narg = yB - 1; /* get argument count. */
 			if (narg == ALO_MULTIRET) {
-				narg = (T->top - r);
+				narg = (T->top - r) - 1;
 			}
 			if (!ttisfun(r)) { /* meta helper for call */
 				const atval_t* tm = aloT_gettm(T, r, TM_CALL, true); /* get tagged method */

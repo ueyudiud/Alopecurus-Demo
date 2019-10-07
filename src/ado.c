@@ -142,6 +142,7 @@ anoret aloD_throw(astate T, int status) {
  ** move result to correct place.
  */
 static int moveresults(astate T, askid_t dest, askid_t src, int nresult, int expected) {
+	aloE_assert(dest <= src, "illegal stack structure.");
 	switch (expected) {
 	case 0: /* no result */
 		break;
@@ -152,7 +153,7 @@ static int moveresults(astate T, askid_t dest, askid_t src, int nresult, int exp
 			tsetobj(T, dest, src);
 		break;
 	case ALO_MULTIRET: /* multi result */
-		for (int i = nresult - 1; i >= 0; --i) {
+		for (int i = 0; i < nresult; ++i) {
 			tsetobj(T, dest + i, src + i);
 		}
 		T->top = dest + nresult;

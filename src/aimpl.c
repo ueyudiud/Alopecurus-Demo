@@ -179,10 +179,10 @@ void alo_insert(astate T, aindex_t index) {
 	askid_t bot = index2addr(T, index);
 	askid_t top = T->top - 1;
 	atval_t cache = *top;
-	askid_t i = bot;
-	while (i < top) {
+	askid_t i = top - 1;
+	while (i >= bot) {
 		tsetobj(T, i + 1, i);
-		i += 1;
+		i--;
 	}
 	trsetvalx(T, bot, cache);
 }
