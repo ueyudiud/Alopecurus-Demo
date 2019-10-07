@@ -1,0 +1,81 @@
+-- operation test
+
+local NaN = math.NAN
+local x = 1.5
+local Zero = x - x -- force zero to be value in float, when ALO_STRICT_NUMTYPE disabled, the 0.0 will transfered to integer value
+
+local isNaN(x) -> x != x
+
+-- compare operation
+assert(1 == 1)
+assert(nil == nil)
+assert(isNaN(NaN))
+
+assert(1 != 2)
+
+assert(1 > 0)
+assert(1 >= 1)
+assert(1 >= 0)
+assert(!(1 < NaN))
+
+-- arithmetic operation
+assert(1 + 2 == 3)
+assert(1 + 2.0 == 3)
+assert(1 - 2 == -1)
+assert(1e15 + 1 == 1000000000000001.0)
+
+assert(89548855236 * 559565456 == -5231786206718327232)
+
+assert(1 / 2 == 0.5)
+assert(-1 / 2 == -0.5)
+assert(isNaN(Zero / Zero))
+assert(!isNaN(1 / Zero))
+
+assert(1 // 2 == 0)
+assert(2 // 2 == 1)
+assert(-2 // 2 == -1)
+assert(-1 // 2 == -1)
+assert(-1 // -2 == 0)
+assert(1 // -2 == -1)
+assert(1.0 // 2.5 == 0)
+assert(-3.0 // 3.0 == -1)
+
+assert(1 % 2 == 1)
+assert(-1 % 2 == 1)
+assert(0 % 2 == 0)
+assert(40287 % 56 == 23)
+assert(5 % -2 == -1)
+assert(-7 % -2 == -1)
+assert(3.5 % 2 == 1.5)
+assert(isNaN(Zero % Zero))
+
+-- logical operation
+assert(1 << 2 == 4)
+assert(5 << -1 == 2)
+assert(2 >> 1 == 1)
+assert(72068658981244996 << 6 == 4612394174799679744)
+assert(-4242 >> 5 == 576460752303423355)
+
+assert(1530833266436271840 & 895459558522556 == 576325559545504)
+assert(1530833266436271840 | 895459558522556 == 1531152400435248892)
+assert(1530833266436271840 ~ 895459558522556 == 1530576074875703388)
+
+-- max value and min value operation test
+local IntMax = math.INTMAX
+local IntMin = math.INTMIN
+
+assert(IntMin == IntMax + 1)
+assert(IntMax // IntMax == 1)
+assert(IntMax // 1 == IntMax)
+assert((IntMax - 1) // IntMax == 0)
+assert(IntMax // (IntMax - 1) == 1)
+assert(IntMin // IntMin == 1)
+assert(IntMin // 1 == IntMin)
+assert((IntMin + 1) // IntMin == 0)
+assert(IntMin // (IntMin + 1) == 1)
+
+assert(IntMax % IntMax == 0)
+assert(IntMax % (IntMax - 1) == 1)
+assert(IntMax % IntMin == -1)
+assert(IntMin % IntMin == 0)
+assert(IntMin % (IntMin + 1) == -1)
