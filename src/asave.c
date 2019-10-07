@@ -69,7 +69,7 @@ static void savestr(O* out, astring_t* s) {
 }
 
 static void saveversion(O* out, abyte major, abyte minor) {
-	savek(out, major * 16 + minor);
+	savek(out, aloE_byte(major * 16 + minor));
 }
 
 static void saveconsts(O* out, const aproto_t* p) {

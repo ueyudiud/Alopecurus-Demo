@@ -46,16 +46,21 @@ static void error(I* in, astr msg) {
 	aloD_throw(in->T, ThreadStateErrSerialize);
 }
 
-#define loadb(in,b,s) ({ size_t _size = (s); if (aloB_iread((in)->T, &(in)->buf, b, _size) != _size) error(in, "truncated"); })
+#define loadb(in,b,s) ({ if (aloB_iread((in)->T, &(in)->buf, b, s)) error(in, "truncated"); })
 #define loada(in,a,l) loadb(in, a, (l) * sizeof((a)[0]))
+#define initl(in,a,l) (a = aloM_newa((in)->T, (a)[0], l))
+#define loadl(in,a,l) ({ size_t _len = (l); initl(in, a, _len); loada(in, a, _len); })
 #define loadr(in,r) loadb(in, &(r), sizeof(r))
 #define loadt(in,t) ({ t _block; loadr(in, _block); _block; })
 #define checkl(in,l,msg) checkl_(in, l, sizeof(l) - sizeof(char), msg)
 
 static astring_t* bind(I* in, astring_t* s) {
-	alist_t* list = tgetlis(in->T->top - 1);
-	aloI_ensure(in->T, list, 1);
-	tsetstr(in->T, list->array + list->length++, s);
+	astate T = in->T;
+	alist_t* list = tgetlis(T->top - 1);
+	tsetstr(T, T->top++, s); /* push string into stack to avoid GC */
+	aloI_ensure(T, list, 1);
+	tsetstr(T, list->array + list->length++, s);
+	T->top--; /* pop stack */
 	return s;
 }
 
@@ -96,7 +101,7 @@ static astring_t* loads(I* in) {
 static void loadconsts(I* in, aproto_t* p) {
 	size_t n;
 	loadr(in, n);
-	loada(in, p->consts, n);
+	initl(in, p->consts, n);
 	p->nconst = n;
 	for (size_t i = 0; i < n; ++i) {
 		atval_t* t = p->consts + i;
@@ -146,9 +151,9 @@ static void loadconsts(I* in, aproto_t* p) {
 
 static void loadcaptures(I* in, aproto_t* p) {
 	uint16_t n = loadt(in, uint16_t);
-	loada(in, p->captures, n);
+	initl(in, p->captures, n);
 	p->ncap = n;
-	for (size_t i = 0; i < n; ++i) {
+	for (int i = 0; i < n; ++i) {
 		acapinfo_t* info = p->captures + i;
 		loadr(in, info->index);
 		info->finstack = loadu8(in);
@@ -160,12 +165,10 @@ static void loadfun(I*, aproto_t**, astring_t*);
 static void loadchildren(I* in, aproto_t* p) {
 	size_t n;
 	loadr(in, n);
-	loada(in, p->children, n);
-	/* initialize children array */
-	for (size_t i = 0; i < n; ++i) {
-		p->children[i] = NULL;
-	}
+	initl(in, p->children, n);
 	p->nchild = n;
+	/* initialize children array */
+	for (size_t i = 0; i < n; p->children[i++] = NULL);
 	for (size_t i = 0; i < n; ++i) {
 		loadfun(in, p->children + i, p->src);
 	}
@@ -176,14 +179,14 @@ static void loaddebug(I* in, aproto_t* p) {
 	loadr(in, p->lineldef);
 	size_t n;
 	loadr(in, n);
-	loada(in, p->lineinfo, n);
+	initl(in, p->lineinfo, n);
 	p->nlineinfo = n;
 	for (size_t i = 0; i < n; ++i) {
 		loadr(in, p->lineinfo[i].begin);
 		loadr(in, p->lineinfo[i].line);
 	}
 	loadr(in, n);
-	loada(in, p->locvars, n);
+	initl(in, p->locvars, n);
 	p->nlocvar = n;
 	for (size_t i = 0; i < n; ++i) {
 		p->locvars[i].name = loads(in);
@@ -206,7 +209,7 @@ static void loadfun(I* in, aproto_t** slot, astring_t* src) {
 	loadr(in, p->nstack);
 	/* load codes */
 	loadr(in, p->ncode);
-	loada(in, p->code, p->ncode);
+	loadl(in, p->code, p->ncode);
 	/* load constants */
 	loadconsts(in, p);
 	/* load captures */
@@ -266,6 +269,7 @@ int aloZ_load(astate T, aproto_t** p, astr src, areader reader, void* context) {
 	int status = aloD_prun(T, pload, &c);
 	if (status == ThreadStateRun && !c.in.status) {
 		*p = c.p;
+		aloG_register(T, c.p, ALO_TPROTO); /* register prototype */
 	}
 	else {
 		aloZ_delete(T, c.p);
