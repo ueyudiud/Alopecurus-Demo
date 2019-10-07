@@ -33,6 +33,7 @@ struct alo_Block {
 	ablock_t* prev; /* previous block */
 	size_t flabel; /* index of first label in this block */
 	size_t fjump; /* index of first jump in this block */
+	size_t fsymbol; /* first symbol index */
 	int lcon; /* index of continue */
 	int lout; /* index of jump from break */
 	uint16_t nactvar; /* number of local variable at beginning of this block */
@@ -199,6 +200,7 @@ static void enterblock(afstat_t* f, ablock_t* b, int isloop) {
 	*b = (ablock_t) {
 		loop: isloop,
 		nactvar: f->nactvar,
+		fsymbol: f->d->ss.l,
 		flabel: f->d->lb.l,
 		fjump: f->d->lb.l,
 		lcon: isloop ? aloK_newlabel(f) : NO_JUMP,
@@ -218,6 +220,7 @@ static void leaveblock(afstat_t* f) {
 		}
 	}
 	f->nactvar = b->nactvar;
+	f->d->ss.l = b->fsymbol;
 	int njmp = b->fjump;
 	alabel* labels = f->d->jp.a;
 	for (int i = b->fjump; i < f->d->jp.l; ++i) {
@@ -1327,7 +1330,7 @@ static void localstat(alexer_t* lex) {
 		aestat_t e;
 		aloK_loadproto(f, &e);
 		aloK_fixline(lex->f, line); /* fix line to conditional check */
-		aloK_anyR(f, &e);
+		aloK_move(f, &e, index);
 	}
 	else {
 		/* localstat -> 'local' IDENT [ ',' IDENT ] { '=' varexpr } */
@@ -1356,6 +1359,7 @@ static void localstat(alexer_t* lex) {
 }
 
 static int stat(alexer_t* lex, int assign) {
+	lex->f->freelocal = lex->f->nactvar;
 	switch (lex->ct.t) {
 	case ';': { /* stat -> ';' */
 		poll(lex); /* skip ';' */

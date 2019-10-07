@@ -932,7 +932,11 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 		aloK_gwf(f, e);
 		break;
 	case OPR_ADD ... OPR_BXOR:
+	case OPR_EQ ... OPR_GE:
 		aloK_eval(f, e);
+		if (e->t == E_ALLOC) {
+			newR(f, e);
+		}
 		break;
 	case OPR_CAT:
 		if (e->t != E_CONCAT) {
@@ -1012,15 +1016,14 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		aloK_fixline(f, line);
 		break;
 	case OPR_GT: case OPR_GE:
-		if (foldcompare(f, r, l, op + ALO_OPEQ - OPR_NE)) {
-			codenot(f, l);
+		if (foldcompare(f, r, l, op + ALO_OPLT - OPR_GT)) {
 			break;
 		}
 		aloK_anyRK(f, l);
 		aloK_anyRK(f, r);
 		freeexp(f, r);
 		freeexp(f, l);
-		l->v.g = cmpjmp(f, r, l, op + OP_EQ - OPR_NE, true);
+		l->v.g = cmpjmp(f, r, l, op + OP_LT - OPR_GT, true);
 		l->t = E_JMP;
 		aloK_fixline(f, line);
 		break;
