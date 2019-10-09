@@ -61,20 +61,19 @@ static void growstack(astate T, void* context) {
 
 int alo_ensure(astate T, size_t size) {
 	aframe_t* const frame = T->frame;
-	if ((T->stack + T->stacksize) - T->top >= size) {
-		return true;
-	}
-	else {
-		size_t capacity = T->top - T->stack + EXTRA_STACK;
-		if (capacity + size > ALO_MAXSTACKSIZE) {
-			return false;
+	if (frame->top - T->top < size) {
+		if ((T->stack + T->stacksize) - T->top < size) {
+			size_t capacity = T->top - T->stack + EXTRA_STACK;
+			if (capacity + size > ALO_MAXSTACKSIZE) {
+				return false;
+			}
+			else if (aloD_prun(T, growstack, &size) != ThreadStateRun) { /* try grow stack. */
+				return false;
+			}
 		}
-		else if (aloD_prun(T, growstack, &size) == ThreadStateRun) { /* try grow stack. */
-			frame->top = T->top + size; /* adjust top of frame. */
-			return true;
-		}
-		return false;
+		frame->top = T->top + size; /* adjust top of frame. */
 	}
+	return true;
 }
 
 aindex_t alo_gettop(astate T) {
@@ -175,6 +174,7 @@ void alo_erase(astate T, aindex_t index) {
  ** insert value at the top of stack into specific index of stack
  */
 void alo_insert(astate T, aindex_t index) {
+	api_checkslots(T, 1);
 	api_check(T, isinstk(index), "invalid stack index.");
 	askid_t bot = index2addr(T, index);
 	askid_t top = T->top - 1;
@@ -978,17 +978,17 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 	aibuf_t buf;
 	aloB_iopen(&buf, reader, context);
 	aclosure_t* c = aloF_new(T, 0, NULL);
-	tsetclo(T, api_incrtop(T), c);
+	tsetclo(T, api_incrtop(T), c); /* put closure into stack to avoid GC */
 	aproto_t* p;
 	askid_t top = T->top;
 	int status = aloP_parse(T, src, &buf, &p);
-	if (p) {
+	if (p) { /* compile success */
 		c->a.proto = p;
 		p->name = aloS_of(T, name);
 		tsetobj(T, &c->delegate, aloT_getreg(T));
 	}
-	else {
-		tsetobj(T, top - 1, T->top - 1);
+	else { /* failed */
+		tsetobj(T, top - 1, T->top - 1); /* move error message into top of stack */
 	}
 	T->top = top;
 	return status;
