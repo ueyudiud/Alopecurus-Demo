@@ -24,6 +24,7 @@ void aloI_addall(astate, alist_t*, const atval_t*, size_t);
 int aloI_put(astate, alist_t*, const atval_t*);
 void aloI_seti(astate, alist_t*, aint, const atval_t*, atval_t*);
 void aloI_set(astate, alist_t*, const atval_t*, const atval_t*, atval_t*);
+void aloI_removei(astate, alist_t*, aint, atval_t*);
 int aloI_remove(astate, alist_t*, const atval_t*, atval_t*);
 const atval_t* aloI_next(alist_t*, ptrdiff_t*);
 

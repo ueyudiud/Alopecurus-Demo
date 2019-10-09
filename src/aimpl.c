@@ -484,21 +484,18 @@ void alo_rawcat(astate T, size_t size) {
 }
 
 /**
- ** iterate to next element
+ ** iterate to next element in collection.
  */
 int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 	api_checkslots(T, 2);
 	askid_t o = index2addr(T, idown);
-	ptrdiff_t off;
 	const atval_t* t;
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE: {
-		off = *poff;
 		t = aloA_next(tgettup(o), poff);
 		goto ielement;
 	}
 	case ALO_TLIST: {
-		off = *poff;
 		t = aloI_next(tgetlis(o), poff);
 		goto ielement;
 	}
@@ -518,7 +515,7 @@ int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 	}
 	ielement: { /* for array like 'next' call */
 		if (t) { /* has next element? */
-			tsetint(   T->top    , off);
+			tsetint(   T->top    , *poff);
 			tsetobj(T, T->top + 1, t);
 			T->top += 2;
 			return ttpnv(t);
@@ -527,6 +524,33 @@ int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 	}
 	}
 	return ALO_TUNDEF;
+}
+
+/**
+ ** remove current element in collection.
+ */
+void alo_iremove(astate T, aindex_t idown, ptrdiff_t off) {
+	api_checkslots(T, 2);
+	askid_t o = index2addr(T, idown);
+	switch (ttpnv(o)) {
+	case ALO_TTUPLE: {
+		aloE_assert(false, "can not remove element from tuple .");
+		break;
+	}
+	case ALO_TLIST: {
+		aloI_removei(T, tgetlis(o), off, NULL);
+		break;
+	}
+	case ALO_TTABLE: {
+		aloH_rawrem(T, tgettab(o), off, NULL);
+		break;
+	}
+	default: {
+		aloE_assert(false, "object can not be iterated.");
+		break;
+	}
+	}
+
 }
 
 int alo_rawget(astate T, aindex_t idown) {
@@ -732,6 +756,17 @@ void alo_trim(astate T, aindex_t idown) {
 		aloH_trim(T, tgettab(o));
 		break;
 	}
+}
+
+/**
+ ** trim object
+ */
+void alo_triml(astate T, aindex_t idown, size_t len) {
+	askid_t o = index2addr(T, idown);
+	alist_t* list = tgetlis(o);
+	aloE_assert(len <= list->length, "the length should less than current length.");
+	list->length = len;
+	aloI_trim(T, list); /* trim list size. */
 }
 
 void alo_rawsetx(astate T, aindex_t idown, int drop) {

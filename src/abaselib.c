@@ -191,7 +191,7 @@ static int base_newiterator(astate T) {
 		alo_call(T, 1, 1);
 	}
 	else {
-		alo_pushinteger(T, 0); /* offset */
+		alo_pushinteger(T, ALO_ITERATE_BEGIN); /* beginning of offset */
 		switch (alo_typeid(T, 0)) {
 		case ALO_TTUPLE:
 		case ALO_TLIST:

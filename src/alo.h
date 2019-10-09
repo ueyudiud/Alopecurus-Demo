@@ -32,6 +32,8 @@ typedef ptrdiff_t aindex_t;
 #define ALO_REGISTRY_INDEX (-ALO_MAXSTACKSIZE - 100000)
 #define ALO_CAPTURE_INDEX(x) (-ALO_MAXSTACKSIZE - 150000 + (x))
 
+#define ALO_ITERATE_BEGIN (-1)
+
 /**
  * state manipulation
  */
@@ -114,6 +116,8 @@ ALO_API void alo_pushcclosure(astate, acfun, size_t);
 ALO_API void alo_pushpointer(astate, void*);
 ALO_API int alo_pushthread(astate);
 
+#define alo_pushunit(T) alo_newtuple(T, 0)
+
 /**
  ** arithmetic operation, comparison and other functions
  */
@@ -125,6 +129,7 @@ ALO_API void alo_rawcat(astate, size_t);
  */
 
 ALO_API int alo_inext(astate, aindex_t, ptrdiff_t*);
+ALO_API void alo_iremove(astate, aindex_t, ptrdiff_t);
 ALO_API int alo_rawget(astate, aindex_t);
 ALO_API int alo_rawgeti(astate, aindex_t, aint);
 ALO_API int alo_rawgets(astate, aindex_t, astr);
@@ -149,6 +154,7 @@ ALO_API void alo_newtable(astate, size_t);
  */
 
 ALO_API void alo_trim(astate, aindex_t);
+ALO_API void alo_triml(astate, aindex_t, size_t);
 ALO_API void alo_rawsetx(astate, aindex_t, int);
 ALO_API void alo_rawseti(astate, aindex_t, aint);
 ALO_API void alo_rawsets(astate, aindex_t, astr);

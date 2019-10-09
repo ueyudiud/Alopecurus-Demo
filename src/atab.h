@@ -38,6 +38,7 @@ atval_t* aloH_find(astate, atable_t*, const atval_t*);
 void aloH_set(astate, atable_t*, const atval_t*, const atval_t*, atval_t*);
 astring_t* aloH_sets(astate, atable_t*, astr, size_t, const atval_t*, atval_t*);
 void aloH_setxs(astate, atable_t*, astring_t*, const atval_t*, atval_t*);
+void aloH_rawrem(astate, atable_t*, size_t, atval_t*);
 int aloH_remove(astate, atable_t*, const atval_t*, atval_t*);
 const aentry_t* aloH_next(atable_t*, ptrdiff_t*);
 

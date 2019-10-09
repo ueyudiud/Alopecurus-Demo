@@ -62,7 +62,7 @@ void aloH_trim(astate T, atable_t* self) {
 		while (!ttisnil(i) && i < end) {
 			i++;
 		}
-		if (ttisnil(i)) { /* if not get all of entries */
+		if (i < end) { /* if not get all of entries */
 			aentry_t* j = i - 1;
 			do {
 				while (ttisnil(++i)); /* get next non-null entry */
@@ -277,7 +277,20 @@ void aloH_setxs(astate T, atable_t* self, astring_t* key, const atval_t* value, 
 }
 
 /**
- * remove entry by key, return 'true' if key founded, or 'false' in the otherwise.
+ ** remove entry by entry index.
+ */
+void aloH_rawrem(astate T, atable_t* self, size_t index, atval_t* out) {
+	aloE_assert(0 <= index && index < self->length, "table index out of bound.");
+	aentry_t* entry = self->array + index;
+	if (out) {
+		tsetobj(T, out, amval(entry));
+	}
+	clearentry(entry);
+	self->length--;
+}
+
+/**
+ ** remove entry by key, return 'true' if key founded, or 'false' in the otherwise.
  */
 int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
 	if (isinvalidkey(key)) {
@@ -296,23 +309,25 @@ int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
 	return false;
 }
 
+/**
+ ** iterate to next element in table.
+ */
 const aentry_t* aloH_next(atable_t* self, ptrdiff_t* poff) {
-	ptrdiff_t off = *poff;
-	if (off < 0) { /* negative offset means iterating already ended */
+	aloE_assert(*poff >= -1, "illegal offset.");
+	ptrdiff_t off = *poff + 1;
+	if (off >= self->capacity) { /* iterating already ended */
 		 return NULL;
 	}
-	aentry_t* e = self->array + off;
 	aentry_t* const end = self->array + self->capacity;
-	label: { /* find next non-nil key */
-		if (e == end) { /* reach to end? */
-			*poff = -1;
-			return NULL;
+	aentry_t* e = self->array + off;
+	while (e < end) { /* find next non-nil key */
+		if (!ttisnil(e)) {
+			*poff = e - self->array; /* adjust offset */
+			return e;
 		}
-		if (ttisnil(e)) {
-			e += 1;
-			goto label;
-		}
+		e += 1;
 	}
-	*poff = (e - self->array) + 1;
-	return e;
+	/* reach to end? */
+	*poff = self->capacity;
+	return NULL;
 }

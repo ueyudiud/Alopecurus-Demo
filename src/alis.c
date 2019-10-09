@@ -120,6 +120,17 @@ void aloI_set(astate T, alist_t* self, const atval_t* index, const atval_t* valu
 	aloI_seti(T, self, v, value, out);
 }
 
+void aloI_removei(astate T, alist_t* self, aint index, atval_t* out) {
+	aloE_assert(0 <= index && index < self->length, "list index out of bound.");
+	if (out) {
+		tsetobj(T, out, self->array + index);
+	}
+	for (size_t j = index + 1; j < self->length; ++j) {
+		tsetobj(T, self->array + j - 1, self->array + j);
+	}
+	self->length--;
+}
+
 int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
 	aint i;
 	if (!aloV_toint(index, i)) {
@@ -132,13 +143,7 @@ int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
 		return false;
 	}
 	else {
-		if (out) {
-			tsetobj(T, out, self->array + i);
-		}
-		for (size_t j = i + 1; j < self->length; ++j) {
-			tsetobj(T, self->array + j - 1, self->array + j);
-		}
-		self->length--;
+		aloI_removei(T, self, i, out);
 		return true;
 	}
 }
@@ -147,15 +152,11 @@ int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
  ** iterate to next element.
  */
 const atval_t* aloI_next(alist_t* self, ptrdiff_t* poff) {
-	if (*poff < 0) { /* negative offset means iterating already ended */
+	aloE_assert(*poff >= -1, "illegal offset.");
+	ptrdiff_t off = ++(*poff);
+	if (off >= self->length) { /* iterating already ended */
+		*poff = self->length;
 		return NULL;
 	}
-	ptrdiff_t off = *poff;
-	if (off == self->length) { /* no element remains? */
-		*poff = -1;
-		return NULL;
-	}
-	const atval_t* result = self->array + off++;
-	*poff = off;
-	return result;
+	return self->array + off;
 }
