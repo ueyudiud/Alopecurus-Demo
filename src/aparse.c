@@ -182,7 +182,7 @@ static void initproto(astate T, afstat_t* f) {
 	aloM_newb(T, p->consts, p->nconst, 64);
 	p->consts[0] = tnewbool(false);
 	p->consts[1] = tnewbool(true);
-	f->nconst = 3;
+	f->nconst = 2;
 }
 
 static void closeproto(astate T, afstat_t* f) {
