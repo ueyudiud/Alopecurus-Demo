@@ -1,4 +1,5 @@
 import 'literals'
 import 'operation'
+import 'strings'
 
 println 'OK!'

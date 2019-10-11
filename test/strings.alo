@@ -1,0 +1,30 @@
+-- string test
+
+-- string operation
+
+-- comparison
+assert('alo' < 'alo1')
+assert('alo' > '')
+assert('alo' < "alo\0")
+assert('alo' < "alo\0a")
+assert("\0\0\0" >= "\0\0\0")
+assert("\0\0\0" <= "\0\0\0")
+
+-- length
+assert(#'' == 0)
+assert(#'alo' == 3)
+assert(#"alo\0alo" == 7)
+
+-- other function test
+
+assert('abc'->reverse() == 'cba')
+assert('abc'->repeat(3) == 'abcabcabc')
+
+-- regular expression
+
+assert('abc'->match('abc'))
+assert('b+'->match('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
+assert('b?b?b?b?'->match('bb'))
+assert('\w+'->match('fj8eq0fjqifiqe0few'))
+assert('a|ab|abc'->match('ab'))
+assert('[abc]+'->match('abbca'))
