@@ -17,15 +17,10 @@ static int table_filter(astate T) {
 	size_t n = alo_rawlen(T, 0);
 	if (flag) { /* copy to a new table */
 		alo_newtable(T, n);
-	}
-	else { /* put in it self */
-		alo_push(T, 0);
-	}
-	if (n == 0) { /* no elements contained */
-		return 1; /* return empty table directly */
-	}
-	ptrdiff_t i = ALO_ITERATE_BEGIN;
-	if (flag) {
+		if (n == 0) {
+			return 1;
+		}
+		ptrdiff_t i = ALO_ITERATE_BEGIN;
 		while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
 			alo_push(T, 1);
 			alo_push(T, 3);
@@ -41,17 +36,21 @@ static int table_filter(astate T) {
 			}
 		}
 	}
-	else {
-		while (alo_push(T, 1), alo_inext(T, 0, &i) != ALO_TUNDEF) {
-			alo_call(T, 2, 1);
-			if (alo_toboolean(T, 3)) {
-				alo_iremove(T, 1, i);
+	else { /* put in it self */
+		if (n > 0) {
+			ptrdiff_t i = ALO_ITERATE_BEGIN;
+			while (alo_push(T, 1), alo_inext(T, 0, &i) != ALO_TUNDEF) {
+				alo_call(T, 2, 1);
+				if (!alo_toboolean(T, 2)) {
+					alo_iremove(T, 0, i);
+				}
+				alo_settop(T, 2);
 			}
-			alo_settop(T, 2);
+			alo_drop(T);
 		}
-		alo_drop(T);
 	}
-	alo_trim(T, 2);
+	alo_trim(T, 0);
+	alo_push(T, 0);
 	return 1;
 }
 

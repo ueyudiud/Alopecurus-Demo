@@ -63,10 +63,12 @@ void aloH_trim(astate T, atable_t* self) {
 			i++;
 		}
 		if (i < end) { /* if not get all of entries */
-			aentry_t* j = i - 1;
+			aentry_t* j = i++;
 			do {
-				while (ttisnil(++i)); /* get next non-null entry */
-				*(j++) = *i; /* move entry */
+				while (ttisnil(i)) { /* get next non-null entry */
+					i++;
+				}
+				*(j++) = *(i++); /* move entry */
 			}
 			while (j < end); /* stop if all of entries are get */
 			aloE_assert(j < self->array + self->capacity, "some of entries are missing.");
@@ -280,8 +282,9 @@ void aloH_setxs(astate T, atable_t* self, astring_t* key, const atval_t* value, 
  ** remove entry by entry index.
  */
 void aloH_rawrem(astate T, atable_t* self, size_t index, atval_t* out) {
-	aloE_assert(0 <= index && index < self->length, "table index out of bound.");
+	aloE_assert(0 <= index && index < self->capacity, "table index out of bound.");
 	aentry_t* entry = self->array + index;
+	aloE_assert(!ttisnil(entry), "no entry exist.");
 	if (out) {
 		tsetobj(T, out, amval(entry));
 	}
