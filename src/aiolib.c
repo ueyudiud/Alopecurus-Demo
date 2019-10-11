@@ -81,7 +81,7 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 	aloL_bpushstring(buf);
 }
 
-static int f_getline(astate T) {
+static int f_line(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	ambuf_t buf;
@@ -254,7 +254,7 @@ static const acreg_t cls_funcs[] = {
 	{ "eof", f_eof },
 	{ "err", f_err },
 	{ "getc", f_getc },
-	{ "getline", f_getline },
+	{ "line", f_line },
 	{ "isclosed", f_isclosed },
 	{ "lines", f_lines },
 	{ "put", f_put },
