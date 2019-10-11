@@ -18,7 +18,7 @@
 
 /**
  ** reverse string.
- ** prototype: string.reverse(string)
+ ** prototype: string.reverse(self)
  */
 static int str_reverse(astate T) {
 	size_t len;
@@ -43,6 +43,44 @@ static int str_reverse(astate T) {
 	return 1;
 }
 
+#define STRBUF_SIZE 256
+
+/**
+ ** repeat string with number of times.
+ ** prototype: string.repeat(self, times)
+ */
+static int str_repeat(astate T) {
+	size_t len;
+	const char* src = aloL_checklstring(T, 0, &len);
+	size_t time = aloL_checkinteger(T, 1);
+	if (time >= ALO_INT_PROP(MAX) / len) {
+		aloL_error(T, 2, "repeat time overflow.");
+	}
+	const size_t nlen = len * time;
+	if (nlen == 0) {
+		alo_pushstring(T, "");
+	}
+	else if (nlen <= STRBUF_SIZE) { /* for short string, use buffer on stack */
+		char buf[nlen];
+		char* p = buf;
+		for (size_t i = 0; i < time; ++i) {
+			memcpy(p, src, len * sizeof(char));
+			p += len;
+		}
+		alo_pushlstring(T, buf, nlen);
+	}
+	else { /* for long string, use buffer on heap */
+		ambuf_t buf;
+		aloL_bempty(T, &buf);
+		aloL_bcheck(&buf, nlen * sizeof(char));
+		for (size_t i = 0; i < time; ++i) {
+			aloL_bputls(&buf, src, len);
+		}
+		aloL_bpushstring(&buf);
+	}
+	return 1;
+}
+
 /* max match group number */
 #define MAX_GROUP_SIZE 64
 
@@ -59,7 +97,7 @@ enum {
 	T_BOL, /* begin of line */
 	T_EOL, /* end of line */
 	T_CHR, /* single character, data = char in UTF-32 */
-	T_STR, /* string, data = pattern length, str = pattern */
+	T_STR, /* string, data = pattern length, str = pattern, extra = group index */
 	T_SET, /* set, extra = negative set, data = pattern length, str = set  */
 	T_SUB, /* union of pattern, extra = group index, data = union node length, arr = union nodes */
 	T_SEQ, /* pattern sequence, data = structure node length, arr = children nodes */
@@ -124,7 +162,7 @@ typedef struct alo_CompileState {
 typedef astr (*amcon_t)(astr);
 
 /* matching function */
-typedef astr (*amfun_t)(amstat_t*, amnode_t*, amgroup_t*, astr, amcon_t);
+typedef astr (*amfun_t)(amstat_t*, amnode_t*, astr, amcon_t);
 
 /* matcher function */
 
@@ -132,10 +170,10 @@ static astr nocon(astr s) {
 	return s; /* identical function */
 }
 
-static astr matchx(amstat_t*, amnode_t*, amgroup_t*, astr, amcon_t);
+static astr matchx(amstat_t*, amnode_t*, astr, amcon_t);
 
-#define matchs(M,node,group,s,con) \
-	((node)->mode == M_NORMAL ? handles[(node)->type] : matchx)(M, node, group, s, con)
+#define matchs(M,node,s,con) \
+	((node)->mode == M_NORMAL ? handles[(node)->type] : matchx)(M, node, s, con)
 
 /* character used in class */
 #define CLASS_CHAR "acdglpsuwx"
@@ -163,29 +201,23 @@ static int match_class(int ch, int cl) {
 
 static const amfun_t handles[];
 
-static astr m_bol(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_bol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') ? con(s) : NULL;
 }
 
-static astr m_eol(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_eol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	return (s == M->send || s[1] == '\r' || s[1] == '\n') ? con(s) : NULL;
 }
 
-static astr m_chr(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_chr(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	return node->data == sgetc(M, s) ? con(s) : NULL;
 }
 
-static astr m_str(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_str(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	astr p = node->str;
 	next:
 	switch (*p) {
 	case '\0': break; /* end of string */
-	case '<':
-		group->begin = node->str;
-		break;
-	case '>':
-		group->end = node->str;
-		break;
 	case '\\': {
 		if (!match_class(sgetc(M, s), *(p + 1))) {
 			return NULL;
@@ -204,9 +236,12 @@ static astr m_str(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t
 	return con(s);
 }
 
-static astr m_set(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_set(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	astr p = node->str;
 	int ch = sgetc(M, s);
+	if (ch == EOS) {
+		return NULL;
+	}
 	while (*p) {
 		if (*p == '\\') {
 			if (match_class(*(p + 1), ch) != node->extra) {
@@ -230,40 +265,21 @@ static astr m_set(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t
 	return NULL;
 }
 
-static astr m_sub(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_sub(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	astr con1(astr t) {
-		if (node->extra > 0) { /* settle group position */
-			group->end = group->end ?: t;
-		}
+		M->groups[node->extra] = (amgroup_t) { s, t }; /* settle group position */
 		return con(t);
-	}
-	if (node->extra > 0) {
-		group = &M->groups[node->extra];
 	}
 	astr e;
 	for (size_t i = 0; i < node->data; ++i) {
-		group->begin = group->end = NULL;
-		if ((e = matchs(M, node->arr[i], group, s, con1))) {
-			if (node->extra > 0) { /* settle group position */
-				group->begin = group->end ?: s;
-			}
+		if ((e = matchs(M, node->arr[i], s, node->extra > 0 ? con1 : con))) {
 			return e;
 		}
 	}
 	return NULL;
 }
 
-//astr seqcheck(amstat_t* M, amnode_t* node, size_t index, amgroup_t* group, astr s, amcon_t con) {
-//	astr con1(astr t) {
-//		if (M->depth-- == 0) {
-//			aloL_error(M->T, 2, "matching string is too complex.");
-//		}
-//		return index + 1 == node->data ? con(t) : seqcheck(M, node, index + 1, group, t, con);
-//	}
-//	return matchs(M, node->arr[index], group, s, con1);
-//}
-
-static astr m_seq(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr m_seq(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	astr seqcheck(astr t, size_t index) {
 		astr con1(astr e) {
 			if (M->depth-- == 0) {
@@ -271,25 +287,24 @@ static astr m_seq(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t
 			}
 			return seqcheck(e, index + 1);
 		}
-		return matchs(M, node->arr[index], group, t, index + 1 == node->data ? con : con1);
+		return matchs(M, node->arr[index], t, index + 1 == node->data ? con : con1);
 	}
-//	return seqcheck(M, node, 0, group, s, con);
 	return seqcheck(s, 0);
 }
 
 static const amfun_t handles[] = { NULL, m_bol, m_eol, m_chr, m_str, m_set, m_sub, m_seq };
 
-static astr matchx(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_t con) {
+static astr matchx(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	if (M->depth-- == 0) {
 		aloL_error(M->T, 2, "matching string is too complex.");
 	}
 	amfun_t handle = handles[node->type];
 	switch (node->mode) {
 	case M_NORMAL: {
-		return handle(M, node, group, s, con);
+		return handle(M, node, s, con);
 	}
 	case M_MORE: {
-		if (!(s = handle(M, node, group, s, nocon))) {
+		if (!(s = handle(M, node, s, nocon))) {
 			return NULL;
 		}
 	case M_ANY: {}
@@ -297,21 +312,21 @@ static astr matchx(amstat_t* M, amnode_t* node, amgroup_t* group, astr s, amcon_
 		do if ((t = con(s))) {
 			return t;
 		}
-		while ((s = handle(M, node, group, s, nocon)));
+		while ((s = handle(M, node, s, nocon)));
 		return NULL;
 	}
 	case M_MOREG: case M_ANYG: {
 		astr cong(astr t) {
-			astr e = handle(M, node, group, t, nocon);
+			astr e = handle(M, node, t, nocon);
 			return e && (e = cong(e)) ? e : con(t);
 		}
-		return handle(M, node, group, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
+		return handle(M, node, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
 	}
 	case M_OPT: {
-		return con(s) ?: handle(M, node, group, s, con);
+		return con(s) ?: handle(M, node, s, con);
 	}
 	case M_OPTG: {
-		return handle(M, node, group, s, con) ?: con(s);
+		return handle(M, node, s, con) ?: con(s);
 	}
 	default: { /* illegal error */
 		return NULL;
@@ -334,7 +349,7 @@ static int match(amstat_t* M, amnode_t* node, astr s, int full) {
 	astr fullcon(astr s) {
 		return s == end ? s : NULL;
 	}
-	if ((end = matchx(M, node, M->groups, s, full ? fullcon : nocon))) {
+	if ((end = matchx(M, node, s, full ? fullcon : nocon))) {
 		group->begin = group->begin ?: begin;
 		group->end = group->end ?: end;
 		return true;
@@ -427,18 +442,29 @@ static void p_str(acstat_t* C, amnode_t** pnode) {
 	case '+': case '*': case '?': case '(': case ')':
 	case '[': case '^': case '$': case '|':
 		break;
-	case '\0':
+	case '\0': {
 		if (C->pos == C->end) {
 			break;
 		}
 		goto single;
-	single: default:
+	}
+	case '\\': {
+		if (C->pos + 1 == C->end) {
+			cerror(C, "illegal escape character.");
+		}
+		cput(C, '\\');
+		cput(C, C->pos[1]);
+		C->pos += 2;
+		goto next;
+	}
+	single: default: {
 		if (C->length > 0 && strchr(MODIFIER_CHAR, *(C->pos + 1))) { /* modifier found, skip */
 			break;
 		}
 		cput(C, *C->pos);
 		C->pos += 1;
 		goto next;
+	}
 	}
 	if (flag || C->length > 1) {
 		amnode_t* node = *pnode = construct(C, T_STR);
@@ -465,6 +491,7 @@ static void p_chset(acstat_t* C, amnode_t** pnode) {
 		if (C->pos == C->end) {
 			cerror(C, "illegal pattern.");
 		}
+		cput(C, *C->pos);
 		C->pos += 1;
 		if (*C->pos == '-') {
 			if (C->pos + 1 == C->end) {
@@ -475,6 +502,7 @@ static void p_chset(acstat_t* C, amnode_t** pnode) {
 			C->pos += 2;
 		}
 	}
+	build(C, node);
 }
 
 static void p_expr(acstat_t*, amnode_t**);
@@ -559,7 +587,7 @@ static void p_mono(acstat_t* C, amnode_t** node) {
 	case ']': case '}':
 		cerror(C, "illegal pattern.");
 		break;
-	case ')':
+	case ')': case '|':
 		break;
 	}
 	if (len != 1) {
@@ -617,7 +645,7 @@ static int str_match(astate T) {
 	amgroup_t groups[matcher.ngroup];
 	src = alo_tolstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
-	alo_pushboolean(T, match(&M, matcher.node, src, true) && M.groups[0].end - M.groups[0].begin == len);
+	alo_pushboolean(T, match(&M, matcher.node, src, true));
 	destory(T, matcher.node);
 	return 1;
 }
@@ -750,11 +778,13 @@ static int str_matcher(astate T) {
 static const acreg_t mod_funcs[] = {
 	{ "match", str_match },
 	{ "matcher", str_matcher },
+	{ "repeat", str_repeat },
 	{ "reverse", str_reverse },
 	{ NULL, NULL }
 };
 
 int aloopen_strlib(astate T) {
+	alo_bind(T, "string.repeat", str_repeat);
 	alo_bind(T, "string.reverse", str_reverse);
 	alo_bind(T, "string.match", str_match);
 	alo_bind(T, "string.matcher", str_matcher);
