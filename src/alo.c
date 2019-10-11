@@ -34,16 +34,18 @@ static int readf(astate T, void* context, const char** ps, size_t* pl) {
 	return ferror(file);
 }
 
-static void compilef(astate T, astr name) {
+static int compilef(astate T, astr name) {
 	FILE* file = fopen(name, "r");
 	if (file) {
 		if (alo_compile(T, "run", name, readf, file) != ThreadStateRun) { /* compile prototype */
 			aloL_error(T, 2, alo_tostring(T, -1));
+			return false;
 		}
-		alo_call(T, 0, 0); /* call function */
+		return true;
 	}
 	else {
 		aloL_error(T, 1, "fail to open file '%s'", name);
+		return false;
 	}
 }
 
@@ -169,7 +171,9 @@ static int runc(astate T) {
 static int run(astate T) {
 	astr src = alo_tostring(T, 0);
 	if (*src) {
-		compilef(T, src);
+		if (compilef(T, src)) {
+			alo_call(T, 0, 0); /* call function */
+		}
 	}
 	else {
 		l_msg(ALO_COPYRIGHT"\n");
@@ -219,16 +223,18 @@ static int initialize(astate T, int argc, const astr argv[]) {
 	for (int i = 1; i < argc; ++i) {
 		if (argv[i][0] == '-') { /* setting */
 			switch (argv[i][1]) {
-			case '-':
+			case '-': {
 				l_err("illegal command '%s'.\n", &argv[i][2]);
 				return false;
-			default:
+			}
+			default: {
 				l_err("illegal abbreviation of command '%s'.\n", &argv[i][1]);
 				return false;
 			}
+			}
 		}
 		else if (filename != NULL) {
-			l_err("file name already settled.");
+			l_err("file name already settled.\n");
 			return false;
 		}
 		else {
