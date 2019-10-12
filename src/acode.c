@@ -279,7 +279,7 @@ void aloK_eval(afstat_t* f, aestat_t* e) {
 		typeof(e->v.d) d = e->v.d;
 		if (e->v.d.k < aloK_fastconstsize) { /* if value in register, the constant index is also small than fast constant size */
 			if (!d.fk) freereg(f, d.k);
-			freereg(f, d.o);
+			if (!d.fo) freereg(f, d.o);
 		}
 		else {
 			aloK_nextreg(f, e);
@@ -289,7 +289,7 @@ void aloK_eval(afstat_t* f, aestat_t* e) {
 			freereg(f, d.o);
 		}
 		e->t = E_ALLOC;
-		e->v.g = aloK_iABC(f, OP_GET, false, false, d.fk, 0, d.o, d.k);
+		e->v.g = aloK_iABC(f, OP_GET, false, d.fo, d.fk, 0, d.o, d.k);
 		break;
 	}
 	case E_CALL: case E_UNBOX: case E_VARARG: {
