@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
+#include <sys/time.h>
 
 #define alo_pusherrcode alo_pushinteger
 
@@ -32,7 +33,18 @@ static int sys_getenv(astate T) {
 }
 
 static int sys_clock(astate T) {
-	alo_pushinteger(T, (afloat) clock() / CLOCKS_PER_SEC);
+	alo_pushinteger(T, clock() / CLOCKS_PER_SEC);
+	return 1;
+}
+
+/**
+ ** get current time measured in milliseconds from
+ ** January 1st, 1970 UTC 0:00 to current time.
+ */
+static int sys_time(astate T) {
+	struct timeval t;
+	gettimeofday(&t, NULL);
+	alo_pushinteger(T, aloE_cast(aint, t.tv_sec) * 1000 + aloE_cast(aint, t.tv_usec) / 1000);
 	return 1;
 }
 
@@ -68,6 +80,7 @@ static const acreg_t mod_funcs[] = {
 	{ "exit", sys_exit },
 	{ "clock", sys_clock },
 	{ "getenv", sys_getenv },
+	{ "time", sys_time },
 	{ "run", sys_run },
 	{ NULL, NULL }
 };
