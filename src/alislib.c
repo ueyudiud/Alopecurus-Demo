@@ -270,7 +270,7 @@ static void isortaux(astate T, size_t s, size_t l) {
 			}
 			alo_insert(T, a);
 		}
-		for (ssize_t i = l - 1; i >= 0; --i) {
+		for (aint i = l - 1; i >= 0; --i) {
 			alo_rawseti(T, 0, s + i);
 		}
 		break;
@@ -445,6 +445,10 @@ static void l_mkstr_checkarg(astate T) {
 	alo_getreg(T, "tostring");
 }
 
+/**
+ ** make list to string.
+ ** prototype: list.mkstr(self,[sep,[left,[right]]])
+ */
 static int list_mkstr(astate T) {
 	ambuf_t buf;
 	l_mkstr_checkarg(T);
