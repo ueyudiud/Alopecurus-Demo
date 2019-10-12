@@ -50,6 +50,7 @@ ALO_API void aloL_require(astate, astr, acfun, int);
 ALO_API int aloL_compiles(astate, aindex_t, astr, astr);
 ALO_API int aloL_compilef(astate, astr, astr);
 ALO_API int aloL_loadf(astate, astr);
+ALO_API int aloL_savef(astate, aindex_t, astr, int);
 
 /**
  ** error handling

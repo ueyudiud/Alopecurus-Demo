@@ -328,6 +328,12 @@ static int FSReader(astate T, void* context, const char** ps, size_t* pl) {
 	return ferror(fs->stream);
 }
 
+static int FSWriter(astate T, void* context, const void* s, size_t l) {
+	struct FS* fs = aloE_cast(struct FS*, context);
+	fwrite(s, 1, l, fs->stream);
+	return ferror(fs->stream);
+}
+
 /**
  ** compile string as script in the stack, the string will not be removed.
  */
@@ -358,6 +364,18 @@ int aloL_loadf(astate T, astr src) {
 		return -1;
 	}
 	int result = alo_load(T, src, FSReader, &context);
+	fclose(context.stream);
+	return result;
+}
+
+int aloL_savef(astate T, aindex_t index, astr dest, int debug) {
+	struct FS context;
+	context.stream = fopen(dest, "wb");
+	if (context.stream == NULL) {
+		return -1;
+	}
+	setvbuf(context.stream, context.buf, _IOFBF, sizeof(context.buf));
+	int result = alo_save(T, FSWriter, &context, debug);
 	fclose(context.stream);
 	return result;
 }

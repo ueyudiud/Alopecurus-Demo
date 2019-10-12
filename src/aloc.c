@@ -9,30 +9,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
 
-void aassert(const char* msg, const char* src, int ln) {
-	fprintf(stderr, "%s %s:%d\n", msg, src, ln);
-	exit(1);
-}
-
 #include "aall.h"
-
-struct lstr {
-	const char* src;
-	size_t len;
-};
-
-#define lstr_c(s) ((struct lstr) { ""s, sizeof(s) - 1 })
-
-int read(astate T, void* context, const char** pdest, size_t* psize) {
-	struct lstr* l = (struct lstr*) context;
-	*psize = l->len;
-	*pdest = l->src;
-	l->src = NULL;
-	l->len = 0;
-	return 0;
-}
 
 static int fwriter(astate T, void* buf, const void* src, size_t len) {
 	fwrite(src, 1, len, aloE_cast(FILE*, buf));
@@ -196,17 +176,30 @@ static void dump(astate T, aproto_t* p) {
 	}
 }
 
+#define MASK_SRC	0x0001
+#define MASK_DEST	0x0002
+#define MASK_NAME	0x0004
+
+#define MASK_INFO	0x0100
+
+static astr name = "<main>";
+static astr src = NULL;
+static astr dest = "out.aloc";
+
+static unsigned mask = 0;
+
 static int tmain(astate T) {
-	struct lstr a = lstr_c(
-			"local list = [ '1', '2', '3' ]"
-			"println(list->mkstr)"
-			"list->map(\\x -> x .. '1')"
-			"println(list->mkstr)"
-			"list->map(\\x -> x .. '1', false)"
-			"println(list->mkstr)");
-	if (alo_compile(T, "run", "<tmain>", read, &a) == ThreadStateRun) {
-//		dump(T, tgetclo(T->top - 1)->a.proto);
-		alo_call(T, 0, 0);
+	int flag = aloL_compilef(T, name, src);
+	if (flag == ThreadStateRun) {
+		if (mask & MASK_INFO) {
+			dump(T, tgetclo(T->top - 1)->a.proto);
+		}
+		else {
+			if (aloL_savef(T, -1, dest, true) != ThreadStateRun) {
+				fprintf(stderr, "fail to save to file %s", dest);
+				return 0;
+			}
+		}
 	}
 	else {
 		fprintf(stderr, "%s\n", alo_tostring(T, -1));
@@ -214,14 +207,56 @@ static int tmain(astate T) {
 	return 0;
 }
 
+#define checkmask(m,msg) if ((m) & mask) { fputs(msg"\n", stderr); return false; } mask |= (m)
+
+static int parsearg(astate T, int argc, const astr argv[]) {
+	for (int i = 1; i < argc; ++i) {
+		astr s = argv[i];
+		if (s[0] == '-') {
+			if (strcmp(s + 1, "o") == 0) {
+				checkmask(MASK_DEST, "Destination already settled.");
+				if (++i < argc) {
+					fputs("Missing file path after '-o'.\n", stderr);
+					return false;
+				}
+				dest = argv[i];
+			}
+			else if (strcmp(s + 1, "n") == 0) {
+				checkmask(MASK_NAME, "Function name already settled.");
+			}
+			else if (strcmp(s + 1, "i") == 0) {
+				checkmask(MASK_INFO, "Information mode already settled.");
+			}
+			else {
+				fprintf(stderr, "Unknown option got: '%s'\n", s);
+				return false;
+			}
+		}
+		else {
+			checkmask(MASK_SRC, "Source already settled.");
+			src = s;
+		}
+	}
+	if (src == NULL) {
+		fputs("No file input.\n", stderr);
+		return false;
+	}
+	return true;
+}
+
 int main(int argc, astr argv[]) {
 	astate T = aloL_newstate();
-	aloL_openlibs(T);
-	alo_bind(T, "main", tmain);
+	if (T == NULL) {
+		fputs("fail to initialize VM.\n", stderr);
+		return EXIT_FAILURE;
+	}
+	if (!parsearg(T, argc, argv)) {
+		return EXIT_FAILURE;
+	}
 	alo_pushlightcfunction(T, tmain);
 	if (alo_pcall(T, 0, 0)) {
-		fprintf(stderr, "%s\n", alo_tostring(T, 0));
+		fprintf(stderr, "%s\n", alo_tostring(T, -1));
 	}
 	alo_deletestate(T);
-	return 0;
+	return EXIT_SUCCESS;
 }
