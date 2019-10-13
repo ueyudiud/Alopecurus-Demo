@@ -32,9 +32,7 @@ static void prtkst(astate T, aproto_t* p, int index) {
 	case ALO_TFLOAT: printf(ALO_FLT_FORMAT, tgetflt(o)); break;
 	case ALO_TSTRING: {
 		astring_t* s = tgetstr(o);
-		putchar('\"');
-		aloO_escape(T, fwriter, stdout, s->array, aloS_len(s));
-		putchar('\"');
+		alo_format(T, fwriter, stdout, "\"%\"\"", s->array, aloS_len(s));
 		break;
 	}
 	}
