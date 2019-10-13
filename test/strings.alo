@@ -19,6 +19,7 @@ assert(#"alo\0alo" == 7)
 
 assert('abc'->reverse() == 'cba')
 assert('abc'->repeat(3) == 'abcabcabc')
+assert("\tab c "->trim == 'ab c')
 
 -- regular expression
 

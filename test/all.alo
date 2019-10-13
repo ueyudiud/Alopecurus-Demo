@@ -1,5 +1,6 @@
 import 'literals'
 import 'operation'
 import 'strings'
+import 'control'
 
 println 'OK!'
