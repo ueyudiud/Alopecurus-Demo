@@ -16,6 +16,8 @@
 
 #define MAX_HEAPBUF_LEN 256
 
+#define l_strcpy(dest,src,len) memcpy(dest, src, (len) * sizeof(char))
+
 /**
  ** reverse string.
  ** prototype: string.reverse(self)
@@ -64,7 +66,7 @@ static int str_repeat(astate T) {
 		char buf[nlen];
 		char* p = buf;
 		for (size_t i = 0; i < time; ++i) {
-			memcpy(p, src, len * sizeof(char));
+			l_strcpy(p, src, len);
 			p += len;
 		}
 		alo_pushlstring(T, buf, nlen);
@@ -77,6 +79,41 @@ static int str_repeat(astate T) {
 			aloL_bputls(&buf, src, len);
 		}
 		aloL_bpushstring(&buf);
+	}
+	return 1;
+}
+
+/**
+ ** trim white space in the front and tail of string.
+ ** prototyoe: string.trim(self)
+ */
+static int str_trim(astate T) {
+	size_t len;
+	const char* src = aloL_checklstring(T, 0, &len);
+	size_t i, j;
+	for (i = 0; i < len && isspace(src[i]); ++i);
+	if (i == len) {
+		alo_pushstring(T, "");
+		return 1;
+	}
+	for (j = len; j > 0 && isspace(src[j - 1]); --j);
+	if (i == 0 && j == len) {
+		alo_settop(T, 1);
+	}
+	else {
+		len = j - i;
+		if (len <= STRBUF_SIZE) {
+			char buf[len];
+			l_strcpy(buf, src + i, len);
+			alo_pushlstring(T, buf, len);
+		}
+		else {
+			ambuf_t buf;
+			aloL_bempty(T, &buf);
+			aloL_bcheck(&buf, len * sizeof(char));
+			aloL_bputls(&buf, src + i, len);
+			aloL_bpushstring(&buf);
+		}
 	}
 	return 1;
 }
@@ -780,12 +817,14 @@ static const acreg_t mod_funcs[] = {
 	{ "matcher", str_matcher },
 	{ "repeat", str_repeat },
 	{ "reverse", str_reverse },
+	{ "trim", str_trim },
 	{ NULL, NULL }
 };
 
 int aloopen_strlib(astate T) {
 	alo_bind(T, "string.repeat", str_repeat);
 	alo_bind(T, "string.reverse", str_reverse);
+	alo_bind(T, "string.trim", str_trim);
 	alo_bind(T, "string.match", str_match);
 	alo_bind(T, "string.matcher", str_matcher);
 	alo_getreg(T, "__basic_delegates");
