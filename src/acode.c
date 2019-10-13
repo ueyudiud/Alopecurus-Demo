@@ -177,20 +177,6 @@ void aloK_marklabel(afstat_t* f, int index, int list) {
 	}
 }
 
-static int isprevterm(afstat_t* f) {
-	if (f->ncode == 0) {
-		return false;
-	}
-	switch (GET_i(f->p->code[f->ncode - 1])) {
-	case OP_RET:
-	case OP_TCALL:
-	case OP_JMP:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static int putjump_(afstat_t* f, int prev, ainsn_t insn) {
 	alabel* label = newlabel(f, &f->d->jp);
 	if (prev != NO_JUMP) {
@@ -202,13 +188,25 @@ static int putjump_(afstat_t* f, int prev, ainsn_t insn) {
 #define putjump(f,prev,i,cond,xa,a) putjump_(f, prev, CREATE_iAsBx(i, xa, cond, a, NO_JUMP))
 
 int aloK_jumpforward(afstat_t* f, int index) {
-	if (!isprevterm(f)) {
+	if (f->ncode == 0) {
+		goto normal;
+	}
+	switch (GET_i(f->p->code[f->ncode - 1])) {
+	case OP_RET:
+	case OP_TCALL:
+		goto head;
+	default:
+		goto normal;
+	}
+
+	normal: {
 		linkcjmp(f, &f->cjump, index);
 		int jmp = f->cjump;
 		f->cjump = NO_JUMP;
 		return putjump(f, jmp, OP_JMP, false, false, 0);
 	}
-	else { /* can direct code reach here */
+
+	head: { /* can direct code reach here */
 		int jmp = f->cjump;
 		f->cjump = NO_JUMP;
 		return jmp; /* return current hold index */
