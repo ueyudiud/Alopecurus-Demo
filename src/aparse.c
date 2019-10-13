@@ -1171,7 +1171,7 @@ static int ifstat(alexer_t* lex) {
 	}
 	testenclose(lex, '(', ')', line);
 	int ret = stat(lex, false); /* THEN block */
-	int index = aloK_jumpforward(lex->f, e.lt);
+	int index = ret ? NO_JUMP : aloK_jumpforward(lex->f, e.lt);
 	leaveblock(lex->f);
 	aloK_putlabel(lex->f, e.lf);
 	if (checknext(lex, TK_ELSE)) {
@@ -1223,6 +1223,33 @@ static void dowhilestat(alexer_t* lex) {
 		stat(lex, false); /* ELSE block */
 	}
 	aloK_putlabel(lex->f, b.lout);
+}
+
+static void jumpstat(alexer_t* lex, int type) {
+	/* breakstat -> 'break' [label] */
+	/* continuestat -> 'continue' [label] */
+	if (check(lex, '[')) {
+		int line = lex->cl;
+		test(lex, '[');
+		astring_t* label = check_name(lex);
+		testenclose(lex, '[', ']', line);
+		//TODO
+		aloE_void(label); /* unused */
+	}
+	else {
+		ablock_t* block = lex->f->b;
+		while (block && !block->loop) block = block->prev;
+		if (block == NULL) {
+			lerror(lex, "no loop statement can be jumped.");
+		}
+		if (type == TK_BREAK) {
+			block->lout = aloK_jumpforward(lex->f, block->lout);
+		}
+		else {
+			block->lcon = aloK_jumpforward(lex->f, block->lcon);
+		}
+	}
+
 }
 
 static void assignment(alexer_t* lex, alhsa_t* a, int nvar) {
@@ -1395,6 +1422,12 @@ static int stat(alexer_t* lex, int assign) {
 	case TK_RETURN: { /* stat -> retstat */
 		poll(lex); /* skip 'return' */
 		retstat(lex);
+		return true;
+	}
+	case TK_BREAK: case TK_CONTINUE: { /* stat -> breakstat | continuestat */
+		int type = lex->ct.t;
+		poll(lex); /* skip 'break' or 'continue' */
+		jumpstat(lex, type);
 		return true;
 	}
 	case '{': { /* stat -> '{' stats '}' */
