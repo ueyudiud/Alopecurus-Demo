@@ -23,9 +23,9 @@ enum {
 	/* normal token */
 	TK_OFFSET = UCHAR_MAX,
 	/* keywords */
-	TK_ALIAS, TK_BREAK, TK_CASE, TK_CONTINUE, TK_DEF, TK_DELETE, TK_DO, TK_END,
-	TK_ELSE, TK_FALSE, TK_FOR, TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NEW, TK_NIL,
-	TK_RETURN, TK_STRUCT, TK_THEN, TK_THIS, TK_TRUE, TK_WHILE,
+	TK_ALIAS, TK_BREAK, TK_CASE, TK_CONTINUE, TK_DEF, TK_DELETE, TK_DO, TK_ELSE,
+	TK_FALSE, TK_FOR, TK_GOTO, TK_IF, TK_IN, TK_LOCAL, TK_NEW, TK_NIL, TK_RETURN,
+	TK_STRUCT, TK_THEN, TK_THIS, TK_TRUE, TK_WHILE,
 	/* operators */
 	TK_BDOT, TK_TDOT, TK_BCOL, TK_ABDOT, TK_LARR, TK_RARR, TK_ACOL, TK_IDIV,
 	TK_EQ, TK_NE, TK_LE, TK_GE, TK_SHL, TK_SHR, TK_AND, TK_OR,
@@ -71,7 +71,7 @@ struct alo_Lexer {
 	astring_t* src; /* source name */
 	aibuf_t* in; /* input buffer */
 	asbuf_t buf;
-	alist_t* ss; /* used string */
+	atable_t* ss; /* used string */
 	int ch; /* current character */
 	atoken_t ct, nt; /* current token and next token */
 	int pl, cl; /* previous and current line number */

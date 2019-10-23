@@ -7,7 +7,7 @@
 
 #include "achr.h"
 #include "astr.h"
-#include "alis.h"
+#include "atab.h"
 #include "astate.h"
 #include "agc.h"
 #include "abuf.h"
@@ -23,11 +23,11 @@
 static const atoken_t undef = { { }, TK_UNDEF };
 
 const astr aloX_tokenid[] = {
-		"alias", "break", "case", "continue", "def", "delete", "do", "end",
-		"else", "false", "for", "goto", "if", "in", "local", "new", "nil",
-		"return", "struct", "then", "this", "true", "while", "'..'", "'...'",
-		"'::'", "'..='", "'<-'", "'->'", "':='", "'//'", "'=='", "'!='",
-		"'<='", "'>='", "'<<'", "'>>'", "'&&'", "'||'", "'+='", "'-='", "'*='",
+		"alias", "break", "case", "continue", "def", "delete", "do", "else",
+		"false", "for", "goto", "if", "in", "local", "new", "nil", "return",
+		"struct", "then", "this", "true", "while", "'..'", "'...'", "'::'",
+		"'..='", "'<-'", "'->'", "':='", "'//'", "'=='", "'!='", "'<='",
+		"'>='", "'<<'", "'>>'", "'&&'", "'||'", "'+='", "'-='", "'*='",
 		"'/='", "'//='", "'%='", "'^='", "'<<='", "'>>='", "'&='", "'|='",
 		"'~='", "<eof>", "<identifier>", "<integer>", "<float>", "<string>"
 };
@@ -80,12 +80,11 @@ void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
 	lex->ct = lex->nt = undef;
 	lex->pl = -1;
 	lex->cl = 1;
-	alist_t* symbols = aloI_new(T);
-	tsetlis(T, T->top++, symbols);
-	aloI_ensure(T, symbols, ALO_NUMRESERVED);
+	atable_t* symbols = aloH_new(T);
+	tsettab(T, T->top++, symbols);
+	aloH_ensure(T, symbols, ALO_NUMRESERVED);
 	for (int i = 0; i < ALO_NUMRESERVED; ++i) {
-		astring_t* s = aloS_of(T, aloX_tokenid[i]);
-		tsetstr(T, symbols->array + symbols->length++, s);
+		aloH_findxset(T, symbols, aloX_tokenid[i], strlen(aloX_tokenid[i]));
 	}
 	lex->ss = symbols;
 	lex->src = aloX_getstr(lex, src, strlen(src));
@@ -144,17 +143,8 @@ astr aloX_token2str(alexer_t* lex, atoken_t* token) {
  ** get cached string.
  */
 astring_t* aloX_getstr(alexer_t* lex, const char* src, size_t len) {
-	alist_t *list = lex->ss;
-	astring_t *s;
-	for (size_t i = 0; i < list->length; ++i) {
-		s = tgetstr(list->array + i);
-		if (aloS_requal(s, src, len)) {
-			return s;
-		}
-	}
-	aloI_ensure(lex->T, list, 1);
-	tsetstr(lex->T, list->array + list->length++, s = aloS_new(lex->T, src, len));
-	return s;
+	atable_t* symbols = lex->ss;
+	return tgetstr(aloH_findxset(lex->T, symbols, src, len)); /* get string from key of entry */
 }
 
 static anoret lerror(alexer_t* lex, astr msg, ...) {

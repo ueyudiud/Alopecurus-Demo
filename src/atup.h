@@ -19,5 +19,6 @@ atuple_t* aloA_new(astate, size_t, const atval_t*);
 const atval_t* aloA_geti(atuple_t*, aint);
 const atval_t* aloA_get(astate, atuple_t*, const atval_t*);
 const atval_t* aloA_next(atuple_t*, ptrdiff_t*);
+ahash_t aloA_hash(astate, atuple_t*);
 
 #endif /* ATUP_H_ */

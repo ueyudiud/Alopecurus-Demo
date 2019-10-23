@@ -30,8 +30,8 @@
  */
 #define aloS_len(o) (ttishstr(o) ? (o)->lnglen : (o)->shtlen)
 
-unsigned aloS_rhash(astr, size_t, uint64_t);
-unsigned aloS_hash(astate, astring_t*);
+ahash_t aloS_rhash(astr, size_t, uint64_t);
+ahash_t aloS_hash(astate, astring_t*);
 astring_t* aloS_of(astate, astr);
 astring_t* aloS_new(astate, const char*, size_t);
 astring_t* aloS_newi(astate, const char*, size_t);

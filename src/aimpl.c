@@ -240,7 +240,7 @@ astr alo_typename(astate T, aindex_t index) {
 	if (!isvalid(o)) {
 		return alo_tpidname(T, ALO_TUNDEF);
 	}
-	const atval_t* name = aloT_fastget(T, o, TM_ID);
+	const atval_t* name = aloT_gettm(T, o, TM_ID, false);
 	if (name && ttisstr(name)) {
 		return tgetstr(name)->array;
 	}
@@ -542,7 +542,7 @@ void alo_iremove(astate T, aindex_t idown, ptrdiff_t off) {
 		break;
 	}
 	case ALO_TTABLE: {
-		aloH_rawrem(T, tgettab(o), off, NULL);
+		aloH_rawrem(T, tgettab(o), &off, NULL);
 		break;
 	}
 	default: {
@@ -591,7 +591,7 @@ int alo_rawgets(astate T, aindex_t idown, astr key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
 	api_check(T, ttistab(o), "illegal owner for 'rawgets'");
-	const atval_t* v = aloH_gets(tgettab(o), key, strlen(key));
+	const atval_t* v = aloH_gets(T, tgettab(o), key, strlen(key));
 	tsetobj(T, api_incrtop(T), v);
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
@@ -627,7 +627,7 @@ int alo_gets(astate T, aindex_t idown, astr key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
 	if (ttistab(o)) {
-		const atval_t* v = aloH_gets(tgettab(o), key, strlen(key));
+		const atval_t* v = aloH_gets(T, tgettab(o), key, strlen(key));
 		if (v != aloO_tnil) {
 			tsetobj(T, api_incrtop(T), v);
 			return ttpnv(v);
@@ -824,11 +824,7 @@ void alo_rawsets(astate T, aindex_t idown, astr key) {
 	askid_t o = index2addr(T, idown);
 	askid_t v = T->top - 1;
 	api_check(T, ttistab(o), "illegal owner for 'rawsets'");
-	astring_t* k = aloH_sets(T, tgettab(o), key, strlen(key), v, NULL);
-	if (k->ftagname && k->extra < ALO_NUMTM) { /* check key is TM name that able to fast get value */
-		/* correct TM data */
-		tgettab(o)->reserved &= ~(1 << k->extra);
-	}
+	aloH_sets(T, tgettab(o), key, strlen(key), v, NULL);
 	T->top -= 1;
 	aloG_check(T);
 }

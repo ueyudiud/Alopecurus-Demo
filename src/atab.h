@@ -27,18 +27,18 @@
 #define aloH_setls(T,self,key,value,out) aloH_sets(T, self, ""key, sizeof(key) / sizeof(char) - 1, value, out)
 
 atable_t* aloH_new(astate);
-void aloH_ensure(astate, atable_t*, size_t);
+int aloH_ensure(astate, atable_t*, size_t);
 void aloH_trim(astate, atable_t*);
 const atval_t* aloH_geti(atable_t*, aint);
-const atval_t* aloH_gets(atable_t*, astr, size_t);
+const atval_t* aloH_gets(astate, atable_t*, astr, size_t);
 const atval_t* aloH_getis(atable_t*, astring_t*);
-const atval_t* aloH_getxs(atable_t*, astring_t*);
+const atval_t* aloH_getxs(astate, atable_t*, astring_t*);
 const atval_t* aloH_get(astate, atable_t*, const atval_t*);
 atval_t* aloH_find(astate, atable_t*, const atval_t*);
+atval_t* aloH_findxset(astate, atable_t*, const char*, size_t);
 void aloH_set(astate, atable_t*, const atval_t*, const atval_t*, atval_t*);
-astring_t* aloH_sets(astate, atable_t*, astr, size_t, const atval_t*, atval_t*);
-void aloH_setxs(astate, atable_t*, astring_t*, const atval_t*, atval_t*);
-void aloH_rawrem(astate, atable_t*, size_t, atval_t*);
+void aloH_sets(astate, atable_t*, astr, size_t, const atval_t*, atval_t*);
+void aloH_rawrem(astate, atable_t*, ptrdiff_t*, atval_t*);
 int aloH_remove(astate, atable_t*, const atval_t*, atval_t*);
 const aentry_t* aloH_next(atable_t*, ptrdiff_t*);
 

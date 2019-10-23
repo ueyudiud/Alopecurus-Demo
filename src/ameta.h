@@ -27,6 +27,7 @@
 	TM(TM_MODE, mode), \
 	TM(TM_LEN, len), \
 	TM(TM_EQ, eq), \
+	TM(TM_HASH, hash), \
 	TM(TM_ID, id), \
 	TM(TM_ADD, add), \
 	TM(TM_SUB, sub), \
@@ -72,7 +73,7 @@
 /**
  ** number of tag available to use fast get function.
  */
-#define ALO_NUMTM (TM_ID + 1)
+#define ALO_NUMTM (TM_HASH + 1)
 
 /**
  ** number of type tags

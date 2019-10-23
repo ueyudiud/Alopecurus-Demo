@@ -113,6 +113,34 @@ int aloV_tofltx(const atval_t* in, afloat* out) {
 	}
 }
 
+ahash_t aloV_hashof(astate T, const atval_t* o) {
+	const atval_t* hashf = aloT_fastgetx(T, o, TM_HASH);
+	if (hashf) {
+		aloT_vmput2(T, hashf, o);
+		aloD_callnoyield(T, T->top - 2, 1);
+		T->top -= 1;
+		if (!ttisint(T->top)) {
+			aloU_rterror(T, "'__hash' must apply integer value.");
+		}
+		return tgetint(T->top);
+	}
+	switch (ttpnv(o)) {
+	case ALO_TNIL   : return 0;
+	case ALO_TBOOL  : return aloO_boolhash(tgetbool(o));
+	case ALO_TINT   : return aloO_inthash(tgetint(o));
+	case ALO_TFLOAT : {
+		aint i;
+		if (aloO_flt2int(tgetflt(o), &i, 0)) {
+			return aloO_inthash(i);
+		}
+		return aloO_flthash(tgetflt(o));
+	}
+	case ALO_TSTRING: return aloS_hash(T, tgetstr(o));
+	case ALO_TTUPLE : return aloA_hash(T, tgettup(o));
+	default         : return aloE_addr(o->v.p);
+	}
+}
+
 /**
  ** concat objects.
  */

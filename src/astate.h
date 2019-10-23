@@ -46,7 +46,7 @@ typedef struct alo_Global {
 	aitable_t itable; /* intern string table */
 	actable_t ctable; /* C function information table */
 	atval_t registry; /* global environment */
-	uint64_t seed; /* randomized seed for hash */
+	ahash_t seed; /* randomized seed for hash */
 	agct gnormal; /* list for normal objects */
 	agct gfixed; /* list for fixed objects */
 	agct gfnzable; /* list for finalizable objects */

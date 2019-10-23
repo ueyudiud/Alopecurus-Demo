@@ -25,6 +25,12 @@
 
 const atval_t aloO_nil = tnewnil();
 
+#define ALOO_FLT_MASK 0x932280AB7E9DBE8A
+
+ahash_t aloO_flthash(afloat f) {
+	return *aloE_cast(ahash_t*, &f) ^ ALOO_FLT_MASK;
+}
+
 static int str2int(astr in, aint* out) {
 	char* s;
 	aint v = strtoll(in + 2, &s, 0);

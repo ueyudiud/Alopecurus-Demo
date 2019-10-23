@@ -58,3 +58,14 @@ const atval_t* aloA_next(atuple_t* self, ptrdiff_t* poff) {
 	}
 	return self->array + off;
 }
+
+/**
+ ** get hash code of tuple.
+ */
+ahash_t aloA_hash(astate T, atuple_t* self) {
+	ahash_t h = 1;
+	for (size_t i = 0; i< self->length; ++i) {
+		h = h * 31 + aloV_hashof(T, &self->array[i]);
+	}
+	return h;
+}

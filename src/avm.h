@@ -25,6 +25,7 @@ astr aloV_pushvfstring(astate, astr, va_list);
 void aloV_invoke(astate, int);
 int aloV_tointx(const atval_t*, aint*, int);
 int aloV_tofltx(const atval_t*, afloat*);
+ahash_t aloV_hashof(astate, const atval_t*);
 int aloV_compare(astate, const atval_t*, const atval_t*, int);
 int aloV_equal(astate, const atval_t*, const atval_t*);
 void aloV_concat(astate, size_t);

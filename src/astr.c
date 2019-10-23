@@ -14,19 +14,19 @@
 /**
  ** get raw hash from string.
  */
-unsigned aloS_rhash(astr src, size_t len, uint64_t seed) {
-	uint64_t h = seed ^ len;
-	size_t step = (len >> ALO_STRHASHLIMIT) + 1;
+ahash_t aloS_rhash(astr src, size_t len, uint64_t seed) {
+	ahash_t h = seed ^ len;
+	uint64_t step = (len >> ALO_STRHASHLIMIT) + 1;
 	const char* const end = src + len;
 	for (const char* i = src; i < end; i += step)
 		h ^= (h << 5) + (h >> 2) + aloE_byte(*i);
-	return (h >> 32) ^ h;
+	return h;
 }
 
 /**
  ** calculate hash or use cache to get hash of string.
  */
-unsigned aloS_hash(astate T, astring_t* self) {
+ahash_t aloS_hash(astate T, astring_t* self) {
 	if (!self->fhash) {
 		self->hash = aloS_rhash(self->array, aloS_len(self), T->g->seed);
 		self->fhash = true;

@@ -231,7 +231,7 @@ struct alo_String {
 		};
 		abyte flags;
 	};
-	unsigned hash;
+	ahash_t hash;
 	union {
 		astring_t* shtlist;
 		size_t lnglen;
@@ -274,13 +274,16 @@ typedef struct alo_List {
  ** entry of table value.
  */
 typedef struct alo_Entry {
+	atval_t value;
 	union {
 		struct {
 			TValHeader;
 		};
 		atval_t key;
 	};
-	atval_t value;
+	int prev;
+	int next;
+	ahash_t hash;
 } aentry_t;
 
 /**
@@ -396,6 +399,9 @@ extern const atval_t aloO_nil;
 
 #define aloO_tnil (&aloO_nil)
 
+#define aloO_boolhash(v) ((v) ? 0x41 : 0x31)
+#define aloO_inthash(v) aloE_cast(ahash_t, v)
+ahash_t aloO_flthash(afloat);
 int aloO_str2int(astr, atval_t*);
 int aloO_str2num(astr, atval_t*);
 int aloO_flt2int(afloat, aint*, int);

@@ -28,6 +28,7 @@ extern void alo_assert(astr, astr, int);
 #include <sys/types.h>
 
 typedef uint64_t ainsn_t;
+typedef uint64_t ahash_t;
 
 typedef struct alo_JumpBuf ajmp_t;
 
