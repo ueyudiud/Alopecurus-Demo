@@ -149,7 +149,7 @@ static void write_stacktrace(astate T, asbuf_t* buf, int level) {
 }
 
 anoret aloU_mnotfound(astate T, const atval_t* owner, astr fun) {
-	aloU_rterror(T, "method '%s.%s' not found", aloV_typename(T, owner), fun);
+	aloU_rterror(T, "method '%s.__%s' not found", aloV_typename(T, owner), fun);
 }
 
 /**
