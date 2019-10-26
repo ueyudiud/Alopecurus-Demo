@@ -662,6 +662,7 @@ static void triexpr(alexer_t* lex, aestat_t* e) {
 		expr(lex, e);
 		aloK_nextreg(f, e);
 		aloE_assert(reg == e->v.g, "register not matched.");
+		aloE_void(reg);
 		aloK_putlabel(f, label2);
 	}
 }
