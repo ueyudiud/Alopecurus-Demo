@@ -113,6 +113,7 @@ static atval_t* putety(astate T, atable_t* self, const atval_t* key, ahash_t has
 			delety(entry);
 		}
 	}
+	aloE_assert(ttisnil(amkey(entry)), "uninitialized entry key should be nil.");
 	entry->hash = hash;
 	tsetobj(T, amkey(entry), key);
 	aloE_assert(ttisnil(amval(entry)), "uninitialized entry value should be nil.");
@@ -129,11 +130,16 @@ static void resizetable(astate T, atable_t* self, size_t newsize) {
 	self->array = newarray;
 	self->capacity = newsize;
 	self->lastfree = newarray + newsize - 1;
-	for (size_t i = 0; i < oldsize; ++i) {
-		aentry_t* entry = &oldarray[i];
-		tsetobj(T, putety(T, self, amkey(entry), entry->hash), amval(entry));
+	if (oldsize > 0) {
+		for (size_t i = 0; i < oldsize; ++i) {
+			aentry_t* entry = &oldarray[i];
+			if (!ttisnil(entry)) {
+				atval_t* slot = putety(T, self, amkey(entry), entry->hash);
+				tsetobj(T, slot, amval(entry));
+			}
+		}
+		aloM_dela(T, oldarray, oldsize);
 	}
-	aloM_dela(T, oldarray, oldsize);
 }
 
 /**
@@ -264,25 +270,14 @@ atval_t* aloH_find(astate T, atable_t* self, const atval_t* key) {
 atval_t* aloH_findxset(astate T, atable_t* self, const char* ksrc, size_t klen) {
 	ahash_t hash = aloS_rhash(ksrc, klen, T->g->seed);
 	anyof(self, hash, ttisstr(_entry) && aloS_requal(tgetstr(_entry), ksrc, klen));
-
 	aloH_ensure(T, self, 1);
-	atval_t key = tnewstr(aloS_new(T, ksrc, klen));
+	astring_t* str = aloS_new(T, ksrc, klen);
+	atval_t key = tnewstr(str);
 	atval_t* slot = putety(T, self, &key, hash);
-	tsetstr(T, slot, tgetstr(&key));
+	tsetstr(T, slot, str);
+	aloG_barrierback(T, self, str);
 	self->length ++;
 	return slot;
-}
-
-/**
- ** put key-value pair into table and set old value to 'out' if it is not NULL.
- */
-void aloH_set(astate T, atable_t* self, const atval_t* key, const atval_t* value, atval_t* out) {
-	atval_t* t = aloH_find(T, self, key);
-	if (out) {
-		tsetobj(T, out, t);
-	}
-	tsetobj(T, t, value);
-	aloG_barrierbackt(T, self, t);
 }
 
 static atval_t* finds(astate T, atable_t* self, astr ksrc, size_t klen, ahash_t hash) {
@@ -306,6 +301,7 @@ void aloH_sets(astate T, atable_t* self, astr ksrc, size_t klen, const atval_t* 
 			/* correct TM data */
 			self->reserved &= ~(1 << str->extra);
 		}
+		aloG_barrierback(T, self, str);
 	}
 
 	if (out) {

@@ -23,6 +23,7 @@
 astr aloV_pushfstring(astate, astr, ...);
 astr aloV_pushvfstring(astate, astr, va_list);
 void aloV_invoke(astate, int);
+astr aloV_typename(astate, const atval_t*);
 int aloV_tointx(const atval_t*, aint*, int);
 int aloV_tofltx(const atval_t*, afloat*);
 ahash_t aloV_hashof(astate, const atval_t*);

@@ -240,11 +240,7 @@ astr alo_typename(astate T, aindex_t index) {
 	if (!isvalid(o)) {
 		return alo_tpidname(T, ALO_TUNDEF);
 	}
-	const atval_t* name = aloT_gettm(T, o, TM_ID, false);
-	if (name && ttisstr(name)) {
-		return tgetstr(name)->array;
-	}
-	return aloT_typenames[ttpnv(o)];
+	return aloV_typename(T, o);
 }
 
 astr alo_tpidname(astate T, int id) {
@@ -774,15 +770,20 @@ void alo_rawsetx(astate T, aindex_t idown, int drop) {
 	askid_t o = index2addr(T, idown);
 	askid_t k = T->top - 2;
 	askid_t v = T->top - 1;
-	askid_t d = drop ? k : NULL;
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		aloI_set(T, tgetlis(o), k, v, d);
+		aloI_set(T, tgetlis(o), k, v, drop ? k : NULL);
 		break;
 	}
 	case ALO_TTABLE: {
 		atable_t* owner = tgettab(o);
-		aloH_set(T, owner, k, v, d);
+		atval_t* v1 = aloH_find(T, owner, k);
+		aloG_barrierbackt(T, owner, k);
+		aloG_barrierbackt(T, owner, v);
+		if (drop) {
+			tsetobj(T, k, v1);
+		}
+		tsetobj(T, v1, v);
 		aloH_markdirty(owner);
 		break;
 	}
@@ -807,7 +808,7 @@ void alo_rawseti(astate T, aindex_t idown, aint key) {
 	case ALO_TTABLE: {
 		atable_t* owner = tgettab(o);
 		atval_t k = tnewint(key);
-		aloH_set(T, owner, &k, v, NULL);
+		aloH_set(T, owner, &k, v);
 		break;
 	}
 	default: {

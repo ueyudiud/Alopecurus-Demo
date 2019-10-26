@@ -44,7 +44,6 @@ enum {
 	GCStepSwpNorm,
 	GCStepSwpFin,
 	GCStepSwpFnz,
-	GCStepSwpEnd,
 	GCStepCallFin,
 	GCStepPause
 };

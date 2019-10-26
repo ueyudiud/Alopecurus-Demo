@@ -159,10 +159,13 @@ static int aloV_nset(astate T, const atval_t* A, const atval_t* B, const atval_t
 	case ALO_TLIST:
 		aloI_set(T, tgetlis(A), B, C, NULL);
 		break;
-	case ALO_TTABLE:
-		aloH_set(T, tgettab(A), B, C, NULL);
-		aloH_markdirty(tgettab(A));
+	case ALO_TTABLE: {
+		atable_t* table = tgettab(A);
+		aloH_set(T, table, B, C);
+		aloG_barrierbackt(T, table, B);
+		aloH_markdirty(table);
 		break;
+	}
 	default:
 		return false;
 	}
@@ -974,7 +977,7 @@ void aloV_invoke(astate T, int dofinish) {
 	 ** called when meta call for opcode not found, throw an error.
 	 */
 	notfound:
-	aloU_fnotfound(T, aloK_opname[insn]);
+	aloU_mnotfound(T, R(A), aloK_opname[insn]);
 
 	/**
 	 ** finish block, used for call after 'yield'

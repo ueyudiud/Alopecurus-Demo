@@ -11,6 +11,7 @@
 #include "abuf.h"
 #include "agc.h"
 #include "adebug.h"
+#include "avm.h"
 #include "ado.h"
 #include "alo.h"
 
@@ -25,10 +26,12 @@
 
 #define fnname(frame) ((frame)->name ?: "<unknown>")
 
+#if defined(ALO_DEBUG)
 void alo_assert(astr msg, astr file, int line) {
 	fprintf(stderr, "%s:%d %s", file, line, msg);
 	exit(EXIT_FAILURE);
 }
+#endif
 
 void aloU_init(astate T) {
 	Gd(T);
@@ -143,6 +146,10 @@ static void write_stacktrace(astate T, asbuf_t* buf, int level) {
 		}
 	}
 	while ((frame = frame->prev) && --level > 0);
+}
+
+anoret aloU_mnotfound(astate T, const atval_t* owner, astr fun) {
+	aloU_rterror(T, "method '%s.%s' not found", aloV_typename(T, owner), fun);
 }
 
 /**

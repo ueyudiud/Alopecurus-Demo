@@ -51,6 +51,14 @@ astr aloV_pushvfstring(astate T, astr fmt, va_list varg) {
 	return value->array;
 }
 
+astr aloV_typename(astate T, const atval_t* o) {
+	const atval_t* name = aloT_gettm(T, o, TM_ID, false);
+	if (name && ttisstr(name)) {
+		return tgetstr(name)->array;
+	}
+	return aloT_typenames[ttpnv(o)];
+}
+
 static void concat_unsafe(astate T, asbuf_t* buf, askid_t from) {
 	for (askid_t i = from; i < T->top; ++i) {
 		aloO_tostring(T, aloB_bwrite, buf, i);

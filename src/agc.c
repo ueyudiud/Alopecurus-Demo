@@ -31,7 +31,7 @@
 #define MAXSWEEPCOUNT (ALO_MINWORK / SWEEP_COST + 1)
 
 #define iscoloring(G) ((G)->gcstep <= GCStepAtomic)
-#define issweeping(G) ((G)->gcstep >= GCStepSwpNorm && (G)->gcstep <= GCStepSwpEnd)
+#define issweeping(G) ((G)->gcstep >= GCStepSwpNorm && (G)->gcstep <= GCStepSwpFnz)
 
 /**
  ** color changing macros.
@@ -205,9 +205,10 @@ static size_t propagate_table(aglobal_t* G, atable_t* v) {
 		if (!wk) {
 			int clear = false;
 			for (size_t i = 0; i < v->capacity; ++i) {
-				if (!ttisnil(&v->array[i].key)) {
-					markt(G, &v->array[i].key);
-					if (!clear && checkmark(G, &v->array[i].value)) { /* if there is white object, mark it to be cleared */
+				aentry_t* entry = v->array + i;
+				if (!ttisnil(amkey(entry))) {
+					markt(G, amkey(entry));
+					if (!clear && checkmark(G, amval(entry))) { /* if there is white object, mark it to be cleared */
 						clear = true;
 					}
 				}
@@ -226,12 +227,11 @@ static size_t propagate_table(aglobal_t* G, atable_t* v) {
 			linkto(G->weaka, v);
 		}
 	}
-	else {
-		for (size_t i = 0; i < v->capacity; ++i) {
-			if (!ttisnil(&v->array[i].key)) {
-				markt(G, &v->array[i].key);
-				markt(G, &v->array[i].value);
-			}
+	else for (size_t i = 0; i < v->capacity; ++i) {
+		aentry_t* entry = v->array + i;
+		if (!ttisnil(amkey(entry))) {
+			markt(G, amkey(entry));
+			markt(G, amval(entry));
 		}
 	}
 	return sizeof(atable_t) + v->capacity * sizeof(aentry_t);
@@ -239,8 +239,9 @@ static size_t propagate_table(aglobal_t* G, atable_t* v) {
 
 static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 	askid_t i = v->stack;
-	if (i == NULL) /* if stack is not constructed yet. */
+	if (i == NULL) { /* if stack is not constructed yet. */
 		return sizeof(athread_t);
+	}
 	while (i < v->top) {
 		markt(G, i++);
 	}
@@ -346,8 +347,9 @@ static void propagate(aglobal_t* G) {
 		G->mtraced += ardsize(v);
 		break;
 	}
-	default:
-		aloE_xassert(0);
+	default: {
+		aloE_assert(false, "broken object.");
+	}
 	}
 }
 
@@ -640,41 +642,6 @@ static void sweepall(astate T, agct* list) {
 	*list = NULL; /* clear values from list. */
 }
 
-static void sweepitable(astate T, aglobal_t* G, int all) {
-	aitable_t* table = &G->itable;
-	agct* slot;
-	agct c, n;
-	for (size_t i = 0; i < table->capacity; ++i) {
-		slot = aloE_cast(agct*, table->array + i);
-		if (all) {
-			n = *slot;
-			while ((c = n)) {
-				n = c->gcprev; /* goto next string */
-				sweepobj(T, c); /* sweep string */
-				table->length--;
-			}
-		}
-		else {
-			int wb = aloG_whitebit(G), gb = aloG_otherbit(G);
-			while ((c = *slot)) {
-				if (isdeadm(c, gb) && !aloG_isfixed(c)) { /* is object dead? */
-					*slot = c->gcprev; /* remove string from list */
-					sweepobj(T, c); /* sweep string */
-					table->length--;
-				}
-				else {
-					setcolor(c, wb); /* settle string to white */
-					slot = &c->gcprev; /* goto next string */
-				}
-			}
-		}
-	}
-	aloE_assert(!all || table->length == 0, "intern table should be cleared.");
-	if (all) { /* clear string table. */
-		aloM_delb(T, table->array, table->capacity);
-	}
-}
-
 /**
  ** GC control functions.
  */
@@ -749,10 +716,6 @@ static size_t sweepstep(astate T, aglobal_t* G, agct* nextlist, int nextstep) {
 	G->sweeping = nextlist;
 	G->gcstep = nextstep;
 	return 0;
-}
-
-static void sweepend(astate T, aglobal_t* G) {
-	sweepitable(T, G, false);
 }
 
 static void docallfin(astate T, __attribute__((unused)) void* context) {
@@ -841,12 +804,7 @@ static size_t gcstep(astate T, aglobal_t* G) {
 		return sweepstep(T, G, &G->gtobefnz, GCStepSwpFnz);
 	}
 	case GCStepSwpFnz: {
-		return sweepstep(T, G, NULL, GCStepSwpEnd);
-	}
-	case GCStepSwpEnd: {
-		sweepend(T, G);
-		G->gcstep = GCStepCallFin;
-		return 0;
+		return sweepstep(T, G, NULL, GCStepCallFin);
 	}
 	case GCStepCallFin: {
 		if (G->gtobefnz && G->gckind != GCKindEmergency) {
@@ -951,6 +909,7 @@ void aloG_clear(astate T) {
 	sweepall(T, &G->gnormal);
 	sweepall(T, &G->gfixed);
 	aloU_clearbuf(T);
-	sweepitable(T, G, true); /* clear string table. */
+	aloE_assert(G->itable.length == 0, "some of intern string not delete yet.");
+	aloM_dela(T, G->itable.array, G->itable.capacity); /* delete intern string table */
 }
 

@@ -19,6 +19,7 @@ astr aloU_getcname(astate, acfun);
 void aloU_bind(astate, acfun, astring_t*);
 void aloU_clearbuf(astate);
 
+anoret aloU_mnotfound(astate, const atval_t*, astr);
 anoret aloU_rterror(astate, astr, ...);
 
 #endif /* ADEBUG_H_ */

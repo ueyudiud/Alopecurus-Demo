@@ -23,6 +23,9 @@
  */
 #define ALO_PATH "ALO_HOME"
 
+/**
+ ** library search path.
+ */
 #define ALO_LIB_DIR "/lib"
 
 /* max stack size of each thread */
@@ -34,7 +37,12 @@
  */
 #define ALO_STRICT_NUMTYPE false
 
-#define ALO_HARDMEMTEST
-#define ALO_DEBUG
+/**
+ ** optional macro list:
+ ** - ALO_HARDMEMTEST
+ ** 	when enable this option, the VM will do strict GC and stack allocation.
+ ** - ALO_DEBUG
+ ** 	when enable this option, the VM will enable aloE_assert macro.
+ */
 
 #endif /* ACFG_H_ */
