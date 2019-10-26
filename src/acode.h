@@ -77,6 +77,7 @@ void aloK_member(afstat_t*, aestat_t*, aestat_t*);
 void aloK_fromreg(afstat_t*, aestat_t*, astring_t*);
 void aloK_field(afstat_t*, aestat_t*, astring_t*);
 void aloK_drop(afstat_t*, aestat_t*);
+int aloK_reuse(afstat_t*, aestat_t*);
 
 /**
  ** evaluation

@@ -530,6 +530,19 @@ void aloK_drop(afstat_t* f, aestat_t* e) {
 	}
 }
 
+/**
+ ** reused temporary value and put it into register.
+ ** the register should on the top of stack.
+ */
+int aloK_reuse(afstat_t* f, aestat_t* e) {
+	if (e->t == E_FIXED && f->freelocal == aloK_getstack(e->v.g)) {
+		return f->freelocal++;
+	}
+	else {
+		return aloK_nextreg(f, e);
+	}
+}
+
 size_t aloK_loadnil(afstat_t* f, int first, int len) {
 	ainsn_t* prev;
 	if (f->ncode > 0 && f->cjump == NO_JUMP) {

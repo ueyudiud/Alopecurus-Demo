@@ -638,8 +638,36 @@ static int subexpr(alexer_t* lex, aestat_t* e, int limit) {
 	return op;
 }
 
-static void expr(alexer_t* lex, aestat_t* e) {
+static void triexpr(alexer_t* lex, aestat_t* e) {
+	/* triexpr -> subexpr [ '?' [expr] ':' expr ]*/
 	subexpr(lex, e, 0);
+	if (checknext(lex, '?')) {
+		int reg, label1;
+		afstat_t* f = lex->f;
+		aloK_gwt(f, e);
+		label1 = e->lf;
+		if (checknext(lex, ':')) {
+			e->lf = NO_JUMP;
+			reg = aloK_reuse(f, e);
+			aloK_drop(f, e);
+		}
+		else {
+			expr(lex, e);
+			reg = aloK_nextreg(f, e);
+			aloK_drop(f, e);
+			testnext(lex, ':');
+		}
+		int label2 = aloK_jumpforward(f, NO_JUMP);
+		aloK_putlabel(f, label1);
+		expr(lex, e);
+		aloK_nextreg(f, e);
+		aloE_assert(reg == e->v.g, "register not matched.");
+		aloK_putlabel(f, label2);
+	}
+}
+
+static void expr(alexer_t* lex, aestat_t* e) {
+	triexpr(lex, e);
 }
 
 static void semis(alexer_t* lex) {
