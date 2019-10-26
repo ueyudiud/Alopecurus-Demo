@@ -311,9 +311,9 @@ void aloH_sets(astate T, atable_t* self, astr ksrc, size_t klen, const atval_t* 
 	aloG_barrierbackt(T, self, slot);
 }
 
-static int remety(aentry_t* entry) {
+static int remety(atable_t* self, aentry_t* entry) {
 	aloE_assert(!ttisnil(entry), "no entry exist.");
-	if (hasprev(entry)) {
+	if (hasprev(entry)) { /* if entry is not head */
 		aentry_t* prev = getprev(entry);
 		if (hasnext(entry)) {
 			aentry_t* next = getnext(entry);
@@ -323,11 +323,14 @@ static int remety(aentry_t* entry) {
 			prev->next = NO_NODE;
 		}
 	}
-	else if (hasnext(entry)) {
-		movety(entry, getnext(entry));
+	else if (hasnext(entry)) { /* if their are more than one entry */
+		movety(entry, getnext(entry)); /* move next entry to current slot for use hashing to get it */
 		return true;
 	}
 	delety(entry);
+	if (self->lastfree < entry) { /* if 'hole' is after the last free slot */
+		self->lastfree = entry; /* settle last free slot here */
+	}
 	return false;
 }
 
@@ -342,7 +345,7 @@ void aloH_rawrem(astate T, atable_t* self, ptrdiff_t* pindex, atval_t* out) {
 	if (out) {
 		tsetobj(T, out, amval(entry));
 	}
-	if (remety(entry)) {
+	if (remety(self, entry)) {
 		(*pindex)--;
 	}
 	self->length--;
@@ -375,7 +378,7 @@ int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
 	if (out) {
 		tsetobj(T, out, amval(entry));
 	}
-	remety(entry);
+	remety(self, entry);
 	self->length--;
 	return true;
 }
