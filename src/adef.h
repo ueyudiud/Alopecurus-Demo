@@ -119,6 +119,7 @@ enum {
 #define ALO_FLT_PROP(field) DOUBLE##field
 
 #define aloE_assert(exp,what) ALO_ASSERT(exp,what)
+#define aloE_log(what,fmt...) ALO_LOG(what, ##fmt)
 #define aloE_void(exp...) ((void) (exp))
 #define aloE_cast(type,exp) ((type) (exp))
 #define aloE_byte(exp) aloE_cast(abyte, exp)

@@ -27,10 +27,26 @@
 #define fnname(frame) ((frame)->name ?: "<unknown>")
 
 #if defined(ALO_DEBUG)
+
+#ifndef alo_assert
 void alo_assert(astr msg, astr file, int line) {
-	fprintf(stderr, "%s:%d %s", file, line, msg);
+	fprintf(stderr, "%s:%d %s\n", file, line, msg);
 	exit(EXIT_FAILURE);
 }
+#endif
+
+#ifndef alo_log
+void alo_log(astr msg, astr file, int line, ...) {
+	va_list varg;
+	char buf[256];
+	va_start(varg, line);
+	vsnprintf(buf, sizeof(buf) / sizeof(char), msg, varg);
+	va_end(varg);
+	printf("%s:%d %s\n", file, line, buf);
+	fflush(stdout);
+}
+#endif
+
 #endif
 
 void aloU_init(astate T) {

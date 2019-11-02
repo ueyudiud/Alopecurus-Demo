@@ -17,8 +17,19 @@
 #if !defined(ALO_DEBUG)
 #define ALO_ASSERT(exp,what) ((void) 0)
 #else
+
+#if !defined(alo_assert)
 extern void alo_assert(astr, astr, int);
+#endif
+
 #define ALO_ASSERT(exp,what) aloE_void(!!(exp) || (alo_assert(what, __FILE__, __LINE__), 0))
+
+#if !defined(alo_log)
+extern void alo_log(astr, astr, int, ...);
+#endif
+
+#define ALO_LOG(what,args...) alo_log(what, __FILE__, __LINE__, ##args)
+
 #endif
 #endif
 

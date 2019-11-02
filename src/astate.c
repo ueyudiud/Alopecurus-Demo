@@ -17,6 +17,7 @@
 #include "alo.h"
 
 #include <time.h>
+#include <inttypes.h>
 
 const aver_t aloR_version = { ALO_VERSION_NUM };
 
@@ -111,6 +112,9 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 		alo_deletestate(T);
 		return NULL;
 	}
+
+	aloE_log("alo in debug mode");
+	aloE_log("new alo state initialized, seed: %"PRId64, G->seed);
 
 	G->fgc = true; /* enable GC */
 	return T;
