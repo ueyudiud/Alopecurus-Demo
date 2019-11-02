@@ -255,6 +255,7 @@ static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 
 static size_t propagate_closure(aglobal_t* G, aclosure_t* v) {
 	abyte wb = aloG_whitebit(G);
+	markt(G, &v->delegate);
 	for (size_t i = 0; i < v->length; ++i) {
 		atval_t* o = &v->array[i];
 		if (ttiscap(o)) { /* for captured value, handle in special */
@@ -833,7 +834,7 @@ static void setpause(aglobal_t* G) {
 void aloG_checkfnzobj(astate T, agct g, atable_t* mt) {
 	Gd(T);
 	if (aloG_isfinalizable(g) || /* if object is linked in finalizable-object list */
-		aloH_getis(mt, T->g->stagnames[TM_DEL]) == NULL) { /* or no finalizer exists */
+		aloH_getis(mt, T->g->stagnames[TM_DEL]) == aloO_tnil) { /* or no finalizer exists */
 		return;
 	}
 	if (issweeping(G)) {
@@ -904,7 +905,6 @@ void aloG_clear(astate T) {
 	callallfin(T); /* call all 'fnzable' finalizer */
 	aloE_assert(G->gfnzable == NULL && G->gtobefnz == NULL, "still have finalizable object exists.");
 	G->whitebit = 0; /* mark all objects are dead */
-	sweepall(T, &G->gfnzable);
 	sweepall(T, &G->gnormal);
 	sweepall(T, &G->gfixed);
 	aloU_clearbuf(T);
