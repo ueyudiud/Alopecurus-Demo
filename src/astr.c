@@ -96,7 +96,7 @@ static void expandtable(astate T, aitable_t* table) {
 static astring_t* intern(astate T, const char* src, size_t len) {
 	aloE_assert(src, "source should not be null.");
 	Gd(T);
-	unsigned hash = aloS_rhash(src, len, G->seed);
+	ahash_t hash = aloS_rhash(src, len, G->seed);
 	astring_t** s = &G->itable.array[indexof(G->itable, hash)];
 	astring_t* v;
 	while ((v = *s)) {

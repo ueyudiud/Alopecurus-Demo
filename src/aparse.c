@@ -873,17 +873,6 @@ static void patterns(alexer_t* lex) {
 	while (checknext(lex, ','));
 }
 
-//static int checkdense(afstat_t* f, acasevar_t* v) {
-//	acasevar_t* const a = f->d->cv.a;
-//	acasevar_t* const e = a + (v->parent != NO_CASEVAR && a[v->parent].next != NO_CASEVAR ? a[v->parent].next : f->d->cv.l);
-//	for (; v < e; ++v) {
-//		if (v->type == CV_NORMAL && v->name) {
-//			return false;
-//		}
-//	}
-//	return true;
-//}
-
 static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
 	acasevar_t* v = f->d->cv.a + index;
 	switch (v->type) {

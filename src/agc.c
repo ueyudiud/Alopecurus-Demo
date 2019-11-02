@@ -57,7 +57,6 @@ static agct* tailof_(agct* p) {
 /**
  ** registration functions.
  */
-
 void aloG_register_(astate T, agct g, abyte tt) {
 	Gd(T);
 	g->tt = tt;
