@@ -13,24 +13,25 @@
 #include "acfg.h"
 #include "adef.h"
 
-#ifndef ALO_ASSERT
-#if !defined(ALO_DEBUG)
-#define ALO_ASSERT(exp,what) ((void) 0)
-#else
+#ifdef ALO_DEBUG
 
-#if !defined(alo_assert)
+/* ALO_ASSERT definition */
+#if !defined(ALO_ASSERT)
+#define ALO_ASSERT(exp,what) aloE_void(!!(exp) || (alo_assert(what, __FILE__, __LINE__), 0))
 extern void alo_assert(astr, astr, int);
 #endif
 
-#define ALO_ASSERT(exp,what) aloE_void(!!(exp) || (alo_assert(what, __FILE__, __LINE__), 0))
-
-#if !defined(alo_log)
+/* ALO_LOG definition */
+#if !defined(ALO_LOG)
+#define ALO_LOG(what,args...) alo_log(what, __FILE__, __LINE__, ##args)
 extern void alo_log(astr, astr, int, ...);
 #endif
 
-#define ALO_LOG(what,args...) alo_log(what, __FILE__, __LINE__, ##args)
-
-#endif
+#else
+#undef ALO_ASSERT
+#undef ALO_LOG
+#define ALO_ASSERT(exp,what) ((void) 0)
+#define ALO_LOG(what,args...) ((void) 0)
 #endif
 
 #include <errno.h>
