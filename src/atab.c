@@ -364,7 +364,10 @@ void aloH_rawrem(astate T, atable_t* self, ptrdiff_t* pindex, atval_t* out) {
  ** remove entry by key, return 'true' if key founded, or 'false' in the otherwise.
  */
 int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
-	if (isinvalidkey(key)) {
+	if (self->capacity == 0) {
+		return false; /* no element exists in empty table */
+	}
+	else if (isinvalidkey(key)) {
 		return false; /* a invalid key should not exist in table. */
 	}
 	ahash_t hash = aloV_hashof(T, key);

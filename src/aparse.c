@@ -647,6 +647,9 @@ static void triexpr(alexer_t* lex, aestat_t* e) {
 		aloK_gwt(f, e);
 		label1 = e->lf;
 		if (checknext(lex, ':')) {
+			if (e->t == E_JMP) {
+				lerror(lex, "can not take comparison in '?:' expression.");
+			}
 			e->lf = NO_JUMP;
 			reg = aloK_reuse(f, e);
 			aloK_drop(f, e);
