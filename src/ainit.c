@@ -24,6 +24,7 @@ const amodinfo_t stdmods[] = {
 	{ "vec", aloopen_veclib },
 	{ "sys", aloopen_syslib },
 	{ "mod", aloopen_modlib },
+	{ "gc", aloopen_gclib },
 	{ NULL, NULL }
 };
 
