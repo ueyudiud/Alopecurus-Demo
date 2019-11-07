@@ -8,7 +8,7 @@ LIBS= -lm
 CORE_O= aop.o aobj.o astr.o atup.o alis.o atab.o afun.o astate.o \
 	amem.o agc.o abuf.o ameta.o adebug.o avm.o ado.o aeval.o achr.o \
 	acode.o alex.o aparse.o aload.o asave.o aimpl.o aaux.o ainit.o
-LIB_O= abaselib.o aclslib.o astrlib.o alislib.o atablib.o amathlib.o aveclib.o aiolib.o asyslib.o amodlib.o
+LIB_O= abaselib.o aclslib.o astrlib.o alislib.o atablib.o amathlib.o aveclib.o aiolib.o asyslib.o amodlib.o agclib.o
 
 ALO_O= alo.o
 ALO_T= alo.exe
