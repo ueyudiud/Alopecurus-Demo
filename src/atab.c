@@ -272,7 +272,9 @@ atval_t* aloH_find(astate T, atable_t* self, const atval_t* key) {
 	}
 	aloH_ensure(T, self, 1);
 	self->length ++;
-	return putety(T, self, key, aloV_hashof(T, key));
+	atval_t* slot = putety(T, self, key, aloV_hashof(T, key));
+	aloG_barrierbackt(T, self, key);
+	return slot;
 }
 
 /**
