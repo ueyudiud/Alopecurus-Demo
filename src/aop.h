@@ -142,18 +142,18 @@
 	OP(LEN  , "len"  ), /*   A B C     S(A) := length of X(B)                      */ \
 	OP(BNOT , "bnot" ), /*   A B C     S(A) := ~ X(B)                              */ \
 	                                                                                  \
-	OP(AADD , "aadd" ), /*   A Bx      S(A) += X(B)                                */ \
-	OP(ASUB , "asub" ), /*   A Bx      S(A) -= X(B)                                */ \
-	OP(AMUL , "amul" ), /*   A Bx      S(A) *= X(B)                                */ \
-	OP(ADIV , "adiv" ), /*   A Bx      S(A) /= X(B)                                */ \
-	OP(AIDIV, "aidiv"), /*   A Bx      S(A) //= X(B)                               */ \
-	OP(AMOD , "amod" ), /*   A Bx      S(A) %= X(B)                                */ \
-	OP(APOW , "apow" ), /*   A Bx      S(A) ^= X(B)                                */ \
-	OP(ASHL , "ashl" ), /*   A Bx      S(A) <<= X(B)                               */ \
-	OP(ASHR , "ashr" ), /*   A Bx      S(A) >>= X(B)                               */ \
-	OP(AAND , "aand" ), /*   A Bx      S(A) &= X(B)                                */ \
-	OP(AOR  , "aor"  ), /*   A Bx      S(A) |= X(B)                                */ \
-	OP(AXOR , "axor" ), /*   A Bx      S(A) ~= X(B)                                */ \
+	OP(AADD , "aadd" ), /*   A B       S(A) += X(B)                                */ \
+	OP(ASUB , "asub" ), /*   A B       S(A) -= X(B)                                */ \
+	OP(AMUL , "amul" ), /*   A B       S(A) *= X(B)                                */ \
+	OP(ADIV , "adiv" ), /*   A B       S(A) /= X(B)                                */ \
+	OP(AIDIV, "aidiv"), /*   A B       S(A) //= X(B)                               */ \
+	OP(AMOD , "amod" ), /*   A B       S(A) %= X(B)                                */ \
+	OP(APOW , "apow" ), /*   A B       S(A) ^= X(B)                                */ \
+	OP(ASHL , "ashl" ), /*   A B       S(A) <<= X(B)                               */ \
+	OP(ASHR , "ashr" ), /*   A B       S(A) >>= X(B)                               */ \
+	OP(AAND , "aand" ), /*   A B       S(A) &= X(B)                                */ \
+	OP(AOR  , "aor"  ), /*   A B       S(A) |= X(B)                                */ \
+	OP(AXOR , "axor" ), /*   A B       S(A) ~= X(B)                                */ \
 	                                                                                  \
 	OP(CAT  , "cat"  ), /*   A B C     S(A) := R(B) .. ... .. R(B+C)               */ \
 	OP(ACAT , "acat" ), /*   A Bx      S(A) ..= X(B)                               */ \

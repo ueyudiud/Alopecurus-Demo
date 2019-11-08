@@ -1040,3 +1040,48 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		break;
 	}
 }
+
+void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
+	int index;
+	switch (l->t) {
+	case E_LOCAL: {
+		index = aloK_setstack(l->v.g);
+		aloK_anyRK(f, r);
+		aloK_fixline(f, line);
+		aloK_iABC(f, op + OP_AADD - OPR_ADD, false, r->t == E_CONST, false, index, r->v.g, 0);
+		freeexp(f, r);
+		break;
+	}
+	case E_CAPTURE: {
+		index = aloK_setcapture(l->v.g + 1);
+		aloK_anyRK(f, r);
+		aloK_fixline(f, line);
+		aloK_iABC(f, op + OP_AADD - OPR_ADD, false, r->t == E_CONST, false, index, r->v.g, 0);
+		freeexp(f, r);
+		break;
+	}
+	case E_INDEXED: {
+		/* get value by index function */
+		aestat_t e;
+		e.lf = e.lt = NO_JUMP;
+		e.t = E_ALLOC;
+		e.v.g = aloK_iABC(f, OP_GET, false, l->v.d.fo, l->v.d.fk, 0, l->v.d.o, l->v.d.k);
+		newR(f, &e);
+		aloK_anyRK(f, r);
+		typeof(l->v.d) d = l->v.d;
+		aloK_fixline(f, line);
+		/* take operation for value */
+		aloK_iABC(f, op + OP_AADD - OPR_ADD, false, r->t == E_CONST, false, e.v.g, r->v.g, 0);
+		/* place back to owner */
+		aloK_iABC(f, OP_SET, d.fo, d.fk, false, d.o, d.k, e.v.g);
+		freeexp(f, r);
+		freereg(f, e.v.g);
+		break;
+	}
+	default: {
+		aloX_error(f->l, "can not take assignment");
+		break;
+	}
+	}
+	l->t = E_VOID;
+}

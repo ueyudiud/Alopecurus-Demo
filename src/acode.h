@@ -103,5 +103,6 @@ void aloK_assign(afstat_t*, aestat_t*, aestat_t*);
 void aloK_prefix(afstat_t*, aestat_t*, int, int);
 void aloK_infix(afstat_t*, aestat_t*, int);
 void aloK_suffix(afstat_t*, aestat_t*, aestat_t*, int, int);
+void aloK_opassign(afstat_t*, aestat_t*, aestat_t*, int, int);
 
 #endif /* ACODE_H_ */

@@ -1305,7 +1305,7 @@ static void assignment(alexer_t* lex, alhsa_t* a, int nvar) {
 }
 
 static void normstat(alexer_t* lex) {
-	/* normstat -> apply | assignment | remexpr */
+	/* normstat -> apply | assignment | opassignexpr | remexpr */
 	alhsa_t a;
 	if (check(lex, '$')) {
 		monexpr(lex, &a.e);
@@ -1314,16 +1314,29 @@ static void normstat(alexer_t* lex) {
 	}
 	int oldfreeloc = lex->f->freelocal;
 	expr(lex, &a.e);
-	if (check(lex, ',') || check(lex, '=')) { /* normstat -> assignment */
+	switch (lex->ct.t) {
+	case ',': case '=': { /* normstat -> assignment */
 		a.p = NULL;
 		assignment(lex, &a, 1);
 		lex->f->freelocal = oldfreeloc; /* clear extra value */
+		break;
 	}
-	else { /* normstat -> apply */
+	case TK_AADD ... TK_AXOR: { /* normstat -> expr assignop expr */
+		int line = lex->cl;
+		int type = lex->ct.t;
+		poll(lex);
+		aestat_t e;
+		expr(lex, &e);
+		aloK_opassign(lex->f, &a.e, &e, type - TK_AADD + OPR_ADD, line);
+		break;
+	}
+	default: { /* normstat -> apply */
 		if (a.e.t != E_CALL) {
 			lerror(lex, "call expression expected.");
 		}
 		SET_C(getinsn(lex->f, &a.e), 1);
+		break;
+	}
 	}
 }
 

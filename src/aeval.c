@@ -162,7 +162,6 @@ static int aloV_nset(astate T, const atval_t* A, const atval_t* B, const atval_t
 	case ALO_TTABLE: {
 		atable_t* table = tgettab(A);
 		aloH_set(T, table, B, C);
-		aloG_barrierbackt(T, table, B);
 		aloH_markdirty(table);
 		break;
 	}
