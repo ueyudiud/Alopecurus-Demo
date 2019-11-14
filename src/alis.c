@@ -57,10 +57,17 @@ const atval_t* aloI_get(__attribute__((unused)) astate T, alist_t* self, const a
 }
 
 /**
+ ** ensure list capacity and return end of list.
+ */
+static void ensure(astate T, alist_t* self) {
+	aloM_chkbx(T, self->array, self->capacity, self->length, ALO_MAX_BUFSIZE, tsetnil);
+}
+
+/**
  ** add element at the end of list.
  */
 void aloI_add(astate T, alist_t* self, const atval_t* value) {
-	aloM_chkbx(T, self->array, self->capacity, self->length, ALO_MAX_BUFSIZE, tsetnil);
+	ensure(T, self);
 	tsetobj(T, self->array + self->length++, value);
 }
 
@@ -90,7 +97,7 @@ void aloI_addall(astate T, alist_t* self, const atval_t* src, size_t len) {
 	self->length += len;
 }
 
-void aloI_seti(astate T, alist_t* self, aint index, const atval_t* value, atval_t* out) {
+atval_t* aloI_findi(astate T, alist_t* self, aint index) {
 	if (index < 0) {
 		index += self->length;
 	}
@@ -98,26 +105,18 @@ void aloI_seti(astate T, alist_t* self, aint index, const atval_t* value, atval_
 		aloU_outofrange(T, index, self->length);
 	}
 	if (index == self->length) {
-		aloI_add(T, self, value);
-		if (out) {
-			tsetnil(out);
-		}
+		ensure(T, self);
+		return self->array + self->length++;
 	}
-	else {
-		if (out) {
-			tsetobj(T, out, self->array + index);
-		}
-		tsetobj(T, self->array + index, value);
-	}
-	aloG_barrierbackt(T, self, value);
+	return self->array + index;
 }
 
-void aloI_set(astate T, alist_t* self, const atval_t* index, const atval_t* value, atval_t* out) {
+atval_t* aloI_find(astate T, alist_t* self, const atval_t* index) {
 	aint v;
 	if (!aloV_toint(index, v)) {
 		aloU_invalidkey(T);
 	}
-	aloI_seti(T, self, v, value, out);
+	return aloI_findi(T, self, v);
 }
 
 void aloI_removei(astate T, alist_t* self, aint index, atval_t* out) {

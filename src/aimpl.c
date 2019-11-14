@@ -772,7 +772,13 @@ void alo_rawsetx(astate T, aindex_t idown, int drop) {
 	askid_t v = T->top - 1;
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		aloI_set(T, tgetlis(o), k, v, drop ? k : NULL);
+		alist_t* owner = tgetlis(o);
+		atval_t* v1 = aloI_find(T, owner, k);
+		aloG_barrierbackt(T, owner, v);
+		if (drop) {
+			tsetobj(T, k, v1);
+		}
+		tsetobj(T, v1, v);
 		break;
 	}
 	case ALO_TTABLE: {
@@ -802,7 +808,7 @@ void alo_rawseti(astate T, aindex_t idown, aint key) {
 	askid_t v = T->top - 1;
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		aloI_seti(T, tgetlis(o), key, v, NULL);
+		aloI_seti(T, tgetlis(o), key, v);
 		break;
 	}
 	case ALO_TTABLE: {

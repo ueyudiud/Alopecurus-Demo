@@ -157,7 +157,7 @@ static aclosure_t* aloV_nloadproto(astate T, aproto_t* p, aclosure_t* en, askid_
 static int aloV_nset(astate T, const atval_t* A, const atval_t* B, const atval_t* C) {
 	switch (ttpnv(A)) {
 	case ALO_TLIST:
-		aloI_set(T, tgetlis(A), B, C, NULL);
+		aloI_set(T, tgetlis(A), B, C);
 		break;
 	case ALO_TTABLE: {
 		atable_t* table = tgettab(A);
