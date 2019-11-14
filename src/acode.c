@@ -1048,7 +1048,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		index = aloK_setstack(l->v.g);
 		aloK_anyRK(f, r);
 		aloK_fixline(f, line);
-		aloK_iABC(f, op + OP_AADD - OPR_ADD, false, r->t == E_CONST, false, index, r->v.g, 0);
+		aloK_iABC(f, op, false, r->t == E_CONST, false, index, r->v.g, 0);
 		freeexp(f, r);
 		break;
 	}
@@ -1056,7 +1056,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		index = aloK_setcapture(l->v.g + 1);
 		aloK_anyRK(f, r);
 		aloK_fixline(f, line);
-		aloK_iABC(f, op + OP_AADD - OPR_ADD, false, r->t == E_CONST, false, index, r->v.g, 0);
+		aloK_iABC(f, op, false, r->t == E_CONST, false, index, r->v.g, 0);
 		freeexp(f, r);
 		break;
 	}
@@ -1071,7 +1071,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		typeof(l->v.d) d = l->v.d;
 		aloK_fixline(f, line);
 		/* take operation for value */
-		aloK_iABC(f, op + OP_AADD - OPR_ADD, false, r->t == E_CONST, false, e.v.g, r->v.g, 0);
+		aloK_iABC(f, op, false, r->t == E_CONST, false, e.v.g, r->v.g, 0);
 		/* place back to owner */
 		aloK_iABC(f, OP_SET, d.fo, d.fk, false, d.o, d.k, e.v.g);
 		freeexp(f, r);

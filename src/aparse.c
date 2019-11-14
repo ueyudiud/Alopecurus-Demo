@@ -1327,7 +1327,7 @@ static void normstat(alexer_t* lex) {
 		poll(lex);
 		aestat_t e;
 		expr(lex, &e);
-		aloK_opassign(lex->f, &a.e, &e, type - TK_AADD + OPR_ADD, line);
+		aloK_opassign(lex->f, &a.e, &e, type - TK_AADD + OP_AADD, line);
 		break;
 	}
 	default: { /* normstat -> apply */

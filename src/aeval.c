@@ -801,7 +801,7 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			break;
 		}
-		case OP_AADD ... OP_ASHR: {
+		case OP_AADD ... OP_AXOR: {
 			int op = insn - OP_AADD;
 			atval_t* s = S(A);
 			tb = X(B);
