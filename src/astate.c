@@ -52,6 +52,15 @@ static void initialize(astate T, __attribute__((unused)) void* context) {
 	aloU_init(T);
 }
 
+static ahash_t newseed(astate T) {
+	size_t pool[4];
+	pool[0] = aloE_addr(T);
+	pool[1] = aloE_addr(pool);
+	pool[2] = aloE_addr(alo_newstate);
+	pool[3] = aloE_addr(aloO_tnil);
+	return aloS_rhash(aloE_cast(const char*, pool), sizeof(pool), time(NULL));
+}
+
 astate alo_newstate(aalloc alloc, void* ctx) {
 	TG* tg = aloE_cast(TG*, alloc(ctx, NULL, 0, sizeof(TG)));
 	if (tg == NULL)
@@ -60,7 +69,7 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	aglobal_t* G = &tg->g;
 	G->alloc = alloc;
 	G->context = ctx;
-	G->seed = time(NULL) ^ ALO_MASKSEED;
+	G->seed = newseed(T);
 	G->mbase = sizeof(TG);
 	G->mdebt = 0;
 	G->mestimate = sizeof(TG);
