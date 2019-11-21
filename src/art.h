@@ -34,11 +34,17 @@ extern void alo_log(astr, astr, int, ...);
 #define ALO_LOG(what,args...) ((void) 0)
 #endif
 
+/**
+ ** basic header include.
+ */
 #include <errno.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <sys/types.h>
 
+/**
+ ** primitive scalar type definition.
+ */
 typedef uint64_t ainsn_t;
 typedef uint64_t ahash_t;
 
@@ -51,6 +57,9 @@ struct alo_JumpBuf {
 	int status;
 };
 
+/**
+ ** string buffer type.
+ */
 typedef struct alo_SBuf asbuf_t;
 
 /**
