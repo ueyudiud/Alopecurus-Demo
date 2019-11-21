@@ -157,7 +157,7 @@ static int runc(astate T) {
 					continue;
 				}
 			}
-			l_msg("unknown command '%s'", s + 1);
+			l_msg("unknown command '%s'\n", s + 1);
 			continue;
 		}
 		/* load and run run script */
