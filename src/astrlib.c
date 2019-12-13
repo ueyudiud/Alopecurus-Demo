@@ -724,8 +724,9 @@ static int matcher_match(astate T) {
 	size_t len;
 	src = alo_tolstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
-	int flag = match(&M, matcher->node, src, true);
-	if (!flag) return 0;
+	if (!match(&M, matcher->node, src, true)) {
+		return 0;
+	}
 	alo_ensure(T, matcher->ngroup);
 	for (int i = 0; i < matcher->ngroup; ++i) {
 		amgroup_t* group = &groups[i];
@@ -791,6 +792,30 @@ static int matcher_tostr(astate T) {
 	return 1;
 }
 
+static int matcher_find(astate T) {
+	Matcher* matcher = self(T);
+	amstat_t M;
+	amgroup_t groups[matcher->ngroup];
+	const char* src;
+	size_t len;
+	src = alo_tolstring(T, 1, &len);
+	size_t off = aloL_getoptinteger(T, 2, 0);
+	if (off > len) {
+		return 0;
+	}
+	minit(&M, T, src, len, groups);
+	src += off;
+	while (src <= M.send) {
+		if (match(&M, matcher->node, src, false)) {
+			alo_pushinteger(T, groups[0].begin - M.sbegin);
+			alo_pushinteger(T, groups[0].end - M.sbegin);
+			return 2;
+		}
+		src++;
+	}
+	return 0;
+}
+
 static int str_matcher(astate T) {
 	Matcher* matcher = alo_newobj(T, Matcher);
 	matcher->node = NULL;
@@ -801,6 +826,7 @@ static int str_matcher(astate T) {
 				{ "__call", matcher_test },
 				{ "__tostr", matcher_tostr },
 				{ "match", matcher_match },
+				{ "find", matcher_find },
 				{ NULL, NULL }
 		};
 		aloL_setfuns(T, -1, funcs);
