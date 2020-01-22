@@ -18,7 +18,7 @@
 #define ALO_NAME "Alopecurus"
 #define ALO_VERSION ALO_NAME" "ALO_VERSION_MAJOR"."ALO_VERSION_MINOR
 #define ALO_VERSION_FULL ALO_VERSION"."ALO_VERSION_RELEASE
-#define ALO_COPYRIGHT ALO_VERSION_FULL" Copyright (C) 2018-2019 ueyudiud"
+#define ALO_COPYRIGHT ALO_VERSION_FULL" Copyright (C) 2018-2020 ueyudiud"
 #define ALO_AUTHOR "ueyudiud"
 
 #include "adef.h"
