@@ -1,0 +1,14 @@
+-- local lambda call test
+local f() -> 2
+
+assert(f() == 2)
+
+local g = \x -> x
+
+assert(g(3) == 3)
+
+-- nested function test
+local curry(f) -> \x -> \y -> f(x, y)
+local bif(x,y) -> x + y
+
+assert(curry(bif)(1)(2) == 3)

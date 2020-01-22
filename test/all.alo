@@ -2,5 +2,6 @@ import 'literals'
 import 'operation'
 import 'strings'
 import 'control'
+import 'function'
 
 println 'OK!'
