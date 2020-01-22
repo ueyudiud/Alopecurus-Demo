@@ -47,6 +47,19 @@ else {
 
 assert(x == 0)
 
+x = 1
+
+while (x < 5) {
+	if (x == 2)
+		break
+	x = x + 1
+}
+else {
+	x = 1
+}
+
+assert(x == 2)
+
 -- do-while statement
 
 x = 1
