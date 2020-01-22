@@ -56,3 +56,13 @@ do {
 while (x < 5)
 
 assert(x == 5)
+
+-- for statement
+
+x = [1, 2, 3]
+y = 0
+for (i <- x) {
+	y = y + i
+}
+
+assert(y == 6)
