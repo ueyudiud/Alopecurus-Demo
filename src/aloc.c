@@ -40,10 +40,12 @@ static void prtkst(astate T, aproto_t* p, int index) {
 
 static void prtreg(astate T, aproto_t* p, int index) {
 	if (aloK_iscapture(index)) {
-		printf("c%d", aloK_getcapture(index));
+		index = aloK_getcapture(index);
+		printf("#%d", index);
 	}
 	else {
-		printf("r%d", aloK_getstack(index));
+		index = aloK_getstack(index);
+		printf("%%%d", index);
 	}
 }
 
@@ -51,16 +53,38 @@ static void prtrk(astate T, aproto_t* p, int index, abyte mode) {
 	(mode ? prtkst : prtreg)(T, p, index);
 }
 
+static int detail = false;
+
+#define nameof(name) (*(name)->array ? (name)->array : "<anonymous>")
+
 static void dump(astate T, aproto_t* p) {
 	printf("%s (%s:%d,%d) %"PRId64" instructions at %p\n",
-			p->name->array, p->src->array, p->linefdef, p->lineldef, p->ncode, p);
+			nameof(p->name), p->src->array, p->linefdef, p->lineldef, p->ncode, p);
 	printf("%d%s params, %d stack, %d captures, %d local, %"PRId64" constants, %"PRId64" functions\n",
 			p->nargs, p->fvararg ? "+" : "", p->nstack, p->ncap, p->nlocvar, p->nconst, p->nchild);
+	if (detail) {
+		printf("constants (%"PRId64") for %p:\n", p->nconst, p);
+		for (int i = 0; i < p->nconst; ++i) {
+			printf("\t[%d] ", i);
+			prtkst(T, p, i);
+			printf("\n");
+		}
+		printf("captures (%d) for %p:\n", p->ncap, p);
+		for (int i = 0; i < p->ncap; ++i) {
+			acapinfo_t* info = p->captures + i;
+			printf("\t[%d]\t%s\t%s%d\n", i + 1, nameof(info->name), info->finstack ? "%" : "#", info->index);
+		}
+		printf("local (%d) for %p:\n", p->nlocvar, p);
+		for (int i = 0; i < p->nlocvar; ++i) {
+			alocvar_t* info = p->locvars + i;
+			printf("\t[%d]\t%s\n", info->index, nameof(info->name));
+		}
+	}
 	alineinfo_t* info = p->lineinfo;
 	int m = -1;
 	for (int i = 0; i < p->ncode; ++i) {
 		if (m + 1 < p->nlineinfo && i >= info->begin) {
-			printf("l%d:\n", (info++)->line);
+			printf("line %d:\n", (info++)->line);
 			m++;
 		}
 		ainsn_t code = p->code[i];
@@ -94,11 +118,11 @@ static void dump(astate T, aproto_t* p) {
 		case OP_LDP:
 			prtreg(T, p, GET_A(code));
 			aproto_t* proto = p->children[GET_Bx(code)];
-			if (proto->name == T->g->sempty) {
-				printf(" <function:%p>", proto);
+			if (*proto->name->array) {
+				printf(" %s", proto->name->array);
 			}
 			else {
-				printf(" %s", proto->name->array);
+				printf(" <function:%p>", proto);
 			}
 			break;
 		case OP_SELV:
@@ -229,6 +253,10 @@ static int parsearg(astate T, int argc, const astr argv[]) {
 			}
 			else if (strcmp(s + 1, "i") == 0) {
 				checkmask(MASK_INFO, "Information mode already settled.");
+			}
+			else if (strcmp(s + 1, "I") == 0) {
+				checkmask(MASK_INFO, "Information mode already settled.");
+				detail = true;
 			}
 			else {
 				fprintf(stderr, "Unknown option got: '%s'\n", s);
