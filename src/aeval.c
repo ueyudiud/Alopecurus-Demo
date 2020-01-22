@@ -802,12 +802,12 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_ITR: {
-			atval_t* s = S(A);
-			if (aloT_tryunr(T, s, TM_ITR)) {
+			tb = R(B);
+			if (aloT_tryunr(T, tb, TM_ITR)) {
 				goto finish;
 			}
 			else {
-				aloV_iterator(T, s, R(B));
+				aloV_iterator(T, tb, S(A));
 			}
 			break;
 		}

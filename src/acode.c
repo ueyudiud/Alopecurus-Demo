@@ -690,7 +690,9 @@ void aloK_newcol(afstat_t* f, aestat_t* e, int op, size_t narg) {
 void aloK_newitr(afstat_t* f, aestat_t* e) {
 	aloK_anyR(f, e);
 	int r = e->v.g;
-	aloK_nextreg(f, e);
+	freereg(f, r);
+	aloK_checkstack(f, 1);
+	e->v.g = f->freelocal++;
 	aloK_iABC(f, OP_ITR, 0, 0, 0, e->v.g, r, 0);
 }
 
