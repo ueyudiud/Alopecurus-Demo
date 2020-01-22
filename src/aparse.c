@@ -595,6 +595,7 @@ static void lambdaexpr(alexer_t* lex, aestat_t* e) {
 			regloc(lex->f, check_name(lex));
 			n++;
 		}
+		f.p->nargs = n;
 		f.freelocal = n;
 		testnext(lex, TK_RARR);
 		istat(lex);

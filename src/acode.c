@@ -477,11 +477,13 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 	}
 	if (f->e && getvaraux(T, f->e, e, name, false)) {
 		aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
-		acapinfo_t* info = f->p->captures + (e->v.g = f->ncap++);
+		int index = f->ncap++;
+		acapinfo_t* info = f->p->captures + index;
 		info->finstack = e->t == E_LOCAL;
-		info->index = i;
+		info->index = e->v.g;
 		info->name = name;
 		e->t = E_CAPTURE;
+		e->v.g = index;
 		return true;
 	}
 	return false;
