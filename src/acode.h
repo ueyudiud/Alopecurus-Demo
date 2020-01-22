@@ -63,6 +63,9 @@ void aloK_marklabel(afstat_t*, int, int);
 int aloK_jumpforward(afstat_t*, int);
 void aloK_jumpbackward(afstat_t*, int);
 void aloK_fixline(afstat_t*, int);
+void aloK_return(afstat_t*, int, int);
+void aloK_gwt(afstat_t*, aestat_t*);
+void aloK_gwf(afstat_t*, aestat_t*);
 
 /**
  ** data -> reference
@@ -85,7 +88,6 @@ int aloK_reuse(afstat_t*, aestat_t*);
 
 size_t aloK_loadnil(afstat_t*, int, int);
 void aloK_loadproto(afstat_t*, aestat_t*);
-void aloK_return(afstat_t*, int, int);
 int aloK_putreg(afstat_t*, aestat_t*);
 void aloK_singleret(afstat_t*, aestat_t*);
 void aloK_fixedret(afstat_t*, aestat_t*, int);
@@ -94,10 +96,9 @@ void aloK_self(afstat_t*, aestat_t*, astring_t*);
 void aloK_unbox(afstat_t*, aestat_t*, int);
 void aloK_boxt(afstat_t*, aestat_t*, int);
 void aloK_newcol(afstat_t*, aestat_t*, int, size_t);
+void aloK_newitr(afstat_t*, aestat_t*);
 void aloK_rawseti(afstat_t*, int, aint, aestat_t*);
 void aloK_rawset(afstat_t*, int, aestat_t*, aestat_t*);
-void aloK_gwt(afstat_t*, aestat_t*);
-void aloK_gwf(afstat_t*, aestat_t*);
 void aloK_move(afstat_t*, aestat_t*, int);
 void aloK_assign(afstat_t*, aestat_t*, aestat_t*);
 void aloK_prefix(afstat_t*, aestat_t*, int, int);

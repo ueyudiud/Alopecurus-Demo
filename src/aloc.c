@@ -68,7 +68,7 @@ static void dump(astate T, aproto_t* p) {
 		printf("\t%-5d %5s ", i + 1, aloK_opname[insn]);
 		switch (insn) {
 		case OP_MOV:
-		case OP_PNM ... OP_BNOT:
+		case OP_PNM ... OP_BNOT: case OP_ITR:
 		case OP_AADD ... OP_AXOR:
 			prtreg(T, p, GET_A(code));
 			putchar(' ');
@@ -161,6 +161,10 @@ static void dump(astate T, aproto_t* p) {
 		case OP_TCALL:
 			prtreg(T, p, GET_A(code));
 			printf(" %d", GET_B(code) - 1);
+			break;
+		case OP_ICALL:
+			prtreg(T, p, GET_A(code));
+			printf(" %d", GET_C(code) - 1);
 			break;
 		case OP_RET:
 			prtreg(T, p, GET_A(code));

@@ -32,8 +32,6 @@ typedef ptrdiff_t aindex_t;
 #define ALO_REGISTRY_INDEX (-ALO_MAXSTACKSIZE - 100000)
 #define ALO_CAPTURE_INDEX(x) (-ALO_MAXSTACKSIZE - 150000 + (x))
 
-#define ALO_ITERATE_BEGIN (-1)
-
 /**
  * state manipulation
  */

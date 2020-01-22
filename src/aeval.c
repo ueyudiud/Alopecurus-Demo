@@ -801,6 +801,16 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			break;
 		}
+		case OP_ITR: {
+			atval_t* s = S(A);
+			if (aloT_tryunr(T, s, TM_ITR)) {
+				goto finish;
+			}
+			else {
+				aloV_iterator(T, s, R(B));
+			}
+			break;
+		}
 		case OP_AADD ... OP_AXOR: {
 			int op = insn - OP_AADD;
 			atval_t* s = S(A);
@@ -830,9 +840,7 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_ACAT: {
 			atval_t* s = S(A);
 			tb = X(B);
-			int f;
-			protect(f = aloT_trybin(T, s, tb, TM_ACAT));
-			if (f) {
+			if (aloT_trybin(T, s, tb, TM_ACAT)) {
 				goto finish;
 			}
 			else if (ttisstr(s)) {
@@ -935,9 +943,10 @@ void aloV_invoke(astate T, int dofinish) {
 			frame->mode = FrameModeTail; /* set in tail call mode */
 			aloR_closeframe(T, frame->next);
 
-			if (aloD_precall(T, f, nres)) {
+			if (aloD_rawcall(T, f, nres, &nres)) {
 				/* called by C function */
 				if (frame->falo && frame->fact) { /* still in Alopecurus frame? */
+					frame->fitr = nres > 0;
 					goto invoke;
 				}
 				return;
@@ -947,6 +956,22 @@ void aloV_invoke(astate T, int dofinish) {
 				goto invoke; /* execute it */
 			}
 			return;
+		}
+		case OP_ICALL: {
+			askid_t r = R(A);
+			tsetobj(T, r + 1, r);
+			T->top = r + 2;
+			int c;
+			if (!aloD_rawcall(T, r + 1, yC - 1, &c)) { /* can be execute by this function */
+				frame = T->frame;
+				goto invoke; /* execute it */
+			}
+			protect();
+			if (c) { /* check has more elements */
+				pc += 1;
+			}
+			T->top = frame->top;
+			break;
 		}
 		case OP_RET: {
 			aloF_close(T, base); /* close captures */
@@ -960,6 +985,7 @@ void aloV_invoke(astate T, int dofinish) {
 				frame = T->frame;
 				if (frame->fact) { /* is frame actived */
 					dofinish = true; /* mark calling end */
+					frame->fitr = nres > 0;
 					goto invoke; /* execute it */
 				}
 			}
@@ -1002,10 +1028,17 @@ void aloV_invoke(astate T, int dofinish) {
 			T->top = frame->top;
 		}
 		break;
+	case OP_ICALL:
+		if (frame->fitr) {
+			frame->fitr = 0;
+			pc += 1;
+		}
+		T->top = frame->top;
+		break;
 	case OP_GET: case OP_REM: case OP_ADD: case OP_SUB: case OP_MUL:
 	case OP_DIV: case OP_IDIV: case OP_MOD: case OP_POW: case OP_SHL:
 	case OP_SHR: case OP_BAND: case OP_BOR: case OP_BXOR: case OP_PNM:
-	case OP_UNM: case OP_LEN: case OP_BNOT:
+	case OP_UNM: case OP_LEN: case OP_BNOT: case OP_ITR:
 	case OP_AADD: case OP_ASUB: case OP_AMUL: case OP_ADIV: case OP_AIDIV:
 	case OP_AMOD: case OP_APOW: case OP_ASHL: case OP_ASHR: case OP_AAND:
 	case OP_AOR: case OP_AXOR:

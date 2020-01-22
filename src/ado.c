@@ -183,7 +183,7 @@ static int moveresults(astate T, askid_t dest, askid_t src, int nresult, int exp
  ** prepares function call, if it is C function, call it directly, or wait
  ** for 'aloV_excute' calling function
  */
-int aloD_precall(astate T, askid_t fun, int nresult) {
+int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 	acfun caller;
 	switch (ttype(fun)) {
 	case ALO_TLCF:
@@ -202,7 +202,7 @@ int aloD_precall(astate T, askid_t fun, int nresult) {
 			frame->top = T->top + ALO_MINSTACKSIZE;
 			frame->flags = 0;
 			T->frame = frame;
-			int n = caller(T);
+			int n = *nactual = caller(T);
 			aloE_assert(frame->fun + n <= T->top, "no enough elements in stack.");
 			aloD_postcall(T, T->top - n, n);
 		}
@@ -254,6 +254,11 @@ int aloD_precall(astate T, askid_t fun, int nresult) {
 		return aloD_precall(T, fun, nresult);
 	}
 	}
+}
+
+int aloD_precall(astate T, askid_t fun, int nresult) {
+	int dummy;
+	return aloD_rawcall(T, fun, nresult, &dummy);
 }
 
 void aloD_postcall(astate T, askid_t ret, int nresult) {

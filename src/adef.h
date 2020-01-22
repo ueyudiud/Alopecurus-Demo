@@ -115,6 +115,8 @@ enum {
 
 #define ALO_MULTIRET (-1)
 
+#define ALO_ITERATE_BEGIN (-1)
+
 #define ALO_INT_PROP(field) INT64_##field
 #define ALO_FLT_PROP(field) DOUBLE##field
 

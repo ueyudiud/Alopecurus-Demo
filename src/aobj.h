@@ -121,6 +121,10 @@ typedef atval_t *askid_t;
 #define tgetthr(o) aloE_check(ttisthr(o), "'"#o"' is not thread value", g2t(tgetref(o)))
 #define tgetrdt(o) aloE_check(ttisrdt(o), "'"#o"' is not raw data value", g2r(tgetref(o)))
 
+#define trefbool(o) (*aloE_check(ttisbool(o), "'"#o"' is not boolean value", &(o)->v.b))
+#define trefint(o) (*aloE_check(ttisint(o), "'"#o"' is not integer value", &(o)->v.i))
+#define trefflt(o) (*aloE_check(ttisflt(o), "'"#o"' is not float value", &(o)->v.f))
+
 #define tgetrptr(o) (o)->v.p
 
 /* tagged value construct macros. */

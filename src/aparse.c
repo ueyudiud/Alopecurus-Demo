@@ -1211,15 +1211,16 @@ static void whilestat(alexer_t* lex) {
 	testnext(lex, '(');
 	aestat_t e;
 	ablock_t b;
-	enterblock(lex->f, &b, true);
+	afstat_t* f = lex->f;
+	enterblock(f, &b, true);
 	expr(lex, &e);
-	aloK_gwt(lex->f, &e);
+	aloK_gwt(f, &e);
 	testenclose(lex, '(', ')', line);
 	stat(lex, false); /* THEN block */
-	aloK_jumpbackward(lex->f, b.lcon);
-	aloK_fixline(lex->f, line); /* fix line to conditional check */
-	leaveblock(lex->f);
-	aloK_putlabel(lex->f, e.lf);
+	aloK_jumpbackward(f, b.lcon);
+	aloK_fixline(f, line); /* fix line to conditional check */
+	leaveblock(f);
+	aloK_putlabel(f, e.lf);
 	if (checknext(lex, TK_ELSE)) {
 		stat(lex, false); /* ELSE block */
 	}
@@ -1271,6 +1272,47 @@ static void jumpstat(alexer_t* lex, int type) {
 		}
 	}
 
+}
+
+static void forstat(alexer_t* lex) {
+	/* forstat -> 'for' '(' IDENT [',' IDENT] '<-' expr ')' stat ['else' stat] */
+	int line = lex->cl;
+	testnext(lex, '(');
+	ablock_t b;
+	afstat_t* f = lex->f;
+	int index = pushcv(f);
+	f->d->cv.a[index].name = check_name(lex);
+	while (checknext(lex, ',')) {
+		f->d->cv.a[pushcv(f)].name = check_name(lex);
+	}
+	testnext(lex, TK_LARR);
+	aestat_t e;
+	expr(lex, &e);
+	testnext(lex, ')');
+	aloK_newitr(f, &e);
+	enterblock(f, &b, true);
+	regloc(f, lex->T->g->sempty);
+	aloE_assert(f->nactvar == f->freelocal, "variable number mismatched");
+	int nvar =  f->d->cv.l - index;
+	aloK_checkstack(f, nvar);
+	aloK_iABC(f, OP_ICALL, 0, 0, 0, e.v.g, 0, nvar + 1);
+	for (int i = 0; i < nvar; ++i) {
+		regloc(f, f->d->cv.a[index + i].name);
+	}
+	f->d->cv.l = index;
+	int lastfree = f->freelocal;
+	f->freelocal += nvar;
+	int label = aloK_jumpforward(f, NO_JUMP);
+	stat(lex, false); /* THEN block */
+	aloK_jumpbackward(f, b.lcon);
+	aloK_fixline(f, line); /* fix line to conditional check */
+	leaveblock(f);
+	f->freelocal = lastfree;
+	aloK_putlabel(f, label);
+	if (checknext(lex, TK_ELSE)) {
+		stat(lex, false); /* ELSE block */
+	}
+	aloK_putlabel(lex->f, b.lout);
 }
 
 static void assignment(alexer_t* lex, alhsa_t* a, int nvar) {
@@ -1438,6 +1480,11 @@ static int stat(alexer_t* lex, int assign) {
 	case TK_DO: { /* stat -> dowhilestat */
 		poll(lex);
 		dowhilestat(lex);
+		return false;
+	}
+	case TK_FOR: { /* stat -> forstat */
+		poll(lex);
+		forstat(lex);
 		return false;
 	}
 	case TK_LOCAL: { /* stat -> localstat */

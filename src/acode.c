@@ -687,6 +687,13 @@ void aloK_newcol(afstat_t* f, aestat_t* e, int op, size_t narg) {
 	e->lf = e->lt = NO_JUMP;
 }
 
+void aloK_newitr(afstat_t* f, aestat_t* e) {
+	aloK_anyR(f, e);
+	int r = e->v.g;
+	aloK_nextreg(f, e);
+	aloK_iABC(f, OP_ITR, 0, 0, 0, e->v.g, r, 0);
+}
+
 void aloK_rawset(afstat_t* f, int index, aestat_t* k, aestat_t* v) {
 	aloK_anyRK(f, k);
 	aloK_anyRK(f, v);

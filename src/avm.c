@@ -258,3 +258,50 @@ int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
 		return false;
 	}
 }
+
+static int tuple_iterator(astate T) {
+	aclosure_t* c = tgetclo(T->frame->fun);
+	const atval_t* result = aloA_next(tgettup(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
+	if (result) {
+		tsetobj(T, api_incrtop(T), result);
+		return 1;
+	}
+	return 0;
+}
+
+static int list_iterator(astate T) {
+	aclosure_t* c = tgetclo(T->frame->fun);
+	const atval_t* result = aloI_next(tgetlis(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
+	if (result) {
+		tsetobj(T, api_incrtop(T), result);
+		return 1;
+	}
+	return 0;
+}
+
+static int table_iterator(astate T) {
+	aclosure_t* c = tgetclo(T->frame->fun);
+	const aentry_t* result = aloH_next(tgettab(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
+	if (result) {
+		tsetobj(T, api_incrtop(T), amkey(result));
+		tsetobj(T, api_incrtop(T), amval(result));
+		return 2;
+	}
+	return 0;
+}
+
+/**
+ ** create an base iterator by object.
+ */
+void aloV_iterator(astate T, const atval_t* in, atval_t* out) {
+	acfun handle;
+	switch (ttpnv(in)) {
+	case ALO_TTUPLE: handle = tuple_iterator; break;
+	case ALO_TLIST : handle = list_iterator;  break;
+	case ALO_TTABLE: handle = table_iterator; break;
+	}
+	aclosure_t* c = aloF_newc(T, handle, 2);
+	tsetobj(T, c->array, in);
+	tsetint(c->array + 1, ALO_ITERATE_BEGIN);
+	tsetclo(T, out, c);
+}

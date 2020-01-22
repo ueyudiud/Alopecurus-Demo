@@ -67,6 +67,7 @@
 	TM(TM_NEW, new), \
 	TM(TM_DEL, del), \
 	TM(TM_UNBOX, unbox), \
+	TM(TM_ITR, itr), \
 	TM(TM_TOSTR, tostr), \
 	TM(TM_THIS, this)
 

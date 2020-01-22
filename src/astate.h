@@ -112,6 +112,7 @@ struct alo_Frame {
 			abyte ffnz : 1; /* is calling finalizer */
 			abyte fypc : 1; /* is function calling in yieldable protection */
 			abyte fact : 1; /* is active calling by VM */
+			abyte fitr : 1; /* is iterator 'hasNext' checking */
 		};
 		abyte flags;
 	};

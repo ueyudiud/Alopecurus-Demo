@@ -157,6 +157,7 @@
 	                                                                                  \
 	OP(CAT  , "cat"  ), /*   A B C     S(A) := R(B) .. ... .. R(B+C)               */ \
 	OP(ACAT , "acat" ), /*   A Bx      S(A) ..= X(B)                               */ \
+	OP(ITR  , "itr"  ), /*   A B       S(A) = newiterator(S(B))                    */ \
 	OP(JMP  , "jmp"  ), /*   A sBx     pc += sBx; if (xA) close captures >= R(A)   */ \
 	OP(JCZ  , "jcz"  ), /*   A sBx     if (S(A) as bool == xC) pc += sBx           */ \
 	OP(EQ   , "eq"   ), /*   A B C     if ((X(A) == X(B)) == xC) pc ++             */ \
@@ -165,6 +166,7 @@
 	                                                                                  \
 	OP(CALL , "call" ), /*   A B C     R(A) ... R(A+C-2):=R(A)(R(A+1), ..., R(A+B))*/ \
 	OP(TCALL, "tcall"), /*   A B       return R(A)(R(A+1), ..., R(A+B))            */ \
+	OP(ICALL, "icall"), /*   A B C     if (has(R(A))) R(A+1) := next(R(A))         */ \
 	OP(RET  , "ret"  )  /*   A B       return R(A), ..., R(A+B-2)                  */ \
 /***===============================================================================*/
 
