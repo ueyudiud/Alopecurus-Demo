@@ -1577,6 +1577,7 @@ void destory_context(astate T, apdata_t* data) {
 int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
 	/* open lexer */
 	struct alo_ParseContext context;
+	context.data = (apdata_t) { };
 	aloX_open(T, &context.lex, src, in);
 
 	int status = aloD_prun(T, pparse, &context);
