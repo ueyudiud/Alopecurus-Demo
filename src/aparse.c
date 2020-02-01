@@ -1547,40 +1547,48 @@ static void registerproto(astate T, aproto_t* p) {
 	aloG_register(T, p, ALO_TPROTO);
 }
 
+struct alo_ParseContext {
+	alexer_t lex;
+	apdata_t data;
+};
+
+void pparse(astate T, void* raw) {
+	struct alo_ParseContext* ctx = aloE_cast(struct alo_ParseContext*, raw);
+	ctx->data.p = aloF_newp(T);
+	ablock_t b;
+	afstat_t f = { p: ctx->data.p, e: NULL, d: &ctx->data, cjump: NO_JUMP };
+	ctx->lex.f = &f;
+	f.l = &ctx->lex;
+	poll(&ctx->lex);
+	initproto(T, &f);
+	enterblock(&f, &b, false);
+	rootstats(&ctx->lex);
+	leaveblock(&f);
+	closeproto(T, &f);
+}
+
+void destory_context(astate T, apdata_t* data) {
+	aloM_dela(T, data->ss.a, data->ss.c);
+	aloM_dela(T, data->jp.a, data->jp.c);
+	aloM_dela(T, data->lb.a, data->lb.c);
+	aloM_dela(T, data->cv.a, data->cv.c);
+}
+
 int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
 	/* open lexer */
-	alexer_t lex;
-	aloX_open(T, &lex, src, in);
+	struct alo_ParseContext context;
+	aloX_open(T, &context.lex, src, in);
 
-	apdata_t data = { };
+	int status = aloD_prun(T, pparse, &context);
+	*out = !status ? context.data.p : NULL;
 
-	void pparse(astate T, __attribute__((unused)) void* context) {
-		data.p = aloF_newp(T);
-		ablock_t b;
-		afstat_t f = { p: data.p, e: NULL, d: &data, cjump: NO_JUMP };
-		lex.f = &f;
-		f.l = &lex;
-		poll(&lex);
-		initproto(T, &f);
-		enterblock(&f, &b, false);
-		rootstats(&lex);
-		leaveblock(&f);
-		closeproto(T, &f);
-	}
-
-	int status = aloD_prun(T, pparse, NULL);
-	*out = !status ? data.p : NULL;
-
-	aloM_dela(T, data.ss.a, data.ss.c);
-	aloM_dela(T, data.jp.a, data.jp.c);
-	aloM_dela(T, data.lb.a, data.lb.c);
-	aloM_dela(T, data.cv.a, data.cv.c);
-	aloX_close(&lex);
+	destory_context(T, &context.data);
+	aloX_close(&context.lex);
 	if (status) {
-		aloZ_delete(T, data.p);
+		aloZ_delete(T, context.data.p);
 	}
 	else {
-		registerproto(T, data.p);
+		registerproto(T, context.data.p);
 	}
 
 	return status;
