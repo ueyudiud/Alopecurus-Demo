@@ -185,6 +185,8 @@ ALO_API int alo_save(astate, awriter, void*, int);
 
 ALO_API int alo_resume(astate, astate, int);
 ALO_API void alo_yieldk(astate, int, akfun, void*);
+ALO_API int alo_status(astate);
+ALO_API int alo_isyieldable(astate);
 
 #define alo_yield(T,nres) alo_yieldk(T, nres, NULL, NULL)
 
