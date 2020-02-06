@@ -59,14 +59,17 @@ void aloU_init(astate T) {
 	table->length = 0;
 }
 
-static int putcreg(actable_t* table, acfun handle, astr name) {
+static int putcreg(astate T, actable_t* table, acfun handle, astr name) {
 	size_t hash = aloE_addr(handle) % table->capacity; /* first hash */
-	size_t i = 0;
+	size_t hash0 = hash;
+	int i = 1;
 	while (table->array[hash].handle) {
-		if (table->array[hash].handle == handle) { /* hit? */
+		api_check(T, table->array[hash].handle != handle, "C function registered twice.");
+		hash = (hash + i * i) % table->capacity; /* rehash */
+		i += 1;
+		if (hash == hash0) { /* collide to first hash? */
 			return true;
 		}
-		hash = (hash * hash + ++i) % table->capacity; /* rehash */
 	}
 	table->array[hash].handle = handle;
 	table->array[hash].name = name;
@@ -91,25 +94,35 @@ astr aloU_getcname(astate T, acfun handle) {
 	return getcreg(&G->ctable, handle);
 }
 
+static void growbuf(astate T, actable_t* table) {
+	acreg_t* oldarray = table->array;
+	size_t oldcap = table->capacity;
+	size_t newcap = oldcap * 2;
+	table->array = aloM_newa(T, acreg_t, newcap);
+	table->capacity = newcap;
+	for (size_t i = 0; i < newcap; ++i) {
+		table->array[i].handle = NULL;
+	}
+	for (size_t i = 0; i < oldcap; ++i) {
+		if (putcreg(T, table, oldarray[i].handle, oldarray[i].name)) {
+			aloU_rterror(T, "failed to put entry into buffer.");
+		}
+	}
+	aloM_dela(T, oldarray, oldcap);
+
+}
+
 void aloU_bind(astate T, acfun handle, astring_t* name) {
 	Gd(T);
 	actable_t* table = &G->ctable;
 	if (table->length >= table->capacity * ALO_CTABLE_LOAD_FACTOR) { /* needs to grow size? */
-		acreg_t* oldarray = table->array;
-		size_t oldcap = table->capacity;
-		size_t newcap = oldcap * 2;
-		table->array = aloM_newa(T, acreg_t, newcap);
-		table->capacity = newcap;
-		for (size_t i = 0; i < newcap; ++i) {
-			table->array[i].handle = NULL;
-		}
-		for (size_t i = 0; i < oldcap; ++i) {
-			putcreg(table, oldarray[i].handle, oldarray[i].name);
-		}
-		aloM_dela(T, oldarray, oldcap);
+		growbuf(T, table);
 	}
-	if (putcreg(table, handle, name->array)) { /* place new entry */
-		aloU_rterror(T, "C function with name '%s' already registered.", name->array);
+	if (putcreg(T, table, handle, name->array)) { /* place new entry failed? */
+		growbuf(T, table); /* grow buffer size again */
+		if (putcreg(T, table, handle, name->array)) { /* failed again? */
+			aloU_rterror(T, "cannot put C function '%s'", name->array);
+		}
 	}
 	table->length++;
 }
