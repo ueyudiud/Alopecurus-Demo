@@ -739,6 +739,14 @@ void alo_newtable(astate T, size_t size) {
 	aloG_check(T);
 }
 
+astate alo_newthread(astate T) {
+	aloG_check(T);
+	api_checkslots(T, 1);
+	astate thread = aloR_newthread(T);
+	tsetthr(T, api_incrtop(T), thread);
+	return thread;
+}
+
 /**
  ** trim object, and make it takes lower memory cost.
  */
@@ -963,9 +971,7 @@ void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	else { /* in non-yieldable environment or not yieldable */
 		aloD_callnoyield(T, fun, nres); /* do call */
 	}
-	if (nres == ALO_MULTIRET && T->frame->top < T->top) {
-		T->frame->top = T->top;
-	}
+	aloD_adjustresult(T, nres);
 }
 
 /* call information */
@@ -1001,9 +1007,7 @@ int alo_pcallk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	T->frame = frame; /* restore to correct frame */
 	ci.fun = putstkoff(T, p);
 	if (status == ThreadStateRun) { /* return exact value if thread is still running */
-		if (nres == ALO_MULTIRET && T->frame->top < T->top) {
-			T->frame->top = T->top;
-		}
+		aloD_adjustresult(T, nres);
 	}
 	else { /* not in normal state? */
 		tsetobj(T, ci.fun, T->top - 1); /* move error object */

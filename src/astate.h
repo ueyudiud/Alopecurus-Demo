@@ -158,6 +158,7 @@ struct alo_Thread {
 
 #define Gd(T) aglobal_t* G = (T)->g
 
+athread_t* aloR_newthread(astate);
 void aloR_closeframe(astate, aframe_t*);
 void aloR_deletethread(astate, athread_t*);
 aframe_t* aloR_topframe(astate);

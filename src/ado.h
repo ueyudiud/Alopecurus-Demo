@@ -21,12 +21,14 @@
 #define adjuststack(T,n) aloE_void(0)
 #endif
 
+#define aloD_adjustresult(T,nres) ({ if (nres == ALO_MULTIRET && T->frame->top < T->top) { T->frame->top = T->top; } })
+
 /**
  ** check stack size, if stack will be resized, call 'pre' and 'post'.
  */
 #define aloD_checkstack(T,n) aloD_checkstackaux(T, n, aloE_void(0), aloE_void(0))
 #define aloD_checkstackaux(T,n,pre,post) \
-	if (((T)->top + (n)) - (T)->stack >= (T)->stacksize) { pre; aloD_growstack(T, n); post; } else { adjuststack(T, n); }
+	({ if (((T)->top + (n)) - (T)->stack >= (T)->stacksize) { pre; aloD_growstack(T, n); post; } else { adjuststack(T, n); } })
 
 #define aloB_pushobj(T,o) aloB_pushobj_(T, r2g(o))
 

@@ -38,7 +38,7 @@ typedef struct alo_Version {
 
 typedef struct alo_Thread *astate;
 typedef int (*acfun)(astate);
-typedef int (*akfun)(astate, void*);
+typedef int (*akfun)(astate, int, void*);
 
 typedef amem (*aalloc)(void*, amem, size_t, size_t);
 typedef int (*areader)(astate, void*, const char**, size_t*);

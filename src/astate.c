@@ -61,6 +61,26 @@ static ahash_t newseed(astate T) {
 	return aloS_rhash(aloE_cast(const char*, pool), sizeof(pool), time(NULL));
 }
 
+static void preinit(astate T, aglobal_t* G) {
+	T->status = ThreadStateYield;
+	T->caller = NULL;
+	T->g = G;
+	T->frame = &T->base_frame;
+	T->berrno = 0;
+	T->nccall = 0;
+	T->nframe = 1;
+	T->nxyield = 0;
+	T->label = NULL;
+	T->flags = 0;
+	T->base_frame.name = "<start>";
+	T->base_frame.next = T->base_frame.prev = NULL;
+	T->base_frame.fun = T->base_frame.top = NULL;
+	T->base_frame.flags = 0;
+	T->base_frame.c.kfun = NULL;
+	T->base_frame.c.ctx = NULL;
+	T->captures = NULL;
+}
+
 astate alo_newstate(aalloc alloc, void* ctx) {
 	TG* tg = aloE_cast(TG*, alloc(ctx, NULL, 0, sizeof(TG)));
 	if (tg == NULL)
@@ -98,23 +118,7 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	T->gcprev = NULL;
 	T->tt = ALO_TTHREAD;
 	T->mark = aloG_white1;
-	T->status = ThreadStateRun;
-	T->caller = NULL;
-	T->g = G;
-	T->frame = &T->base_frame;
-	T->berrno = 0;
-	T->nccall = 0;
-	T->nframe = 1;
-	T->nxyield = 0;
-	T->label = NULL;
-	T->flags = 0;
-	T->base_frame.name = "<start>";
-	T->base_frame.next = T->base_frame.prev = NULL;
-	T->base_frame.fun = T->base_frame.top = NULL;
-	T->base_frame.flags = 0;
-	T->base_frame.c.kfun = NULL;
-	T->base_frame.c.ctx = NULL;
-	T->captures = NULL;
+	preinit(T, G);
 
 	/* run initializer with memory allocation, if failed, delete thread directly */
 	if (aloD_prun(T, initialize, NULL) != ThreadStateRun) {
@@ -126,7 +130,17 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	aloE_log("new alo state initialized, seed: %"PRId64, G->seed);
 
 	G->fgc = true; /* enable GC */
+	T->status = ThreadStateRun;
 	return T;
+}
+
+athread_t* aloR_newthread(astate T) {
+	Gd(T);
+	athread_t* thread = aloM_newo(T, athread_t);
+	aloG_register(T, thread, ALO_TTHREAD);
+	preinit(thread, G);
+	init_stack(T, thread);
+	return thread;
 }
 
 /**

@@ -20,6 +20,8 @@ ALO_API int aloopen_modlib(astate);
 
 ALO_API int aloopen_clslib(astate);
 
+ALO_API int aloopen_corolib(astate);
+
 ALO_API int aloopen_strlib(astate);
 
 ALO_API int aloopen_lislib(astate);

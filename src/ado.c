@@ -5,6 +5,8 @@
  *      Author: ueyudiud
  */
 
+#include "astr.h"
+#include "afun.h"
 #include "abuf.h"
 #include "agc.h"
 #include "adebug.h"
@@ -12,6 +14,8 @@
 #include "ado.h"
 
 #include <stdlib.h>
+
+#define iserrorstate(status) ((status) > ThreadStateYield)
 
 void aloD_setdebt(aglobal_t* G, ssize_t debt) {
 	ssize_t total = G->mbase + G->mdebt;
@@ -283,8 +287,9 @@ static void stackerror(astate T) {
 }
 
 void aloD_call(astate T, askid_t fun, int nresult) {
-	if (++T->nccall >= ALO_MAXCCALL)
+	if (T->nccall >= ALO_MAXCCALL)
 		stackerror(T);
+	T->nccall++;
 	aframe_t* frame = T->frame;
 	if (!aloD_precall(T, fun, nresult)) {
 		int oldact = frame->fact;
@@ -299,4 +304,175 @@ void aloD_callnoyield(astate T, askid_t fun, int nresult) {
 	T->nxyield++;
 	aloD_call(T, fun, nresult);
 	T->nxyield--;
+}
+
+static void postpcc(astate T, int status) {
+	aframe_t* frame = T->frame;
+
+	aloE_assert(frame->c.kfun != NULL && T->nxyield == 0, "the continuation is not available.");
+	aloE_assert(frame->fypc || status != ThreadStateYield, "error can only be caught by protector.");
+
+	aloD_adjustresult(T, frame->nresult);
+	int n = (*frame->c.kfun)(T, ThreadStateYield, frame->c.ctx);
+	api_checkelems(T, n);
+	aloD_postcall(T, T->top - n, n);
+}
+
+/**
+ * execute remained continuations.
+ */
+static void unroll(astate T) {
+	aframe_t* frame;
+	while ((frame = T->frame) != &T->base_frame) {
+		if (frame->falo) { /* is yielded in script? */
+			aloV_invoke(T, true); /* call with finished previous */
+		}
+		else {
+			postpcc(T, ThreadStateYield);
+		}
+	}
+}
+
+static void unroll_unsafe(astate T, void* context) {
+	int status = *aloE_cast(int*, context);
+	postpcc(T, status);
+	unroll(T);
+}
+
+static aframe_t* rewind_protector(astate T) {
+	aframe_t* frame = T->frame;
+	do {
+		if (frame->fypc) {
+			return frame;
+		}
+	}
+	while ((frame = frame->prev));
+	return NULL;
+}
+
+/**
+ * attempt to recover the function in error by protector.
+ */
+static int recover(astate T, int status) {
+	/* find yieldable protector */
+	aframe_t* frame = rewind_protector(T);
+	if (frame == NULL)
+		return false;
+	askid_t oldtop = frame->top;
+	aloF_close(T, frame->top);
+	tsetobj(T, oldtop - 1, frame->top - 1);
+	T->frame = frame;
+	T->top = frame->top;
+	T->nxyield = 0;
+	return true;
+}
+
+static void resume_unsafe(astate T, void* context) {
+	int narg = *aloE_cast(int*, context);
+	aframe_t* frame = T->frame;
+	T->status = ThreadStateRun;
+	if (T->frame == &T->base_frame) {
+		if (!aloD_precall(T, T->top - narg - 1, ALO_MULTIRET))
+			aloV_invoke(T, false);
+	}
+	else {
+		if (frame->falo) { /* is yielded in script? */
+			aloV_invoke(T, true); /* call with finished previous */
+		}
+		else {
+			if (frame->c.kfun) { /* does frame have a continuation? */
+				narg = (*frame->c.kfun)(T, ThreadStateYield, frame->c.ctx);
+				api_checkelems(T, narg);
+			}
+			aloD_postcall(T, T->top - narg, narg);
+		}
+		unroll(T);
+	}
+}
+
+static int resume_error(astate T, const char* msg, int narg) {
+	T->top -= narg;
+	tsetstr(T, api_incrtop(T), aloS_of(T, msg)); /* push message to the top */
+	return ThreadStateErrRuntime;
+}
+
+int alo_resume(astate T, astate from, int narg) {
+	Gd(T);
+	api_check(T, from->g == G, "two coroutine from different state.");
+	api_check(T, G->trun != from, "the coroutine is not running.");
+	if (T == G->tmain) { /* the main thread can not resumed */
+		return resume_error(T, "the main coroutine is not resumable.", narg);
+	}
+	else if (T->status != ThreadStateYield) { /* check coroutine status */
+		return resume_error(T, T->status == ThreadStateRun ?
+				"cannot resume a non-suspended coroutine." :
+				"the coroutine is already dead.", narg);
+	}
+	else if (T->frame == &T->base_frame && T->top != T->base_frame.fun + 2) { /* check function not called yet */
+		return resume_error(T, "the coroutine is already dead.", narg);
+	}
+	api_checkelems(T, narg);
+
+	int oldnxy = T->nxyield;
+	T->nccall = from->nccall + 1;
+	if (T->nccall >= ALO_MAXCCALL) {
+		stackerror(T);
+	}
+	T->nxyield = 0;
+
+	T->caller = from;
+	G->trun = T;
+	int status = aloD_prun(T, resume_unsafe, &narg);
+	if (status == ThreadStateRun) { /* does function invoke to the end? */
+		T->status = ThreadStateYield; /* yield coroutine */
+	}
+	else if (status != ThreadStateYield) { /* error occurred? */
+		while (iserrorstate(status) && recover(T, status)) { /* try to recover the error by yieldable error protector */
+			status = aloD_prun(T, unroll_unsafe, &status);
+		}
+		if (iserrorstate(status)) { /* is error unrecoverable? */
+			T->status = aloE_byte(status);
+			T->frame->top = T->top;
+		}
+		else aloE_assert(status == T->status, "status mismatched.");
+	}
+	G->trun = from;
+	T->nccall--;
+	T->nxyield = oldnxy;
+	aloE_assert(T->nccall == from->nccall, "C call depth mismatched.");
+	return status;
+}
+
+void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
+	aframe_t* frame = T->frame;
+	api_checkelems(T, narg);
+	Gd(T);
+	aloE_void(G);
+	aloE_assert(T == G->trun, "the current coroutine is not running.");
+	if (T->nxyield > 0) {
+		aloU_rterror(T, T->caller != NULL ?
+				"attempt to yield across a C-call boundary." :
+				"attempt to yield from a outside coroutine.");
+	}
+	T->status = ThreadStateYield;
+	if (frame->falo) { //TODO
+		aloU_rterror(T, "not implemented yet.");
+	}
+	else {
+		if ((frame->c.kfun = kfun)) { /* protector present? */
+			/* settle protector */
+			frame->c.ctx = kctx;
+			frame->top -= nres;
+			/* push new frame for 'yield' function */
+			frame = nextframe(T);
+			frame->nresult = ALO_MULTIRET;
+			frame->name = "<yield>";
+			frame->c.kfun = NULL;
+			frame->c.ctx = NULL;
+			frame->fun = frame->prev->top;
+			frame->top = T->top;
+			frame->flags = 0;
+		}
+		aloD_throw(T, ThreadStateYield);
+	}
 }

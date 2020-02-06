@@ -249,7 +249,7 @@ static int base_setmeta(astate T) {
 	return 1;
 }
 
-const acreg_t mod_funcs[] = {
+static const acreg_t mod_funcs[] = {
 	{ "assert", base_assert },
 	{ "boxarg", base_boxarg },
 	{ "print", base_print },

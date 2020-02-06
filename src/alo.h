@@ -13,7 +13,7 @@
 #define ALO_VERSION_MAJOR	"0"
 #define ALO_VERSION_MINOR	"1"
 #define ALO_VERSION_NUM		0, 1
-#define ALO_VERSION_RELEASE	"2"
+#define ALO_VERSION_RELEASE	"3"
 
 #define ALO_NAME "Alopecurus"
 #define ALO_VERSION ALO_NAME" "ALO_VERSION_MAJOR"."ALO_VERSION_MINOR
@@ -144,6 +144,7 @@ ALO_API amem alo_newdata(astate, size_t);
 ALO_API void alo_newtuple(astate, size_t);
 ALO_API void alo_newlist(astate, size_t);
 ALO_API void alo_newtable(astate, size_t);
+ALO_API astate alo_newthread(astate);
 
 #define alo_newobj(T,type) aloE_cast(typeof(type)*, alo_newdata(T, sizeof(type)))
 
@@ -177,6 +178,15 @@ ALO_API int alo_save(astate, awriter, void*, int);
 
 #define alo_call(T,narg,nres) alo_callk(T, narg, nres, NULL, NULL)
 #define alo_pcall(T,narg,nres) alo_pcallk(T, narg, nres, NULL, NULL)
+
+/**
+ ** coroutine functions.
+ */
+
+ALO_API int alo_resume(astate, astate, int);
+ALO_API void alo_yieldk(astate, int, akfun, void*);
+
+#define alo_yield(T,nres) alo_yieldk(T, nres, NULL, NULL)
 
 /**
  ** error handling
