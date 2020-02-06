@@ -248,7 +248,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		checkstack(T, 1, fun);
 		const atval_t* tm = aloT_gettm(T, fun, TM_CALL, true); /* get tagged method */
 		if (tm == NULL || !ttisfun(tm)) { /* not a function? */
-			aloU_rterror(T, "fail to call object.");
+			aloU_rterror(T, "fail to call object with '%s' type", aloT_typenames[ttpnv(fun)]);
 		}
 		for (askid_t p = T->top; p > fun; --p) {
 			tsetobj(T, p, p - 1);
@@ -475,4 +475,12 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 		}
 		aloD_throw(T, ThreadStateYield);
 	}
+}
+
+int alo_status(astate T) {
+	return T->status;
+}
+
+int alo_isyieldable(astate T) {
+	return T->nxyield == 0;
 }

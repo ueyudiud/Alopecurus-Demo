@@ -368,7 +368,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		int prev = f->freelocal;
 		aloK_newcol(f, &e2, OP_NEWM, 0);
 		aloK_nextreg(f, &e2);
-		poll(lex);
+		poll(lex); /* skip 'new' token */
 		if (checknext(lex, '@')) {
 			aloK_fromreg(f, e, literal(lex, "@"));
 			memberof(lex, e, check_name(lex));
@@ -381,7 +381,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		aloK_move(f, &e2, f->freelocal++);
 		int n = funargs(lex, &e2);
 		f->freelocal = prev + 1; /* remove all arguments and only remain one result */
-		aloK_iABC(f, OP_CALL, false, false, false, e2.v.g, n != ALO_MULTIRET ? n + 3 : 0, 1);
+		aloK_iABC(f, OP_CALL, false, false, false, prev + 1, n != ALO_MULTIRET ? n + 3 : 0, 1);
 		e->t = E_LOCAL;
 		e->v.g = prev;
 		aloK_fixline(f, line);
