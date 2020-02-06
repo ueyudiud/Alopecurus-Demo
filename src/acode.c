@@ -25,8 +25,15 @@ static int nextjump(afstat_t* f, size_t pc) {
 	return i != NO_JUMP ? pc + i + 1 : NO_JUMP;
 }
 
+static int isinsnreducible(afstat_t* f) {
+	if (f->ncode <= 2)
+		return false;
+	int i = GET_i(f->p->code[f->ncode - 2]);
+	return i != OP_EQ && i != OP_LT && i != OP_LE;
+}
+
 static void jmplist(afstat_t* f, int list) {
-	if (list == f->ncode - 1 && (list = nextjump(f, list)) == NO_JUMP) {
+	if (list == f->ncode - 1 && isinsnreducible(f) && (list = nextjump(f, list)) == NO_JUMP) {
 		return;
 	}
 	int next;
@@ -154,12 +161,14 @@ void aloK_putlabel(afstat_t* f, int pc) {
 	if (pc != NO_JUMP) { /* create new label if there exists jumps. */
 		/* correct jump index */
 		if (pc + 1 == f->ncode) { /* when jump instruction is next to current slot */
-			int i = nextjump(f, pc);
-			f->ncode -= 1;
-			if (i == NO_JUMP) {
-				return;
+			if (isinsnreducible(f)) { /* is instruction reducible? */
+				int i = nextjump(f, pc);
+				f->ncode -= 1; /* erase previous jump instruction */
+				if (i == NO_JUMP) {
+					return;
+				}
+				pc = i;
 			}
-			pc = i;
 		}
 		linkcjmp(f, &f->cjump, pc); /* link jump list */
 	}

@@ -1193,16 +1193,19 @@ static int ifstat(alexer_t* lex) {
 	}
 	testenclose(lex, '(', ')', line);
 	int ret = stat(lex, false); /* THEN block */
-	int index = ret ? NO_JUMP : aloK_jumpforward(lex->f, e.lt);
-	leaveblock(lex->f);
-	aloK_putlabel(lex->f, e.lf);
 	if (checknext(lex, TK_ELSE)) {
+		if (!ret) {
+			b.lout = aloK_jumpforward(lex->f, b.lout);
+		}
+		aloK_putlabel(lex->f, e.lf);
 		ret &= stat(lex, false); /* ELSE block */
 	}
 	else {
+		aloK_putlabel(lex->f, e.lf);
 		ret = false;
 	}
-	aloK_putlabel(lex->f, index);
+	leaveblock(lex->f);
+	aloK_putlabel(lex->f, b.lout);
 	return ret;
 }
 
