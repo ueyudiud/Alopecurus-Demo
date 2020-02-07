@@ -32,6 +32,11 @@
 #define ALO_MAXSTACKSIZE 100000
 
 /**
+ ** the extra space for each thread.
+ */
+#define ALO_THREAD_EXTRASPACE sizeof(void*)
+
+/**
  ** when enable this option, the float number will not transfer to
  ** integer number while compiling and taking operation.
  */
@@ -43,6 +48,13 @@
  ** 	when enable this option, the VM will do strict GC and stack allocation.
  ** - ALO_DEBUG
  ** 	when enable this option, the VM will enable aloE_assert macro.
+ ** - ALO_OPEN_THREAD(T,from)
+ ** 	called macro after thread is constructed.
+ ** 		T		the thread been constructed.
+ ** 	 	from	the source thread, NULL if constructed by function 'alo_newstate'.
+ ** - ALO_CLOSE_THREAD(T)
+ ** 	called macro before thread is destroyed.
+ ** 		T		the thread been destroyed
  */
 
 #endif /* ACFG_H_ */

@@ -22,7 +22,14 @@
 const aver_t aloR_version = { ALO_VERSION_NUM };
 
 typedef struct {
-	athread_t t;
+	char extra[ALO_THREAD_EXTRASPACE];
+	athread_t state;
+} TX;
+
+#define getraw(T) aloE_cast(TX*, aloE_cast(void*, T) - ALO_THREAD_EXTRASPACE)
+
+typedef struct {
+	TX t;
 	aglobal_t g;
 } TG;
 
@@ -50,6 +57,7 @@ static void initialize(astate T, __attribute__((unused)) void* context) {
 	aloT_init(T);
 	aloX_init(T);
 	aloU_init(T);
+	aloE_openthread(T, NULL);
 }
 
 static ahash_t newseed(astate T) {
@@ -85,7 +93,7 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	TG* tg = aloE_cast(TG*, alloc(ctx, NULL, 0, sizeof(TG)));
 	if (tg == NULL)
 		return NULL;
-	athread_t* T = &tg->t;
+	athread_t* T = &tg->t.state;
 	aglobal_t* G = &tg->g;
 	G->alloc = alloc;
 	G->context = ctx;
@@ -136,10 +144,11 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 
 athread_t* aloR_newthread(astate T) {
 	Gd(T);
-	athread_t* thread = aloM_newo(T, athread_t);
+	athread_t* thread = &aloM_newo(T, TX)->state;
 	aloG_register(T, thread, ALO_TTHREAD);
 	preinit(thread, G);
 	init_stack(T, thread);
+	aloE_openthread(thread, T);
 	return thread;
 }
 
@@ -176,18 +185,20 @@ static void destory_thread(astate T, athread_t* v, int close) {
 void alo_deletestate(astate rawT) {
 	Gd(rawT);
 	astate T = G->tmain;
+	aloE_closethread(T);
 	aloG_clear(T); /* clean all objects */
 	destory_thread(T, T, false);
 	aloE_assert(totalmem(G) == sizeof(TG), "memory leaked");
-	G->alloc(G->context, T, sizeof(TG), 0);
+	G->alloc(G->context, getraw(T), sizeof(TG), 0);
 }
 
 /**
  ** delete thread.
  */
 void aloR_deletethread(astate T, athread_t* v) {
+	aloE_closethread(T);
 	destory_thread(T, v, true);
-	aloM_delo(T, v);
+	aloM_delo(T, getraw(T));
 }
 
 /**

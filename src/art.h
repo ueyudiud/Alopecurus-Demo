@@ -76,6 +76,7 @@ typedef struct alo_SBuf asbuf_t;
 #define ALO_SPRIINT(b,v) sprintf(b, ALO_INT_FORMAT, v)
 #define ALO_SPRIFLT(b,v) sprintf(b, ALO_FLT_FORMAT, v)
 
+/* the environment version, defined in astate.c */
 extern const aver_t aloR_version;
 
 /**
@@ -177,5 +178,19 @@ extern const aver_t aloR_version;
 #define api_checkslots(T,n) api_check(T, (n) <= (T)->frame->top - (T)->top, "stack overflow")
 #define api_incrtop(T) (api_check(T, (T)->top < (T)->frame->top, "stack overflow"), (T)->top++)
 #define api_decrtop(T) (api_check(T, (T)->top > (T)->frame->fun, "arguments not enough"), --(T)->top)
+
+/* users' thread opening function declaration */
+#ifdef ALO_OPEN_THREAD
+#define aloE_openthread(T,from) ALO_OPEN_THREAD(T, from)
+#else
+#define aloE_openthread(T,from) aloE_void(aloE_void(T), from)
+#endif
+
+/* users' thread closing function declaration */
+#ifdef ALO_CLOSE_THREAD
+#define aloE_closethread(T) ALO_CLOSE_THREAD(T)
+#else
+#define aloE_closethread(T) aloE_void(T)
+#endif
 
 #endif /* ART_H_ */
