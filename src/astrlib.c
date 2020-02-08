@@ -674,6 +674,8 @@ static void compile(Matcher* matcher, astate T, const char* src, size_t len) {
 }
 
 static int str_match(astate T) {
+	aloL_checkstring(T, 0);
+	aloL_checkstring(T, 1);
 	Matcher matcher;
 	size_t len;
 	const char* src = alo_tolstring(T, 0, &len);
@@ -697,6 +699,7 @@ static int matcher_gc(astate T) {
 }
 
 static Matcher* self(astate T) {
+	aloL_checktype(T, 0, ALO_TRAWDATA);
 	Matcher* matcher = aloE_cast(Matcher*, alo_torawdata(T, 0));
 	if (matcher->node == NULL) {
 		aloL_error(T, 2, "matcher already destroyed.");
@@ -706,6 +709,7 @@ static Matcher* self(astate T) {
 
 static int matcher_test(astate T) {
 	Matcher* matcher = self(T);
+	aloL_checkstring(T, 1);
 	amstat_t M;
 	amgroup_t groups[matcher->ngroup];
 	const char* src;
@@ -793,6 +797,7 @@ static int matcher_tostr(astate T) {
 }
 
 static int matcher_find(astate T) {
+	aloL_checkstring(T, 1);
 	Matcher* matcher = self(T);
 	amstat_t M;
 	amgroup_t groups[matcher->ngroup];
