@@ -71,14 +71,14 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 			}
 			else {
 				l_unlockstream(file);
-				break;
+				aloL_bpushstring(buf);
+				return;
 			}
 		}
 		l_unlockstream(file);
 		aloL_bcheck(buf, SHTBUFSIZE);
 	}
 	while (true);
-	aloL_bpushstring(buf);
 }
 
 static int f_line(astate T) {
