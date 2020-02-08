@@ -2,18 +2,21 @@
 Alopecurus is a light script language run on VM.
 ## Getting Started
 ### Compilation
-**It is only ensured that this project is compilable by gcc now**, and Clang is considered to be supported in the future. In Windows OS, run following command in terminal to build project in 'src' directory:
+**This project is only compilable with gcc for now.** Clang may be supported in the future.
+
+To build the project in Microsoft Windows, run the following command in `src` directory .
 ```
 make
 ```
-If your are not Windows users, you need to change some configuration in makefile.
-### Run Script
-The project can be used independently, run executable file in terminal after compilation:
+If you're not using Microsoft Windows, you may need to reconfigurate the makefile.
+
+### Running Interactive Interpreter
+The resulting excutive file of the compile process can be used as an interpreter. Running the folloing command will start a interactive interpreter session.
 ```
 alo
 ```
-Then, a Alopecurus shell will be opened. Insert following code:
+ Insert following code
 ```
 println 'Hello world'
 ```
-And you will see output message on the shell, you can insert `:q` to quit the shell.
+and see the result. Use `:q` to quit the shell.
