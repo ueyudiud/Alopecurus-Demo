@@ -1001,7 +1001,8 @@ int alo_pcallk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 		frame->c.kfun = kfun;
 		frame->c.ctx = kctx;
 		frame->fypc = true;
-		status = aloD_prun(T, unsafecall, &ci); /* call function in protection */
+		aloD_call(T, ci.fun, ci.nres); /* call function in protection */
+		status = ThreadStateRun;
 		frame->fypc = false;
 	}
 	T->frame = frame; /* restore to correct frame */

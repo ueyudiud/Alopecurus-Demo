@@ -18,31 +18,6 @@ static int coro_create(astate T) {
 	return 1;
 }
 
-static int aux_resume_closure(astate T) {
-	int narg = alo_gettop(T);
-	astate T1 = alo_tothread(T, ALO_CAPTURE_INDEX(0));
-	alo_xmove(T, T1, narg);
-	alo_resume(T1, T, narg);
-	return alo_gettop(T1);
-}
-
-static int coro_wrap(astate T) {
-	aloL_checkcall(T, 0);
-	alo_settop(T, 1);
-	astate T1 = alo_newthread(T);
-	alo_push(T, 0);
-	alo_xmove(T, T1, 1);
-	alo_pushcclosure(T, aux_resume_closure, 1);
-	return 1;
-}
-
-static int coro_tofun(astate T) {
-	aloL_checktype(T, 0, ALO_TTHREAD);
-	alo_push(T, 0);
-	alo_pushcclosure(T, aux_resume_closure, 1);
-	return 1;
-}
-
 static int aux_resume(astate T, astate from, int narg) {
 	alo_xmove(from, T, narg);
 	int status = alo_resume(T, from, narg);
@@ -60,7 +35,33 @@ static int aux_resume(astate T, astate from, int narg) {
 		alo_xmove(T, from, nres);
 		return nres;
 	}
+}
 
+static int aux_resume_closure(astate T) {
+	int narg = alo_gettop(T);
+	astate T1 = alo_tothread(T, ALO_CAPTURE_INDEX(0));
+	int nres = aux_resume(T1, T, narg);
+	if (nres == -1) {
+		alo_throw(T);
+	}
+	return nres;
+}
+
+static int coro_wrap(astate T) {
+	aloL_checkcall(T, 0);
+	alo_settop(T, 1);
+	astate T1 = alo_newthread(T);
+	alo_push(T, 0);
+	alo_xmove(T, T1, 1);
+	alo_pushcclosure(T, aux_resume_closure, 1);
+	return 1;
+}
+
+static int coro_tofun(astate T) {
+	aloL_checktype(T, 0, ALO_TTHREAD);
+	alo_push(T, 0);
+	alo_pushcclosure(T, aux_resume_closure, 1);
+	return 1;
 }
 
 static int coro_resume(astate T) {
@@ -92,7 +93,7 @@ static int coro_presume(astate T) {
 }
 
 static int coro_yield(astate T) {
-	alo_yield(T, alo_gettop(T) - 1);
+	alo_yield(T, alo_gettop(T));
 	return 0;
 }
 
