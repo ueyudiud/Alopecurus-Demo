@@ -149,6 +149,23 @@ static int base_throw(astate T) {
 	return 0;
 }
 
+static int try_unsafe(astate T, int status, __attribute__((unused)) void* context) {
+	int error = status > ThreadStateYield;
+	alo_pushboolean(T, error);
+	if (error) { /* error occurred? */
+		alo_push(T, -2); /* push error message */
+		return 2;
+	}
+	return 1;
+}
+
+static int base_try(astate T) {
+	aloL_checkcall(T, 0);
+	alo_settop(T, 1);
+	int status = alo_pcallk(T, 0, 0, try_unsafe, NULL);
+	return try_unsafe(T, status, NULL);
+}
+
 /**
  ** iterate to next element for tuple or list.
  ** prototype: [list, idx] inext()
@@ -262,6 +279,7 @@ static const acreg_t mod_funcs[] = {
 	{ "setmeta", base_setmeta },
 	{ "tostring", base_tostring },
 	{ "throw", base_throw },
+	{ "try", base_try },
 	{ "typeof", base_typeof },
 	{ "__basic_delegates", NULL },
 	{ "__dlgt", base_delegate },
@@ -281,6 +299,7 @@ int aloopen_baselib(astate T) {
 	alo_bind(T, "base.rawrem", base_rawrem);
 	alo_bind(T, "base.setmeta", base_setmeta);
 	alo_bind(T, "base.tostring", base_tostring);
+	alo_bind(T, "base.try", base_try);
 	alo_bind(T, "base.throw", base_throw);
 	alo_bind(T, "base.newiterator", base_newiterator);
 	alo_bind(T, "base.newiterator.sequence_next", base_inext);
