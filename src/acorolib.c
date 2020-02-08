@@ -9,6 +9,10 @@
 #include "aaux.h"
 #include "alibs.h"
 
+/**
+ ** create a new coroutine with runnable as start function.
+ ** prototype: thread.create(runnable)
+ */
 static int coro_create(astate T) {
 	aloL_checkcall(T, 0);
 	alo_settop(T, 1);
@@ -47,6 +51,11 @@ static int aux_resume_closure(astate T) {
 	return nres;
 }
 
+/**
+ ** create a new coroutine with runnable as start function,
+ ** and wrap it into a function.
+ ** prototype: thread.wrap(runnable)
+ */
 static int coro_wrap(astate T) {
 	aloL_checkcall(T, 0);
 	alo_settop(T, 1);
@@ -57,6 +66,10 @@ static int coro_wrap(astate T) {
 	return 1;
 }
 
+/**
+ ** wrap a coroutine into a function.
+ ** prototype: thread.tofun(coroutine)
+ */
 static int coro_tofun(astate T) {
 	aloL_checktype(T, 0, ALO_TTHREAD);
 	alo_push(T, 0);
@@ -64,6 +77,15 @@ static int coro_tofun(astate T) {
 	return 1;
 }
 
+/**
+ ** move arguments into resumed coroutine and resume a function.
+ ** return the parameters given in next time calling yield function
+ ** or start function running to the end.
+ ** if error occurs in coroutine, throw it directly.
+ ** if current coroutine is main coroutine or it is not suspended,
+ ** an runtime error will be thrown.
+ ** prototype: thread.resume(coroutine, {args})
+ */
 static int coro_resume(astate T) {
 	aloL_checktype(T, 0, ALO_TTHREAD);
 	astate T1 = alo_tothread(T, 0);
@@ -75,6 +97,16 @@ static int coro_resume(astate T) {
 	return nres;
 }
 
+/**
+ ** move arguments into resumed coroutine and resume a function.
+ ** return the parameters given in next time calling yield function
+ ** or start function running to the end, a 'true' will insert into
+ ** the base of returned values.
+ ** if error occurs in coroutine, it will return false and error message.
+ ** if current coroutine is main coroutine or it is not suspended,
+ ** false and an runtime error will be returned.
+ ** prototype: thread.presume(coroutine, {args})
+ */
 static int coro_presume(astate T) {
 	aloL_checktype(T, 0, ALO_TTHREAD);
 	astate T1 = alo_tothread(T, 0);
@@ -92,14 +124,34 @@ static int coro_presume(astate T) {
 	}
 }
 
+/**
+ ** suspend current coroutine, the environment of current coroutine will
+ ** be saved and wait till next time to resume.
+ ** the arguments will called and returns to the caller.
+ ** if coroutine is not yieldable, an error will be thrown.
+ ** prototype: thread.yield({args})
+ */
 static int coro_yield(astate T) {
 	alo_yield(T, alo_gettop(T));
 	return 0;
 }
 
+/**
+ ** check current coroutine is yieldable.
+ ** it is yieldable if and only if it has no non-yieldable C call stack frame
+ ** and it is not main coroutine.
+ ** return true if it is yieldable and false.
+ ** prototype: thread.isyieldable()
+ */
+static int coro_isyieldable(astate T) {
+	alo_pushboolean(T, alo_isyieldable(T));
+	return 1;
+}
+
 static const acreg_t mod_funcs[] = {
 	{ "__new", coro_create },
 	{ "create", coro_create },
+	{ "isyieldable", coro_isyieldable },
 	{ "presume", coro_presume },
 	{ "resume", coro_resume },
 	{ "tofun", coro_tofun },
@@ -110,6 +162,7 @@ static const acreg_t mod_funcs[] = {
 
 int aloopen_corolib(astate T) {
 	alo_bind(T, "thread.create", coro_create);
+	alo_bind(T, "thread.isyieldable", coro_isyieldable);
 	alo_bind(T, "thread.presume", coro_presume);
 	alo_bind(T, "thread.resume", coro_resume);
 	alo_bind(T, "thread.tofun.resume", aux_resume_closure);
