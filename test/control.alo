@@ -29,7 +29,7 @@ x = 0
 while (x < 10) {
 	if (x == 3) 
 		break
-	x = x + 1
+	x += 1
 }
 
 assert(x == 3)
@@ -39,7 +39,7 @@ assert(x == 3)
 x = 1
 
 while (x < 10) {
-	x = x + 1
+	x += 1
 }
 else {
 	x = 0
@@ -52,7 +52,7 @@ x = 1
 while (x < 5) {
 	if (x == 2)
 		break
-	x = x + 1
+	x += 1
 }
 else {
 	x = 1
@@ -64,7 +64,7 @@ assert(x == 2)
 
 x = 1
 do {
-	x = x + 1
+	x += 1
 }
 while (x < 5)
 
@@ -75,7 +75,7 @@ assert(x == 5)
 x = [1, 2, 3]
 y = 0
 for (i <- x) {
-	y = y + i
+	y += i
 }
 
 assert(y == 6)

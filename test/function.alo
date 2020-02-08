@@ -7,6 +7,11 @@ local g = \x -> x
 
 assert(g(3) == 3)
 
+-- arguments test
+
+local h(a,b,c) -> c == nil
+assert(h(1, 2))
+
 -- nested function test
 local curry(f) -> \x -> \y -> f(x, y)
 local bif(x,y) -> x + y
