@@ -1,10 +1,12 @@
 # Alopecurus makefile.
 
+# Users configuration.
 CC= gcc
 CFLAGS= -O2 -Wall
 RM= del /f
 LIBS= -lm
 
+# Built-in configuration, don't change any things below.
 CORE_O= aop.o aobj.o astr.o atup.o alis.o atab.o afun.o astate.o \
 	amem.o agc.o abuf.o ameta.o adebug.o avm.o ado.o aeval.o achr.o \
 	acode.o alex.o aparse.o aload.o asave.o aimpl.o aaux.o ainit.o
