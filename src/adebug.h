@@ -20,6 +20,7 @@ void aloU_bind(astate, acfun, astring_t*);
 void aloU_clearbuf(astate);
 
 anoret aloU_mnotfound(astate, const atval_t*, astr);
+astring_t* aloU_pushmsg(astate, astr, ...);
 anoret aloU_rterror(astate, astr, ...);
 
 #endif /* ADEBUG_H_ */

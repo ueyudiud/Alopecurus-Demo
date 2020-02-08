@@ -181,14 +181,7 @@ anoret aloU_mnotfound(astate T, const atval_t* owner, astr fun) {
 	aloU_rterror(T, "method '%s.__%s' not found", aloV_typename(T, owner), fun);
 }
 
-/**
- ** throw an runtime error.
- */
-anoret aloU_rterror(astate T, astr fmt, ...) {
-	aloG_check(T);
-	va_list varg;
-	va_start(varg, fmt);
-
+static astring_t* aloU_pushvmsg(astate T, astr fmt, va_list varg) {
 	astring_t* value;
 
 	/**
@@ -202,9 +195,33 @@ anoret aloU_rterror(astate T, astr fmt, ...) {
 
 	aloD_usesb(T, builder);
 	tsetstr(T, T->top++, value); /* push error message to stack. */
+	return value;
+}
 
-	va_end(varg);
+static anoret aloU_vrterror(astate T, astr fmt, va_list varg) {
+	aloU_pushvmsg(T, fmt, varg);
 	aloD_throw(T, ThreadStateErrRuntime);
+}
+
+/**
+ ** push error message and stack trace information into top of stack.
+ */
+astring_t* aloU_pushmsg(astate T, astr fmt, ...) {
+	aloG_check(T);
+	va_list varg;
+	va_start(varg, fmt);
+	astring_t* value = aloU_pushvmsg(T, fmt, varg);
+	va_end(varg);
+	return value;
+}
+
+/**
+ ** throw an runtime error.
+ */
+anoret aloU_rterror(astate T, astr fmt, ...) {
+	va_list varg;
+	va_start(varg, fmt);
+	aloU_vrterror(T, fmt, varg);
 }
 
 static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {

@@ -392,7 +392,7 @@ static void resume_unsafe(astate T, void* context) {
 
 static int resume_error(astate T, const char* msg, int narg) {
 	T->top -= narg;
-	tsetstr(T, api_incrtop(T), aloS_of(T, msg)); /* push message to the top */
+	aloU_pushmsg(T, msg); /* push message to the top */
 	return ThreadStateErrRuntime;
 }
 
@@ -462,17 +462,16 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 		if ((frame->c.kfun = kfun)) { /* protector present? */
 			/* settle protector */
 			frame->c.ctx = kctx;
-			frame->top -= nres;
-			/* push new frame for 'yield' function */
-			frame = nextframe(T);
-			frame->nresult = ALO_MULTIRET;
-			frame->name = "<yield>";
-			frame->c.kfun = NULL;
-			frame->c.ctx = NULL;
-			frame->fun = frame->prev->top;
-			frame->top = T->top;
-			frame->flags = 0;
 		}
+		/* push new frame for 'yield' function */
+		frame = nextframe(T);
+		frame->nresult = ALO_MULTIRET;
+		frame->name = "<yield>";
+		frame->c.kfun = NULL;
+		frame->c.ctx = NULL;
+		frame->fun = T->top - nres;
+		frame->top = T->top;
+		frame->flags = 0;
 		aloD_throw(T, ThreadStateYield);
 	}
 }
