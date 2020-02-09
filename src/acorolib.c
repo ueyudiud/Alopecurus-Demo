@@ -148,9 +148,21 @@ static int coro_isyieldable(astate T) {
 	return 1;
 }
 
+/**
+ ** return current coroutine, and second result shows that current coroutine
+ ** is main coroutine.
+ ** prototype: thread.current()
+ */
+static int coro_current(astate T) {
+	int ismain = alo_pushthread(T);
+	alo_pushboolean(T, ismain);
+	return 2;
+}
+
 static const acreg_t mod_funcs[] = {
 	{ "__new", coro_create },
 	{ "create", coro_create },
+	{ "current", coro_current },
 	{ "isyieldable", coro_isyieldable },
 	{ "presume", coro_presume },
 	{ "resume", coro_resume },
@@ -162,6 +174,7 @@ static const acreg_t mod_funcs[] = {
 
 int aloopen_corolib(astate T) {
 	alo_bind(T, "thread.create", coro_create);
+	alo_bind(T, "thread.current", coro_current);
 	alo_bind(T, "thread.isyieldable", coro_isyieldable);
 	alo_bind(T, "thread.presume", coro_presume);
 	alo_bind(T, "thread.resume", coro_resume);
