@@ -402,7 +402,7 @@ static int resume_error(astate T, const char* msg, int narg) {
 int alo_resume(astate T, astate from, int narg) {
 	Gd(T);
 	api_check(T, from->g == G, "two coroutine from different state.");
-	api_check(T, G->trun != from, "the coroutine is not running.");
+	api_check(T, G->trun == from, "the coroutine is not running.");
 	if (T == G->tmain) { /* the main thread can not resumed */
 		return resume_error(T, "the main coroutine is not resumable.", narg);
 	}
@@ -448,7 +448,7 @@ int alo_resume(astate T, astate from, int narg) {
 
 void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 	aframe_t* frame = T->frame;
-	api_checkelems(T, narg);
+	api_checkelems(T, nres);
 	Gd(T);
 	aloE_void(G);
 	aloE_assert(T == G->trun, "the current coroutine is not running.");
@@ -462,6 +462,7 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 		aloU_rterror(T, "not implemented yet.");
 	}
 	else {
+		aloE_assert(T->label, "missing resume label.");
 		if ((frame->c.kfun = kfun)) { /* protector present? */
 			/* settle protector */
 			frame->c.ctx = kctx;
@@ -475,7 +476,8 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 		frame->fun = T->top - nres;
 		frame->top = T->top;
 		frame->flags = 0;
-		aloD_throw(T, ThreadStateYield);
+		T->label->status = ThreadStateYield;
+		longjmp(T->label->buf, 1);
 	}
 }
 
