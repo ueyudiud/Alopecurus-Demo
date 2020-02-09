@@ -41,6 +41,9 @@ void aloD_growstack(astate T, size_t need) {
 		if (newsize < require) {
 			newsize = require;
 		}
+		else if (newsize > ALO_MAXSTACKSIZE) {
+			newsize = ALO_MAXSTACKSIZE;
+		}
 		aloD_reallocstack(T, newsize);
 	}
 }
@@ -236,7 +239,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->falo = true;
 		frame->name = p->name ? p->name->array : "<unknown>";
 		frame->nresult = nresult;
-		frame->fun = fun;
+		frame->fun = base - 1;
 		frame->a.base = base;
 		frame->a.pc = p->code;
 		T->frame = frame;
