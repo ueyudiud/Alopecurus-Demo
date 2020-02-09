@@ -21,7 +21,7 @@ amem aloM_realloc(astate T, amem oldblock, size_t oldsize, size_t newsize) {
 	amem newblock = G->alloc(G->context, oldblock, oldsize, newsize);
 	if (newblock == NULL && newsize > 0) { /* failed to allocate block? */
 		aloG_fullgc(T, GCKindEmergency); /* collect some unused memory */
-		newblock = G->alloc(G->context, oldblock, oldsize, newsize); /* try to alocate block again */
+		newblock = G->alloc(G->context, oldblock, oldsize, newsize); /* try to allocate block again */
 		if (newblock == NULL) { /* still failed? */
 			/* throw a memory error */
 			tsetstr(T, T->top++, G->smerrmsg);
