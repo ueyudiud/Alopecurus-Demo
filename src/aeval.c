@@ -496,7 +496,7 @@ void aloV_invoke(astate T, int dofinish) {
 	atval_t* capture;
 	askid_t base;
 	aproto_t* proto;
-	ainsn_t** ppc;
+	const ainsn_t** ppc;
 
 	inline askid_t R(abyte mode, uint16_t index) {
 		return base + index;
@@ -585,7 +585,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_LDV: {
-			size_t nargs = yB - 1;
+			int nargs = yB - 1;
 			int flag = nargs < 0;
 			if (flag) {
 				nargs = base - (frame->fun + 1) - proto->nargs;
