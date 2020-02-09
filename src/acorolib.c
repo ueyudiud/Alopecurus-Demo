@@ -160,7 +160,6 @@ static int coro_current(astate T) {
 }
 
 static const acreg_t mod_funcs[] = {
-	{ "__new", coro_create },
 	{ "create", coro_create },
 	{ "current", coro_current },
 	{ "isyieldable", coro_isyieldable },
