@@ -97,7 +97,7 @@ struct alo_Frame {
 	union { /* specific data for different functions */
 		struct { /* for Alopecurus functions */
 			askid_t base;
-			ainsn_t* pc;
+			const ainsn_t* pc;
 		} a;
 		struct { /* for C functions */
 			akfun kfun;
