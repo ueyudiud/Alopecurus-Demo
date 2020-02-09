@@ -125,7 +125,7 @@ extern const aver_t aloR_version;
 
 /* max size of C function calling */
 #if !defined(ALO_MAXCCALL)
-#define ALO_MAXCCALL 10000
+#define ALO_MAXCCALL 200
 #endif
 
 /* the max length of string stored in intern table. */

@@ -275,7 +275,7 @@ void aloD_postcall(astate T, askid_t ret, int nresult) {
 	moveresults(T, res, ret, nresult, expected);
 }
 
-#define EXTRAERRCALL 100
+#define EXTRAERRCALL (ALO_MAXCCALL >> 3)
 
 static void stackerror(astate T) {
 	if (T->nccall == ALO_MAXCCALL) {
