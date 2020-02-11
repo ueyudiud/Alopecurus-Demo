@@ -287,7 +287,7 @@ static astr m_set(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 			p += 1;
 		}
 		if (*(p + 1) == '-') {
-			if ((*p < ch && ch < *(p + 2)) != node->extra) {
+			if ((*p <= ch && ch <= *(p + 2)) != node->extra) {
 				return con(s);
 			}
 			p += 3;
@@ -744,6 +744,111 @@ static int matcher_match(astate T) {
 	return matcher->ngroup;
 }
 
+static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) {
+	size_t len;
+	const char* s1 = alo_tolstring(T, 2, &len);
+	const char* s0 = s1;
+	const char* const se = s0 + len;
+	while (s1 < se) {
+		if (*s1 == '$') { /* escape character? */
+			if (s1 != s0) {
+				aloL_bputls(buf, s0, s1 - s0); /* put normal sub sequence before */
+			}
+			int index;
+			s1 ++;
+			int ch = *(s1++);
+			switch (ch) {
+			case '$':
+				aloL_bputc(buf, '$');
+				break;
+			case '0' ... '9':
+				index = ch - '0';
+				goto format;
+			case '{':
+				index = 0;
+				do {
+					if ('0' <= *s1 && *s1 <= '9') {
+						index = index * 10 + (*s1 - '0');
+					}
+					else {
+						aloL_error(T, 2, "illegal replacement string.");
+					}
+				}
+				while (*(++s1) != '}');
+				s1++;
+			format:
+				if (index >= matcher->ngroup) {
+					aloL_error(T, 2, "replacement index out of bound.");
+				}
+				amgroup_t* group = &M->groups[index];
+				aloL_bputls(buf, group->begin, group->end - group->begin);
+				s0 = s1;
+				break;
+			}
+		}
+		else {
+			s1 += 1;
+		}
+	}
+	if (s0 != s1) {
+		aloL_bputls(buf, s0, s1 - s0);
+	}
+}
+
+static void aux_replacef(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) {
+	int index = alo_gettop(T);
+	alo_push(T, 2); /* push transformer */
+	alo_pushlstring(T, M->groups[0].begin, M->groups[0].end - M->groups[0].begin);
+	alo_pushinteger(T, M->groups[0].begin - M->sbegin);
+	alo_call(T, 2, 1);
+	aloL_bwrite(buf, index);
+	alo_drop(T);
+}
+
+static int matcher_replace(astate T) {
+	Matcher* matcher = self(T);
+	aloL_checkstring(T, 1);
+	void (*transformer)(astate, Matcher*, amstat_t*, ambuf_t*);
+	if (alo_typeid(T, 2) == ALO_TSTRING) {
+		transformer = aux_replaces;
+	}
+	else {
+		aloL_checkcall(T, 2);
+		transformer = aux_replacef;
+	}
+	amstat_t M;
+	amgroup_t groups[matcher->ngroup];
+	const char* src;
+	size_t len;
+	src = alo_tolstring(T, 1, &len);
+	minit(&M, T, src, len, groups);
+	alo_settop(T, 3);
+	ambuf_t buf;
+	aloL_bempty(T, &buf);
+	const char* s1 = M.sbegin;
+	const char* s0 = s1;
+	while (s1 <= M.send) {
+		if (match(&M, matcher->node, s1, false)) {
+			if (s1 != s0) {
+				aloL_bputls(&buf, s0, s1 - s0);
+			}
+			(*transformer)(T, matcher, &M, &buf);
+			s1 = s0 = M.groups[0].end;
+		}
+		else {
+			s1 += 1;
+		}
+	}
+	if (s1 > M.send) {
+		s1 = M.send;
+	}
+	if (s1 != s0) {
+		aloL_bputls(&buf, s0, s1 - s0);
+	}
+	aloL_bpushstring(&buf);
+	return 1;
+}
+
 static void addnodeinfo(amnode_t* node, ambuf_t* buf) {
 	switch (node->type) {
 	case T_END: break;
@@ -832,6 +937,7 @@ static int str_matcher(astate T) {
 				{ "__tostr", matcher_tostr },
 				{ "match", matcher_match },
 				{ "find", matcher_find },
+				{ "replace", matcher_replace },
 				{ NULL, NULL }
 		};
 		aloL_setfuns(T, -1, funcs);
