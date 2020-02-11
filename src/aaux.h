@@ -19,6 +19,7 @@ ALO_API void aloL_newstringlist_(astate, size_t, ...);
 
 #define aloL_newstringlist(T,args...) aloL_newstringlist_(T, sizeof((astr[]) { args }) / sizeof(astr), ##args)
 
+ALO_API void aloL_ensure(astate, size_t);
 ALO_API void aloL_checkany(astate, aindex_t);
 ALO_API void aloL_checktype(astate, aindex_t, int);
 ALO_API int aloL_checkbool(astate, aindex_t);

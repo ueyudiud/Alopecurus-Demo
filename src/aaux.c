@@ -65,6 +65,12 @@ void aloL_tagerror(astate T, aindex_t i, int t) {
 	aloL_typeerror(T, i, alo_tpidname(T, t));
 }
 
+void aloL_ensure(astate T, size_t size) {
+	if (!alo_ensure(T, size)) {
+		aloL_error(T, 2, "no enough stack.");
+	}
+}
+
 void aloL_checkany(astate T, aindex_t index) {
 	if (alo_isnone(T, index)) {
 		aloL_typeerror(T, index, "any");
