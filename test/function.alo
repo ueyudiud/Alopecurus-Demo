@@ -12,6 +12,11 @@ assert(g(3) == 3)
 local h(a,b,c) -> c == nil
 assert(h(1, 2))
 
+local tail(x,y...) -> #y == 0 ? x : tail(y)
+local head(x,y...) -> x
+assert(head(3, 4, 5) == 3)
+assert(tail(3, 4, 5) == 5)
+
 -- nested function test
 local curry(f) -> \x -> \y -> f(x, y)
 local bif(x,y) -> x + y
