@@ -457,22 +457,42 @@ void aloK_anyR(afstat_t* f, aestat_t* e) {
  ** get member value.
  */
 void aloK_member(afstat_t* f, aestat_t* o, aestat_t* k) {
-	aloK_anyRK(f, o);
-	aloK_anyRK(f, k);
-	size_t oindex = o->v.g;
-	o->v.d.fo = o->t == E_CONST;
-	o->v.d.o = oindex;
-	o->v.d.fk = k->t == E_CONST;
-	o->v.d.k = k->v.g;
-	o->t = E_INDEXED;
+	if (o->t == E_VARARG) {
+		o->t = E_ALLOC;
+		if (k->t == E_INTEGER) {
+			o->v.g = aloK_iABC(f, OP_SELV, 0, 2, 0, 0, k->v.i, 0);
+		}
+		else {
+			aloK_anyRK(f, k);
+			o->v.g = aloK_iABC(f, OP_SELV, 0, k->t == E_CONST, 0, 0, k->v.g, 0);
+		}
+	}
+	else {
+		aloK_anyRK(f, o);
+		aloK_anyRK(f, k);
+		size_t oindex = o->v.g;
+		o->v.d.fo = o->t == E_CONST;
+		o->v.d.o = oindex;
+		o->v.d.fk = k->t == E_CONST;
+		o->v.d.k = k->v.g;
+		o->t = E_INDEXED;
+	}
 }
 
 static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int base) {
 	asymbol* ss = f->d->ss.a + f->firstlocal;
 	for (int i = 0; i < f->nlocvar; ++i) {
+		aloE_assert(ss[i].type == SYMBOL_LOC, "unexpected variable type.");
 		if (ss[i].name == name) { /* find symbol in table */
 			e->t = E_LOCAL;
 			e->v.g = i;
+			return true;
+		}
+	}
+	if (f->p->fvararg) {
+		aloE_assert(ss[f->nlocvar].type == SYMBOL_VAR, "unexpected variable type.");
+		if (ss[f->nlocvar].name == name) {
+			e->t = E_VARARG;
 			return true;
 		}
 	}
@@ -485,6 +505,9 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 		}
 	}
 	if (f->e && getvaraux(T, f->e, e, name, false)) {
+		if (e->t == E_VARARG) {
+			aloX_error(f->l, "vararg as capture is not support yet."); //TODO
+		}
 		aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
 		int index = f->ncap++;
 		acapinfo_t* info = f->p->captures + index;
@@ -928,7 +951,7 @@ void aloK_prefix(afstat_t* f, aestat_t* e, int op, int line) {
 			break;
 		goto normal;
 	case OPR_LEN:
-		if (e->t == E_VARARG) { /* variable argument lenght */
+		if (e->t == E_VARARG) { /* variable argument length */
 			e->t = E_ALLOC;
 			e->v.g = aloK_iABC(f, OP_SELV, false, 3, false, 0, 0, 0);
 			break;

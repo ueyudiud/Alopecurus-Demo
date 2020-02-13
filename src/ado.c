@@ -218,6 +218,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		aproto_t* p = tgetclo(fun)->a.proto;
 		askid_t base = fun + 1;
 		int actual = T->top - base;
+		int off = 0;
 		if (p->fvararg) { /* handling for variable arguments */
 			int i;
 			for (i = 0; i < p->nargs && i < actual; ++i) {
@@ -227,11 +228,13 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 				tsetnil(T->top + i);
 			}
 			base = T->top;
+			off = actual + 1;
 		}
 		else {
 			for (int i = actual; i < p->nargs; ++i) {
 				tsetnil(base + i);
 			}
+			off = 1;
 		}
 		checkstack(T, p->nstack, base);
 		T->top = base + p->nstack;
@@ -239,7 +242,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->falo = true;
 		frame->name = p->name ? p->name->array : "<unknown>";
 		frame->nresult = nresult;
-		frame->fun = base - 1;
+		frame->fun = base - off;
 		frame->a.base = base;
 		frame->a.pc = p->code;
 		T->frame = frame;

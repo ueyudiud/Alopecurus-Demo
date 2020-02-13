@@ -527,7 +527,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			aloK_member(f, e, &e2);
 			break;
 		}
-		case '[': { /* suffix -> '[' */
+		case '[': { /* suffix -> '[' expr ']' */
 			int line = lex->cl;
 			do {
 				poll(lex); /* skip '[' or ',' */
@@ -577,6 +577,9 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 	}
 }
 
+
+static void funcarg(alexer_t*);
+
 static void lambdaexpr(alexer_t* lex, aestat_t* e) {
 	afstat_t f;
 	ablock_t b;
@@ -588,15 +591,8 @@ static void lambdaexpr(alexer_t* lex, aestat_t* e) {
 		testenclose(lex, '{', '}', line);
 	}
 	else {
-		/* lambdaexpr -> '\\' IDENT { ',' IDENT } '->' istat */
-		regloc(lex->f, check_name(lex));
-		int n = 1;
-		while (checknext(lex, ',')) {
-			regloc(lex->f, check_name(lex));
-			n++;
-		}
-		f.p->nargs = n;
-		f.freelocal = n;
+		/* lambdaexpr -> '\\' funcarg '->' istat */
+		funcarg(lex);
 		testnext(lex, TK_RARR);
 		istat(lex);
 	}

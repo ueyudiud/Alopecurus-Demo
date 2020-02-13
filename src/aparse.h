@@ -22,9 +22,8 @@ typedef struct alo_Lexer alexer_t;
 int aloP_parse(astate, astr, aibuf_t*, aproto_t**);
 
 enum {
-	SYMBOL_FIX,
-	SYMBOL_VAR,
-	SYMBOL_LOC
+	SYMBOL_LOC,
+	SYMBOL_VAR
 };
 
 typedef struct alo_Symbol {
