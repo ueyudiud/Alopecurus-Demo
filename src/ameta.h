@@ -66,6 +66,7 @@
 	TM(TM_CALL, call), \
 	TM(TM_NEW, new), \
 	TM(TM_DEL, del), \
+	TM(TM_ALLOC, alloc), \
 	TM(TM_UNBOX, unbox), \
 	TM(TM_ITR, itr), \
 	TM(TM_TOSTR, tostr), \

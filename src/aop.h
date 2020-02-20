@@ -164,6 +164,7 @@
 	OP(LT   , "lt"   ), /*   A B C     if ((X(A) <  X(B)) == xC) pc ++             */ \
 	OP(LE   , "le"   ), /*   A B C     if ((X(A) <= X(B)) == xC) pc ++             */ \
 	                                                                                  \
+	OP(NEW  , "new"  ), /*   A B       S(A) := new S(B)                            */ \
 	OP(CALL , "call" ), /*   A B C     R(A) ... R(A+C-2):=R(A)(R(A+1), ..., R(A+B))*/ \
 	OP(TCALL, "tcall"), /*   A B       return R(A)(R(A+1), ..., R(A+B))            */ \
 	OP(ICALL, "icall"), /*   A B C     if (has(R(A))) R(A+1) := next(R(A))         */ \

@@ -894,6 +894,31 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			break;
 		}
+		case OP_NEW: {
+			askid_t r = S(B);
+			if (!ttistab(r)) {
+				goto notfound;
+			}
+			atable_t* metatable = tgettab(r);
+			tm = aloH_getis(metatable, T->g->stagnames[TM_ALLOC]);
+			if (tm != aloO_tnil) {
+				askid_t t = T->top;
+				aloT_vmput1(T, tm);
+				if (aloD_precall(T, t, 1)) {
+					protect();
+					goto finish;
+				}
+				else { /* can be execute by this function */
+					frame = T->frame;
+					goto invoke; /* execute it */
+				}
+			}
+			atable_t* object = aloH_new(T);
+			object->metatable = metatable;
+			tsettab(T, S(A), object);
+			checkGC(T, T->top);
+			break;
+		}
 		case OP_CALL: {
 			askid_t r = R(A);
 			int nresult = yC - 1;
@@ -1041,7 +1066,7 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_UNM: case OP_LEN: case OP_BNOT: case OP_ITR:
 	case OP_AADD: case OP_ASUB: case OP_AMUL: case OP_ADIV: case OP_AIDIV:
 	case OP_AMOD: case OP_APOW: case OP_ASHL: case OP_ASHR: case OP_AAND:
-	case OP_AOR: case OP_AXOR:
+	case OP_AOR: case OP_AXOR: case OP_NEW:
 		tsetobj(T, S(A), --T->top);
 		break;
 	case OP_CAT: case OP_ACAT:

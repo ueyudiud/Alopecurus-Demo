@@ -93,7 +93,7 @@ static void dump(astate T, aproto_t* p) {
 		switch (insn) {
 		case OP_MOV:
 		case OP_PNM ... OP_BNOT: case OP_ITR:
-		case OP_AADD ... OP_AXOR:
+		case OP_AADD ... OP_AXOR: case OP_NEW:
 			prtreg(T, p, GET_A(code));
 			putchar(' ');
 			prtrk(T, p, GET_B(code), GET_xB(code));

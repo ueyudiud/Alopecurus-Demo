@@ -364,11 +364,10 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 	}
 	case TK_NEW: { /* primaryexpr -> 'new' ['@'] IDENT funargs */
 		int line = lex->cl;
-		aestat_t e2;
 		int prev = f->freelocal;
-		aloK_newcol(f, &e2, OP_NEWM, 0);
-		aloK_nextreg(f, &e2);
 		poll(lex); /* skip 'new' token */
+		f->nactvar = f->freelocal + 1;
+		f->freelocal += 1;
 		if (checknext(lex, '@')) {
 			aloK_fromreg(f, e, literal(lex, "@"));
 			memberof(lex, e, check_name(lex));
@@ -376,12 +375,20 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		else {
 			aloK_field(f, e, check_name(lex));
 		}
-		memberof(lex, e, lex->T->g->stagnames[TM_NEW]);
 		aloK_nextreg(f, e);
-		aloK_move(f, &e2, f->freelocal++);
-		int n = funargs(lex, &e2);
+		aestat_t e2 = *e;
+		e2.t = E_LOCAL;
+		e2.v.g -= 1;
+		aloK_iABC(f, OP_NEW, 0, 0, 0, e->v.g - 1, e->v.g, 0);
+		aloK_drop(f, e);
+		memberof(lex, e, lex->T->g->stagnames[TM_NEW]);
+		f->freelocal += 1;
+		aloK_nextreg(f, e);
+		aloK_nextreg(f, &e2);
+		int n = funargs(lex, e);
+		f->nactvar = prev;
 		f->freelocal = prev + 1; /* remove all arguments and only remain one result */
-		aloK_iABC(f, OP_CALL, false, false, false, prev + 1, n != ALO_MULTIRET ? n + 3 : 0, 1);
+		aloK_iABC(f, OP_CALL, false, false, false, prev + 1, n != ALO_MULTIRET ? n + 2 : 0, 1);
 		e->t = E_LOCAL;
 		e->v.g = prev;
 		aloK_fixline(f, line);
