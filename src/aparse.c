@@ -364,9 +364,10 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 	}
 	case TK_NEW: { /* primaryexpr -> 'new' ['@'] IDENT funargs */
 		int line = lex->cl;
-		int prev = f->freelocal;
+		int prevfree = f->freelocal;
+		int prevact = f->nactvar;
 		poll(lex); /* skip 'new' token */
-		f->nactvar = f->freelocal + 1;
+		f->nactvar = prevfree + 1;
 		f->freelocal += 1;
 		if (checknext(lex, '@')) {
 			aloK_fromreg(f, e, literal(lex, "@"));
@@ -386,11 +387,11 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		aloK_nextreg(f, e);
 		aloK_nextreg(f, &e2);
 		int n = funargs(lex, e);
-		f->nactvar = prev;
-		f->freelocal = prev + 1; /* remove all arguments and only remain one result */
-		aloK_iABC(f, OP_CALL, false, false, false, prev + 1, n != ALO_MULTIRET ? n + 2 : 0, 1);
+		f->nactvar = prevact;
+		f->freelocal = prevfree + 1; /* remove all arguments and only remain one result */
+		aloK_iABC(f, OP_CALL, false, false, false, prevfree + 1, n != ALO_MULTIRET ? n + 2 : 0, 1);
 		e->t = E_LOCAL;
-		e->v.g = prev;
+		e->v.g = prevfree;
 		aloK_fixline(f, line);
 		break;
 	}
