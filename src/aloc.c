@@ -58,9 +58,9 @@ static int detail = false;
 #define nameof(name) (*(name)->array ? (name)->array : "<anonymous>")
 
 static void dump(astate T, aproto_t* p) {
-	printf("%s (%s:%d,%d) %"PRId64" instructions at %p\n",
+	printf("%s (%s:%d,%d) %"PRIu64" instructions at %p\n",
 			nameof(p->name), p->src->array, p->linefdef, p->lineldef, p->ncode, p);
-	printf("%d%s params, %d stack, %d captures, %d local, %"PRId64" constants, %"PRId64" functions\n",
+	printf("%d%s params, %d stack, %d captures, %d local, %"PRIu64" constants, %"PRId64" functions\n",
 			p->nargs, p->fvararg ? "+" : "", p->nstack, p->ncap, p->nlocvar, p->nconst, p->nchild);
 	if (detail) {
 		printf("constants (%"PRId64") for %p:\n", p->nconst, p);
