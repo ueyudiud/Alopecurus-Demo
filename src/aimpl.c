@@ -1067,3 +1067,7 @@ void alo_fullgc(astate T) {
 		aloG_fullgc(T, GCKindNormal);
 	}
 }
+
+void alo_checkgc(astate T) {
+	aloG_check(T);
+}

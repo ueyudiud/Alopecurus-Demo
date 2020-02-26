@@ -202,6 +202,7 @@ ALO_API anoret alo_throw(astate);
 
 ALO_API size_t alo_memused(astate);
 ALO_API void alo_fullgc(astate);
+ALO_API void alo_checkgc(astate);
 ALO_API int alo_format(astate, awriter, void*, astr, ...);
 ALO_API int alo_vformat(astate, awriter, void*, astr, va_list);
 
