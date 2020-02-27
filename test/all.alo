@@ -3,5 +3,6 @@ import 'operation'
 import 'strings'
 import 'control'
 import 'function'
+import 'meta'
 
 println 'OK!'
