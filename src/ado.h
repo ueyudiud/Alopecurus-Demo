@@ -41,7 +41,6 @@ void aloD_setdebt(aglobal_t*, ssize_t);
 void aloD_growstack(astate, size_t);
 void aloD_reallocstack(astate, size_t);
 int aloD_prun(astate, apfun, void*);
-void aloD_usesb(astate, void(*)(astate, asbuf_t*));
 anoret aloD_throw(astate, int);
 int aloD_rawcall(astate, askid_t, int, int*);
 int aloD_precall(astate, askid_t, int);
