@@ -65,18 +65,18 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 	int ch;
 	do {
 		l_lockstream(file);
-		while (buf->l < buf->c) {
+		while (buf->len < buf->cap) {
 			if ((ch = fgetc(file->stream)) != EOF && ch != '\n') {
-				buf->p[buf->l++] = aloE_byte(ch);
+				buf->buf[buf->len++] = aloE_byte(ch);
 			}
 			else {
 				l_unlockstream(file);
-				aloL_bpushstring(buf);
+				aloL_bpushstring(T, buf);
 				return;
 			}
 		}
 		l_unlockstream(file);
-		aloL_bcheck(buf, SHTBUFSIZE);
+		aloL_bcheck(T, buf, SHTBUFSIZE);
 	}
 	while (true);
 }
@@ -84,10 +84,9 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 static int f_line(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	ambuf_t buf;
-	char array[SHTBUFSIZE];
-	aloL_binit(T, &buf, array);
-	l_getline(T, file, &buf);
+	aloL_usebuf(T, buf) {
+		l_getline(T, file, &buf);
+	}
 	return 1;
 }
 
@@ -155,7 +154,7 @@ static int f_setbuf(astate T) {
 	static const int masks[] = { _IONBF, _IOLBF, _IOFBF };
 	afile* file = self(T);
 	int id = aloL_checkenum(T, 1, NULL, mode);
-	size_t size = aloL_getoptinteger(T, 2, ALO_SBUF_SHTLEN);
+	size_t size = aloL_getoptinteger(T, 2, ALO_MBUF_SHTLEN);
 	l_lockstream(file);
 	setvbuf(file->stream, NULL, masks[id], size);
 	l_unlockstream(file);
@@ -169,31 +168,32 @@ static int f_setbuf(astate T) {
 static int f_lines(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	ambuf_t buf;
-	char array[SHTBUFSIZE];
-	aloL_binit(T, &buf, array);
-	if (alo_gettop(T) >= 2) {
-		aloL_checkcall(T, 1); /* check function */
-		while (!feof(file->stream)) {
-			l_getline(T, file, &buf);
-			alo_push(T, 1); /* push function */
-			alo_push(T, -2); /* push string */
-			alo_call(T, 1, 0);
-			aloL_bsetlen(&buf, 0); /* rewind buffer */
+	int n;
+	aloL_usebuf(T, buf) {
+		if (alo_gettop(T) >= 2) {
+			aloL_checkcall(T, 1); /* check function */
+			while (!feof(file->stream)) {
+				l_getline(T, file, &buf);
+				alo_push(T, 1); /* push function */
+				alo_push(T, -2); /* push string */
+				alo_call(T, 1, 0);
+				aloL_bsetlen(&buf, 0); /* rewind buffer */
+			}
+			n = 0;
 		}
-		return 0;
-	}
-	else {
-		alo_newlist(T, 0); /* create new line list */
-		int index = 0;
-		while (!feof(file->stream)) {
-			l_getline(T, file, &buf);
-			alo_rawseti(T, 1, index++); /* add string to list */
-			aloL_bsetlen(&buf, 0); /* rewind buffer */
+		else {
+			alo_newlist(T, 0); /* create new line list */
+			int index = 0;
+			while (!feof(file->stream)) {
+				l_getline(T, file, &buf);
+				alo_rawseti(T, 1, index++); /* add string to list */
+				aloL_bsetlen(&buf, 0); /* rewind buffer */
+			}
+			alo_push(T, 1);
+			n = 1;
 		}
-		alo_push(T, 1);
-		return 1;
 	}
+	return n;
 }
 
 /**

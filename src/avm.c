@@ -38,15 +38,10 @@ astr aloV_pushfstring(astate T, astr fmt, ...) {
  */
 astr aloV_pushvfstring(astate T, astr fmt, va_list varg) {
 	api_checkslots(T, 1);
-	astring_t* value;
-
-	void builder(astate T, asbuf_t* buf) {
-		alo_vformat(T, aloB_bwrite, buf, fmt, varg);
-		value = aloS_new(T, buf->array, buf->length);
-	}
-
-	aloD_usesb(T, builder);
-
+	aloB_decl(buf);
+	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
+	astring_t* value = aloB_tostr(T, buf);
+	aloB_close(T, buf);
 	tsetstr(T, api_incrtop(T), value);
 	return value->array;
 }
@@ -57,12 +52,6 @@ astr aloV_typename(astate T, const atval_t* o) {
 		return tgetstr(name)->array;
 	}
 	return aloT_typenames[ttpnv(o)];
-}
-
-static void concat_unsafe(astate T, asbuf_t* buf, askid_t from) {
-	for (askid_t i = from; i < T->top; ++i) {
-		aloO_tostring(T, aloB_bwrite, buf, i);
-	}
 }
 
 /**
@@ -150,7 +139,21 @@ ahash_t aloV_hashof(astate T, const atval_t* o) {
 }
 
 /**
- ** concat objects.
+ ** concatenate string.
+ */
+astring_t* aloV_rawcat(astate T, size_t len) {
+	aloB_decl(buf);
+	for (size_t i = len; i > 0; i--) {
+		aloO_tostring(T, aloB_bwrite, &buf, T->top - i);
+	}
+	astring_t* value = aloB_tostr(T, buf);
+	aloB_close(T, buf);
+	T->top -= len;
+	return value;
+}
+
+/**
+ ** concatenate objects.
  */
 void aloV_concat(astate T, size_t len) {
 	askid_t in = T->top - len;
@@ -164,13 +167,8 @@ void aloV_concat(astate T, size_t len) {
 		aloD_call(T, in, 1);
 	}
 	else {
-		void builder(astate T, asbuf_t* buf) {
-			concat_unsafe(T, buf, in);
-			tsetstr(T, in, aloS_new(T, buf->array, buf->length));
-			T->top = in + 1;
-		}
-
-		aloD_usesb(T, builder);
+		astring_t* value = aloV_rawcat(T, len);
+		tsetstr(T, T->top++, value);
 	}
 }
 

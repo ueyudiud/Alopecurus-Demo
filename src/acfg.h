@@ -31,6 +31,9 @@
 /* max stack size of each thread */
 #define ALO_MAXSTACKSIZE 100000
 
+/* max capacity of memory buffer */
+#define ALO_MBUF_LIMIT 10000000
+
 /**
  ** the extra space for each thread.
  */

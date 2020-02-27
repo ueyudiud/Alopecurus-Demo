@@ -488,130 +488,47 @@ void aloL_newclass_(astate T, astr name, ...) {
 	alo_call(T, c, 1);
 }
 
-/**
- ** memory box
- */
-typedef struct {
-	amem m;
-	size_t s;
-} MB;
-
-#define boxof(b) aloE_cast(MB*, b)
-
-static void adjbox(astate T, MB* box, size_t sz) {
-	void* context;
-	aalloc alloc = alo_getalloc(T, &context);
-	void* newblock = alloc(context, box->m, box->s, sz);
-	if (newblock == NULL && sz > box->s) {
-		aloL_error(T, 2, "no enough memory for buffer.");
-	}
-	box->m = newblock;
-	box->s = sz;
-}
-
-static void delbox(astate T, MB* box) {
-	void* context;
-	aalloc alloc = alo_getalloc(T, &context);
-	box->m = alloc(context, box->m, box->s, 0);
-	box->s = 0;
-}
-
-static int boxgc(astate T) {
-	MB* b = boxof(alo_torawdata(T, 0));
-	delbox(T, b);
-	return 0;
-}
-
-static MB* newbox(astate T, size_t sz) {
-	MB* box = alo_newobj(T, MB);
-	if (aloL_getsimpleclass(T, "__mbox")) {
-		static const acreg_t funcs[] = {
-				{ "__del", boxgc },
-				{ NULL, NULL }
-		};
-		aloL_setfuns(T, -1, funcs);
-	}
-	alo_setmetatable(T, -2);
-	void* context;
-	aalloc alloc = alo_getalloc(T, &context);
-	box->m = alloc(context, NULL, 0, sz);
-	if (box->m == NULL) {
-		aloL_error(T, 2, "no enough memory for buffer.");
-	}
-	box->s = sz;
-	return box;
-}
-
-void aloL_binit_(astate T, ambuf_t* buf, amem initblock, size_t initcap) {
-	buf->T = T;
-	buf->l = 0;
-	buf->c = initcap;
-	buf->p = initblock;
-	buf->b = NULL;
-}
-
-void aloL_bcheck(ambuf_t* buf, size_t sz) {
-	size_t req = buf->l + sz;
-	if (req > buf->c) {
-		size_t nc = buf->c * 2;
-		if (nc < ALOL_MBUFSIZE) {
-			nc = ALOL_MBUFSIZE;
+void aloL_bcheck(astate T, ambuf_t* buf, size_t sz) {
+	size_t req = buf->len + sz;
+	if (req > buf->cap) {
+		if (!alo_growbuf(T, buf, req)) {
+			aloL_error(T, 2, "no enough memory for buffer.");
 		}
-		if (nc < req) {
-			nc = req;
-		}
-		MB* b;
-		if (buf->b) { /* box in heap? */
-			adjbox(buf->T, b = boxof(buf->b), nc);
-		}
-		else {
-			amem old = buf->p;
-			b = newbox(buf->T, nc);
-			buf->b = b;
-			memcpy(b->m, old, buf->l);
-		}
-		buf->p = b->m;
-		buf->c = nc;
 	}
 }
 
-void aloL_bputm(ambuf_t* buf, const void* src, size_t len) {
-	aloL_bcheck(buf, len);
-	memcpy(buf->p + buf->l, src, len);
-	buf->l += len;
+void aloL_bputm(astate T, ambuf_t* buf, const void* src, size_t len) {
+	aloL_bcheck(T, buf, len);
+	memcpy(buf->buf + buf->len, src, len);
+	buf->len += len;
 }
 
-void aloL_bputls(ambuf_t* buf, const char* src, size_t len) {
-	aloL_bputm(buf, src, len * sizeof(char));
+void aloL_bputs(astate T, ambuf_t* buf, astr src) {
+	aloL_bputls(T, buf, src, strlen(src));
 }
 
-void aloL_bputs(ambuf_t* buf, astr src) {
-	aloL_bputls(buf, src, strlen(src));
-}
-
-void aloL_bputf(ambuf_t* buf, astr fmt, ...) {
+void aloL_bputf(astate T, ambuf_t* buf, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	aloL_bputvf(buf, fmt, varg);
+	aloL_bputvf(T, buf, fmt, varg);
 	va_end(varg);
 }
 
-void aloL_bputvf(ambuf_t* buf, astr fmt, va_list varg) {
-	alo_vformat(buf->T, aloL_bwriter, buf, fmt, varg);
+void aloL_bputvf(astate T, ambuf_t* buf, astr fmt, va_list varg) {
+	alo_vformat(T, aloL_bwriter, buf, fmt, varg);
 }
 
-void aloL_bwrite(ambuf_t* buf, aindex_t index) {
+void aloL_bwrite(astate T, ambuf_t* buf, aindex_t index) {
 	size_t len;
-	const char* src = alo_tolstring(buf->T, index, &len);
-	aloL_bputls(buf, src, len);
+	const char* src = alo_tolstring(T, index, &len);
+	aloL_bputls(T, buf, src, len);
 }
 
-void aloL_bpushstring(ambuf_t* buf) {
-	alo_pushlstring(buf->T, aloE_cast(char*, buf->p), buf->l / sizeof(char));
+void aloL_bpushstring(astate T, ambuf_t* buf) {
+	alo_pushlstring(T, aloE_cast(char*, buf->buf), buf->len / sizeof(char));
 }
 
-int aloL_bwriter(astate T, void* rbuf, const void* src, size_t len) {
-	ambuf_t* buf = aloE_cast(ambuf_t*, rbuf);
-	aloL_bputm(buf, src, len);
+int aloL_bwriter(astate T, void* buf, const void* src, size_t len) {
+	aloL_bputm(T, aloE_cast(ambuf_t*, buf), src, len);
 	return 0;
 }

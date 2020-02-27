@@ -152,7 +152,7 @@ static int lineof(alineinfo_t* ls, size_t nl, size_t index) {
 	return ls[l].line;
 }
 
-static void write_stacktrace(astate T, asbuf_t* buf, int level) {
+static void write_stacktrace(astate T, ambuf_t* buf, int level) {
 	aframe_t* frame = T->frame;
 	do {
 		astr name = fnname(frame);
@@ -182,18 +182,11 @@ anoret aloU_mnotfound(astate T, const atval_t* owner, astr fun) {
 }
 
 static astring_t* aloU_pushvmsg(astate T, astr fmt, va_list varg) {
-	astring_t* value;
-
-	/**
-	 ** builder string in protection.
-	 */
-	void builder(astate T, asbuf_t* buf) {
-		alo_vformat(T, aloB_bwrite, buf, fmt, varg);
-		write_stacktrace(T, buf, WRITE_ERROR_LEVEL);
-		value = aloS_new(T, buf->array, buf->length);
-	}
-
-	aloD_usesb(T, builder);
+	aloB_decl(buf);
+	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
+	write_stacktrace(T, &buf, WRITE_ERROR_LEVEL);
+	astring_t* value = aloB_tostr(T, buf);
+	aloB_close(T, buf);
 	tsetstr(T, T->top++, value); /* push error message to stack. */
 	return value;
 }

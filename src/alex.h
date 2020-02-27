@@ -70,12 +70,16 @@ struct alo_Lexer {
 	astate T;
 	astring_t* src; /* source name */
 	aibuf_t* in; /* input buffer */
-	asbuf_t buf;
 	atable_t* ss; /* used string */
 	int ch; /* current character */
 	atoken_t ct, nt; /* current token and next token */
 	int pl, cl; /* previous and current line number */
 	afstat_t* f; /* current function state */
+	struct {
+		size_t cap;
+		size_t len;
+		char* ptr;
+	} buf;
 };
 
 #endif /* ALEX_H_ */

@@ -113,33 +113,33 @@ static void l_mkstr_checkarg(astate T) {
 }
 
 static int table_mkstr(astate T) {
-	ambuf_t buf;
 	l_mkstr_checkarg(T);
-	aloL_bempty(T, &buf);
-	ptrdiff_t i = ALO_ITERATE_BEGIN;
-	int first = true;
-	aloL_bwrite(&buf, 2);
-	while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
-		if (!first) {
-			aloL_bwrite(&buf, 1);
+	aloL_usebuf(T, buf) {
+		ptrdiff_t i = ALO_ITERATE_BEGIN;
+		int first = true;
+		aloL_bwrite(T, &buf, 2);
+		while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
+			if (!first) {
+				aloL_bwrite(T, &buf, 1);
+			}
+			else {
+				first = false;
+			}
+			alo_push(T, 5); /* push tostring function */
+			alo_push(T, -3);
+			alo_call(T, 1, 1);
+			aloL_bwrite(T, &buf, -1);
+			alo_drop(T);
+			aloL_bwrite(T, &buf, 4);
+			alo_push(T, 5); /* push tostring function */
+			alo_push(T, -2);
+			alo_call(T, 1, 1);
+			aloL_bwrite(T, &buf, -1);
+			alo_settop(T, -3);
 		}
-		else {
-			first = false;
-		}
-		alo_push(T, 5); /* push tostring function */
-		alo_push(T, -3);
-		alo_call(T, 1, 1);
-		aloL_bwrite(&buf, -1);
-		alo_drop(T);
-		aloL_bwrite(&buf, 4);
-		alo_push(T, 5); /* push tostring function */
-		alo_push(T, -2);
-		alo_call(T, 1, 1);
-		aloL_bwrite(&buf, -1);
-		alo_settop(T, -3);
+		aloL_bwrite(T, &buf, 3);
+		aloL_bpushstring(T, &buf);
 	}
-	aloL_bwrite(&buf, 3);
-	aloL_bpushstring(&buf);
 	return 1;
 }
 

@@ -52,9 +52,8 @@ typedef struct alo_JumpBuf ajmp_t;
 
 struct alo_JumpBuf {
 	ajmp_t* prev;
-	jmp_buf buf;
-	void* target;
 	int status;
+	jmp_buf buf;
 };
 
 /**

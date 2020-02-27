@@ -143,6 +143,7 @@ struct alo_Thread {
 	askid_t top; /* top of stack */
 	size_t stacksize; /* current stack size */
 	ajmp_t* label;
+	ambuf_t* memstk; /* memory stack */
 	aframe_t base_frame;
 	int berrno; /* buffer error */
 	uint16_t nframe; /* frame depth */

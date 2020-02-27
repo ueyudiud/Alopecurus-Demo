@@ -14,7 +14,7 @@
 /**
  ** return true if buffer used inner memory.
  */
-#define isinner(b) ((b)->shrbuf == (b)->array)
+#define isinner(b) ((b)->instk == (b)->buf)
 
 static int ifill(astate T, aibuf_t* buf) {
 	aloE_assert(buf->len == 0, "not reached to end of buffer yet.");
@@ -54,49 +54,92 @@ size_t aloB_iread(astate T, aibuf_t* buf, amem mem, size_t n) {
 }
 
 int aloB_bwrite(astate T, void* context, const void* src, size_t len) {
-	asbuf_t* buf = aloE_cast(asbuf_t*, context); /* context is buffer */
+	ambuf_t* buf = aloE_cast(ambuf_t*, context); /* context is buffer */
 	aloB_lock(buf);
-	size_t nlen = buf->length + len;
-	if (nlen > buf->capacity) { /* should expand buffer size? */
-		size_t newsize = aloM_adjsize(T, buf->capacity, nlen, ALO_SBUF_LIMIT);
+	size_t nlen = buf->len + len;
+	if (nlen > buf->cap) { /* should expand buffer size? */
+		size_t ncap = aloM_adjsize(T, buf->cap, nlen, ALO_MBUF_LIMIT);
 		if (isinner(buf)) {
-			char* newarray = aloM_newa(T, char, newsize);
-			memcpy(newarray, buf->shrbuf, buf->length);
-			buf->array = newarray;
+			abyte* nbuf = aloM_newa(T, abyte, ncap);
+			memcpy(nbuf, buf->instk, buf->len);
+			buf->buf = nbuf;
+			buf->prev = T->memstk;
+			T->memstk = buf;
 		}
 		else {
-			buf->array = aloM_adja(T, buf->array, buf->capacity, newsize);
+			buf->buf = aloM_adja(T, buf->buf, buf->cap, ncap);
 		}
-		buf->capacity = newsize;
+		buf->cap = ncap;
 	}
-	memcpy(buf->array + buf->length, src, len); /* writer data to buffer */
-	buf->length = nlen; /* increase length */
+	memcpy(buf->buf + buf->len, src, len); /* writer data to buffer */
+	buf->len = nlen; /* increase length */
 	aloB_unlock(buf);
 	return 0; /* write into string buffer never causes an error */
 }
 
-void aloB_bfreeaux(astate T, asbuf_t* buf) {
+void aloB_bcloseaux(astate T, ambuf_t* buf) {
 	aloB_lock(buf);
 	aloE_assert(!isinner(buf), "invalid buffer.");
-	aloM_delb(T, buf->array, buf->capacity); /* delete data and close buffer. */
+	aloE_assert(T->memstk == buf, "illegal nested buffer.");
+	T->memstk = buf->prev;
+	aloM_delb(T, buf->buf, buf->cap); /* delete data and close buffer. */
 }
 
-void aloB_bgrow_(astate T, asbuf_t* buf) {
+void aloB_bgrow_(astate T, ambuf_t* buf) {
 	aloE_assert(buf->length == buf->capacity, "buffer not full filled.");
 	aloB_lock(buf);
-	size_t newsize = aloM_growsize(T, buf->capacity, ALO_SBUF_LIMIT);
+	size_t ncap = aloM_growsize(T, buf->cap, ALO_MBUF_LIMIT);
 	if (isinner(buf)) {
-		char* newarray = aloM_newa(T, char, newsize);
-		memcpy(newarray, buf->shrbuf, buf->length);
-		buf->array = newarray;
+		abyte* nbuf = aloM_newa(T, abyte, ncap);
+		memcpy(nbuf, buf->instk, buf->len);
+		buf->buf = nbuf;
+		buf->prev = T->memstk;
+		T->memstk = buf;
 	}
 	else {
-		buf->array = aloM_adja(T, buf->array, buf->capacity, newsize);
+		buf->buf = aloM_adja(T, buf->buf, buf->cap, ncap);
 	}
-	buf->capacity = newsize;
+	buf->cap = ncap;
 	aloB_unlock(buf);
 }
 
-void aloB_puts(astate T, asbuf_t* buf, const char* src) {
+int alo_growbuf(astate T, ambuf_t* buf, size_t req) {
+	if (req > ALO_MBUF_LIMIT) {
+		return false;
+	}
+	size_t ncap = buf->cap * 2;
+	if (ncap > ALO_MBUF_LIMIT) {
+		if (buf->cap >= ALO_MBUF_LIMIT) {
+			return false;
+		}
+		ncap = ALO_MBUF_LIMIT;
+	}
+	else {
+		if (ncap < ALO_MIN_BUFSIZE) {
+			ncap = ALO_MIN_BUFSIZE;
+		}
+		if (ncap < req) {
+			ncap = req;
+		}
+	}
+	if (isinner(buf)) {
+		abyte* nbuf = aloM_newa(T, abyte, ncap);
+		memcpy(nbuf, buf->instk, buf->len);
+		buf->buf = nbuf;
+		buf->prev = T->memstk;
+		T->memstk = buf;
+	}
+	else {
+		buf->buf = aloM_adja(T, buf->buf, buf->cap, ncap);
+	}
+	buf->cap = ncap;
+	return true;
+}
+
+void alo_delbuf(astate T, ambuf_t* buf) {
+	aloB_close(T, *buf);
+}
+
+void aloB_puts(astate T, ambuf_t* buf, const char* src) {
 	aloB_bwrite(T, buf, src, strlen(src) * sizeof(char));
 }

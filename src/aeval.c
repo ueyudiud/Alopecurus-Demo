@@ -844,16 +844,13 @@ void aloV_invoke(astate T, int dofinish) {
 				goto finish;
 			}
 			else if (ttisstr(s)) {
-				astring_t* h = tgetstr(s);
-
-				void builder(astate T, asbuf_t* buf) {
-					aloB_bwrite(T, buf, h->array, aloS_len(h));
-					aloO_tostring(T, aloB_bwrite, buf, tb);
-					h = aloS_new(T, buf->array, buf->length);
-				}
-
-				aloD_usesb(T, builder);
-				tsetstr(T, s, h);
+				aloB_decl(buf);
+				astring_t* str = tgetstr(s);
+				aloB_bwrite(T, &buf, str->array, aloS_len(str));
+				aloO_tostring(T, aloB_bwrite, &buf, tb);
+				str = aloB_tostr(T, buf);
+				aloB_close(T, buf);
+				tsetstr(T, S(A), str);
 			}
 			break;
 		}

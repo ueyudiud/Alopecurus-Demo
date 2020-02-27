@@ -33,14 +33,14 @@ static int str_reverse(astate T) {
 		alo_pushlstring(T, buf, len);
 	}
 	else { /* or use memory buffer instead */
-		ambuf_t buf;
-		aloL_bempty(T, &buf);
-		aloL_bcheck(&buf, len);
-		for (size_t i = 0; i < len; ++i) {
-			aloL_bsetc(&buf, i, src[len - 1 - i]);
+		aloL_usebuf(T, buf) {
+			aloL_bcheck(T, &buf, len * sizeof(char));
+			for (size_t i = 0; i < len; ++i) {
+				aloL_bsetc(&buf, i, src[len - 1 - i]);
+			}
+			aloL_bsetlen(&buf, len * sizeof(char));
+			aloL_bpushstring(T, &buf);
 		}
-		aloL_bsetlen(&buf, len);
-		aloL_bpushstring(&buf);
 	}
 	return 1;
 }
@@ -72,13 +72,16 @@ static int str_repeat(astate T) {
 		alo_pushlstring(T, buf, nlen);
 	}
 	else { /* for long string, use buffer on heap */
-		ambuf_t buf;
-		aloL_bempty(T, &buf);
-		aloL_bcheck(&buf, nlen * sizeof(char));
-		for (size_t i = 0; i < time; ++i) {
-			aloL_bputls(&buf, src, len);
+		aloL_usebuf(T, buf) {
+			aloL_bcheck(T, &buf, nlen * sizeof(char));
+			abyte* p = buf.buf;
+			for (size_t i = 0; i < time; ++i) {
+				memcpy(p, src, len);
+				p += len * sizeof(char);
+			}
+			buf.len = nlen * sizeof(char);
+			aloL_bpushstring(T, &buf);
 		}
-		aloL_bpushstring(&buf);
 	}
 	return 1;
 }
@@ -107,12 +110,10 @@ static int str_trim(astate T) {
 			l_strcpy(buf, src + i, len);
 			alo_pushlstring(T, buf, len);
 		}
-		else {
-			ambuf_t buf;
-			aloL_bempty(T, &buf);
-			aloL_bcheck(&buf, len * sizeof(char));
-			aloL_bputls(&buf, src + i, len);
-			aloL_bpushstring(&buf);
+		else aloL_usebuf(T, buf) {
+			aloL_bcheck(T, &buf, len * sizeof(char));
+			aloL_bputls(T, &buf, src + i, len);
+			aloL_bpushstring(T, &buf);
 		}
 	}
 	return 1;
@@ -202,7 +203,6 @@ typedef astr (*amcon_t)(astr);
 typedef astr (*amfun_t)(amstat_t*, amnode_t*, astr, amcon_t);
 
 /* matcher function */
-
 static astr nocon(astr s) {
 	return s; /* identical function */
 }
@@ -237,6 +237,20 @@ static int match_class(int ch, int cl) {
 }
 
 static const amfun_t handles[];
+
+/**
+ ** scoped lambda supporting
+ */
+#ifdef __clang__
+#include <Block.h>
+#define _lambda(name,params...) (^name)(params) = ^
+#define _captured __block
+#define _lleave(lambda) Block_release(lambda)
+#else
+#define _lambda(name,params...) (name)(params)
+#define _captured
+#define _lleave(lambda) aloE_void(lambda)
+#endif
 
 static astr m_bol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') ? con(s) : NULL;
@@ -302,8 +316,8 @@ static astr m_set(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	return NULL;
 }
 
-static astr m_sub(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
-	astr con1(astr t) {
+static astr m_sub(_captured amstat_t* M, _captured amnode_t* node, _captured astr s, amcon_t con) {
+	astr _lambda(con1, astr t) {
 		M->groups[node->extra] = (amgroup_t) { s, t }; /* settle group position */
 		return con(t);
 	}
@@ -313,20 +327,24 @@ static astr m_sub(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 			return e;
 		}
 	}
+	_lleave(con1);
 	return NULL;
 }
 
-static astr m_seq(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
-	astr seqcheck(astr t, size_t index) {
-		astr con1(astr e) {
-			if (M->depth-- == 0) {
-				aloL_error(M->T, 2, "matching string is too complex.");
-			}
-			return seqcheck(e, index + 1);
+static astr seqcheck(_captured amstat_t* M, _captured amnode_t* node, astr s, _captured amcon_t con, _captured size_t index) {
+	astr _lambda(con1, astr e) {
+		if (M->depth-- == 0) {
+			aloL_error(M->T, 2, "matching string is too complex.");
 		}
-		return matchs(M, node->arr[index], t, index + 1 == node->data ? con : con1);
+		return seqcheck(M, node, e, con, index + 1);
 	}
-	return seqcheck(s, 0);
+	astr result = matchs(M, node->arr[index], s, index + 1 == node->data ? con : con1);
+	_lleave(con1);
+	return result;
+}
+
+static astr m_seq(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
+	return seqcheck(M, node, s, con, 0);
 }
 
 static const amfun_t handles[] = { NULL, m_bol, m_eol, m_chr, m_str, m_set, m_sub, m_seq };
@@ -353,11 +371,13 @@ static astr matchx(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 		return NULL;
 	}
 	case M_MOREG: case M_ANYG: {
-		astr cong(astr t) {
+		astr _lambda(cong, astr t) {
 			astr e = handle(M, node, t, nocon);
 			return e && (e = cong(e)) ? e : con(t);
 		}
-		return handle(M, node, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
+		astr r = handle(M, node, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
+		_lleave(cong);
+		return r;
 	}
 	case M_OPT: {
 		return con(s) ?: handle(M, node, s, con);
@@ -383,10 +403,12 @@ static int match(amstat_t* M, amnode_t* node, astr s, int full) {
 	amgroup_t* group = &M->groups[0];
 	group->begin = group->end = NULL;
 	astr begin = s, end = M->send;
-	astr fullcon(astr s) {
+	astr _lambda(fullcon, astr s) {
 		return s == end ? s : NULL;
 	}
-	if ((end = matchx(M, node, s, full ? fullcon : nocon))) {
+	end = matchx(M, node, s, full ? fullcon : nocon);
+	_lleave(fullcon);
+	if (end) {
 		group->begin = group->begin ?: begin;
 		group->end = group->end ?: end;
 		return true;
@@ -752,14 +774,14 @@ static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 	while (s1 < se) {
 		if (*s1 == '$') { /* escape character? */
 			if (s1 != s0) {
-				aloL_bputls(buf, s0, s1 - s0); /* put normal sub sequence before */
+				aloL_bputls(T, buf, s0, s1 - s0); /* put normal sub sequence before */
 			}
 			int index;
 			s1 ++;
 			int ch = *(s1++);
 			switch (ch) {
 			case '$':
-				aloL_bputc(buf, '$');
+				aloL_bputc(T, buf, '$');
 				break;
 			case '0' ... '9':
 				index = ch - '0';
@@ -781,7 +803,7 @@ static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 					aloL_error(T, 2, "replacement index out of bound.");
 				}
 				amgroup_t* group = &M->groups[index];
-				aloL_bputls(buf, group->begin, group->end - group->begin);
+				aloL_bputls(T, buf, group->begin, group->end - group->begin);
 				s0 = s1;
 				break;
 			}
@@ -791,7 +813,7 @@ static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 		}
 	}
 	if (s0 != s1) {
-		aloL_bputls(buf, s0, s1 - s0);
+		aloL_bputls(T, buf, s0, s1 - s0);
 	}
 }
 
@@ -801,7 +823,7 @@ static void aux_replacef(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 	alo_pushlstring(T, M->groups[0].begin, M->groups[0].end - M->groups[0].begin);
 	alo_pushinteger(T, M->groups[0].begin - M->sbegin);
 	alo_call(T, 2, 1);
-	aloL_bwrite(buf, index);
+	aloL_bwrite(T, buf, index);
 	alo_drop(T);
 }
 
@@ -823,81 +845,81 @@ static int matcher_replace(astate T) {
 	src = alo_tolstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
 	alo_settop(T, 3);
-	ambuf_t buf;
-	aloL_bempty(T, &buf);
-	const char* s1 = M.sbegin;
-	const char* s0 = s1;
-	while (s1 <= M.send) {
-		if (match(&M, matcher->node, s1, false)) {
-			if (s1 != s0) {
-				aloL_bputls(&buf, s0, s1 - s0);
+	aloL_usebuf(T, buf) {
+		const char* s1 = M.sbegin;
+		const char* s0 = s1;
+		while (s1 <= M.send) {
+			if (match(&M, matcher->node, s1, false)) {
+				if (s1 != s0) {
+					aloL_bputls(T, &buf, s0, s1 - s0);
+				}
+				(*transformer)(T, matcher, &M, &buf);
+				s1 = s0 = M.groups[0].end;
 			}
-			(*transformer)(T, matcher, &M, &buf);
-			s1 = s0 = M.groups[0].end;
+			else {
+				s1 += 1;
+			}
 		}
-		else {
-			s1 += 1;
+		if (s1 > M.send) {
+			s1 = M.send;
 		}
+		if (s1 != s0) {
+			aloL_bputls(T, &buf, s0, s1 - s0);
+		}
+		aloL_bpushstring(T, &buf);
 	}
-	if (s1 > M.send) {
-		s1 = M.send;
-	}
-	if (s1 != s0) {
-		aloL_bputls(&buf, s0, s1 - s0);
-	}
-	aloL_bpushstring(&buf);
 	return 1;
 }
 
-static void addnodeinfo(amnode_t* node, ambuf_t* buf) {
+static void addnodeinfo(astate T, amnode_t* node, ambuf_t* buf) {
 	switch (node->type) {
 	case T_END: break;
 	case T_BOL:
-		aloL_bputc(buf, '^');
+		aloL_bputc(T, buf, '^');
 		break;
 	case T_EOL:
-		aloL_bputc(buf, '$');
+		aloL_bputc(T, buf, '$');
 		break;
 	case T_CHR:
-		aloL_bputf(buf, "%u", node->data);
+		aloL_bputf(T, buf, "%u", node->data);
 		break;
 	case T_STR:
-		aloL_bputf(buf, "%\"", node->str, aloE_cast(size_t, node->data));
+		aloL_bputf(T, buf, "%\"", node->str, aloE_cast(size_t, node->data));
 		break;
 	case T_SUB:
-		aloL_bputc(buf, '(');
+		aloL_bputc(T, buf, '(');
 		for (int i = 0; i < node->data; ++i) {
-			addnodeinfo(node->arr[i], buf);
-			aloL_bputc(buf, '|');
+			addnodeinfo(T, node->arr[i], buf);
+			aloL_bputc(T, buf, '|');
 		}
-		buf->l -= 1;
-		aloL_bputc(buf, ')');
+		buf->len -= 1;
+		aloL_bputc(T, buf, ')');
 		break;
 	case T_SEQ:
 		for (int i = 0; i < node->data; ++i) {
-			addnodeinfo(node->arr[i], buf);
+			addnodeinfo(T, node->arr[i], buf);
 		}
 		break;
 	case T_SET:
-		aloL_bputf(buf, "[%\"]", node->str, aloE_cast(size_t, node->data));
+		aloL_bputf(T, buf, "[%\"]", node->str, aloE_cast(size_t, node->data));
 		break;
 	}
 	switch (node->mode) {
-	case M_MORE: aloL_bputs(buf, "+?"); break;
-	case M_MOREG: aloL_bputs(buf, "+"); break;
-	case M_ANY: aloL_bputs(buf, "*?"); break;
-	case M_ANYG: aloL_bputs(buf, "*"); break;
-	case M_OPT: aloL_bputs(buf, "??"); break;
-	case M_OPTG: aloL_bputs(buf, "?"); break;
+	case M_MORE: aloL_bputs(T, buf, "+?"); break;
+	case M_MOREG: aloL_bputs(T, buf, "+"); break;
+	case M_ANY: aloL_bputs(T, buf, "*?"); break;
+	case M_ANYG: aloL_bputs(T, buf, "*"); break;
+	case M_OPT: aloL_bputs(T, buf, "??"); break;
+	case M_OPTG: aloL_bputs(T, buf, "?"); break;
 	}
 }
 
 static int matcher_tostr(astate T) {
 	Matcher* matcher = self(T);
-	ambuf_t buf;
-	aloL_bempty(T, &buf);
-	addnodeinfo(matcher->node, &buf);
-	alo_pushfstring(T, "__matcher: { ngroup: %d, expr: %q }", (int) matcher->ngroup, buf.p, buf.l);
+	aloL_usebuf(T, buf) {
+		addnodeinfo(T, matcher->node, &buf);
+		alo_pushfstring(T, "__matcher: { ngroup: %d, expr: %q }", (int) matcher->ngroup, buf.buf, buf.len);
+	}
 	return 1;
 }
 

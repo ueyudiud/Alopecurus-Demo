@@ -78,10 +78,11 @@ void aloD_reallocstack(astate T, size_t newsize) {
  */
 int aloD_prun(astate T, apfun fun, void* ctx) {
 	uint16_t nccall = T->nccall, nxyield = T->nxyield;
+	ambuf_t* memstk = T->memstk; /* store memory stack */
 	ajmp_t label;
 	label.prev = T->label;
 	label.status = ThreadStateRun;
-	label.target = NULL;
+	T->memstk = NULL;
 	T->label = &label;
 	if (setjmp(label.buf) == 0) {
 		fun(T, ctx);
@@ -89,31 +90,8 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
 	T->label = label.prev;
 	T->nccall = nccall;
 	T->nxyield = nxyield;
+	T->memstk = memstk; /* revert memory stack */
 	return label.status;
-}
-
-/**
- ** use string builder in protection.
- */
-void aloD_usesb(astate T, void (*fun)(astate, asbuf_t*)) {
-	uint16_t nccall = T->nccall;
-	uint64_t nyield = T->nxyield++; /* can not call 'yield' when using buffer */
-	ajmp_t label;
-	label.prev = T->label;
-	label.status = ThreadStateRun;
-	label.target = NULL;
-	aloB_bdecl(buf);
-	T->label = &label;
-	if (setjmp(label.buf) == 0) {
-		fun(T, &buf);
-	}
-	aloB_bfree(T, buf);
-	T->label = label.prev;
-	T->nxyield = nyield;
-	T->nccall = nccall;
-	if (label.status != ThreadStateRun) {
-		aloD_throw(T, label.status);
-	}
 }
 
 /**
@@ -121,6 +99,9 @@ void aloD_usesb(astate T, void (*fun)(astate, asbuf_t*)) {
  */
 anoret aloD_throw(astate T, int status) {
 	aloE_assert(status >= ThreadStateErrRuntime, "can only throw error status by this function.");
+	while (T->memstk) {
+		aloB_bcloseaux(T, T->memstk); /* free all memory stack in current label */
+	}
 	if (T->label) {
 		T->label->status = status;
 		longjmp(T->label->buf, 1);

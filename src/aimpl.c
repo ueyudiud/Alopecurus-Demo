@@ -457,18 +457,8 @@ void alo_rawcat(astate T, size_t size) {
 		T->top -= 1;
 	}
 	else if (size > 0) {
-		api_checkelems(T, size - 1);
-
-		void builder(astate T, asbuf_t* buf) {
-			askid_t t = T->top - size;
-			for (size_t i = 0; i < size; ++i) {
-				aloO_tostring(T, aloB_bwrite, buf, t + i);
-			}
-			s = aloS_new(T, buf->array, buf->length);
-		}
-
-		aloD_usesb(T, builder);
-		T->top -= size;
+		api_checkelems(T, size);
+		s = aloV_rawcat(T, size);
 	}
 	else {
 		api_checkslots(T, 1);
@@ -990,7 +980,7 @@ int alo_pcallk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	api_checkelems(T, 1 + narg);
 	api_check(T, T->g->trun == T, "thread is not running.");
 	api_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
-	CI ci = { T->top - (narg + 1), nres }; /* initialize call inforamtion */
+	CI ci = { T->top - (narg + 1), nres }; /* initialize call information */
 	ptrdiff_t p = getstkoff(T, ci.fun);
 	int status;
 	aframe_t* const frame = T->frame;

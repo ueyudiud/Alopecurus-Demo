@@ -91,29 +91,19 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 /** the minimum heaped memory buffer capacity */
 #define ALOL_MBUFSIZE (256 * __SIZEOF_POINTER__)
 
-typedef struct aloL_MemoryBuffer {
-	size_t c; /* buffer capacity */
-	size_t l; /* length of current data */
-	abyte* p; /* start position of buffer */
-	astate T;
-	void* b; /* box in stack */
-} ambuf_t;
+#define aloL_usebuf(T,name) for (alo_newbuf(name); name.buf; alo_delbuf(T, &name))
+#define aloL_bputc(T,b,ch) (aloE_cast(void, (b)->len < (b)->cap || (aloL_bcheck(T, b, 1), true)), (b)->buf[(b)->len++] = aloE_byte(ch))
+#define aloL_bputls(T,b,s,l) aloL_bputm(T, b, s, (l) * sizeof(char))
+#define aloL_bsetc(b,i,ch) ((b)->buf[i] = aloE_byte(ch))
+#define aloL_bsetlen(b,l) ((b)->len = (l))
 
-#define aloL_bempty(T,buf) aloL_binit_(T, buf, NULL, 0)
-#define aloL_binit(T,buf,mem) aloL_binit_(T, buf, mem, sizeof(mem))
-#define aloL_bputc(buf,ch) (aloE_cast(void, (buf)->l < (buf)->c || (aloL_bcheck(buf, 1), true)), (buf)->p[(buf)->l++] = aloE_byte(ch))
-#define aloL_bsetc(buf,i,ch) ((buf)->p[i] = aloE_byte(ch))
-#define aloL_bsetlen(buf,len) ((buf)->l = (len))
-
-ALO_API void aloL_binit_(astate, ambuf_t*, amem, size_t);
-ALO_API void aloL_bcheck(ambuf_t*, size_t);
-ALO_API void aloL_bputm(ambuf_t*, const void*, size_t);
-ALO_API void aloL_bputls(ambuf_t*, const char*, size_t);
-ALO_API void aloL_bputs(ambuf_t*, astr);
-ALO_API void aloL_bputf(ambuf_t*, astr, ...);
-ALO_API void aloL_bputvf(ambuf_t*, astr, va_list);
-ALO_API void aloL_bwrite(ambuf_t*, aindex_t);
-ALO_API void aloL_bpushstring(ambuf_t*);
+ALO_API void aloL_bcheck(astate, ambuf_t*, size_t);
+ALO_API void aloL_bputm(astate, ambuf_t*, const void*, size_t);
+ALO_API void aloL_bputs(astate, ambuf_t*, astr);
+ALO_API void aloL_bputf(astate, ambuf_t*, astr, ...);
+ALO_API void aloL_bputvf(astate, ambuf_t*, astr, va_list);
+ALO_API void aloL_bwrite(astate, ambuf_t*, aindex_t);
+ALO_API void aloL_bpushstring(astate, ambuf_t*);
 
 ALO_API int aloL_bwriter(astate, void*, const void*, size_t);
 

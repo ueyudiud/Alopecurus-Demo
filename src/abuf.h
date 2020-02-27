@@ -19,40 +19,32 @@
 /* end of buffer */
 #define EOB (-1)
 
-#define ALO_SBUF_SHTLEN 32
-#define ALO_SBUF_LIMIT 10000000
-
 typedef struct alo_IBuf aibuf_t;
 
-#define aloB_lock(buf) aloE_void(0)
-#define aloB_unlock(buf) aloE_void(0)
+#define aloB_lock(b) aloE_void(0)
+#define aloB_unlock(b) aloE_void(0)
 
-#define aloB_bdecl(name) asbuf_t name; aloB_bopen(name)
-#define aloB_bopen(buf) aloE_void((buf).capacity = ALO_SBUF_SHTLEN, (buf).length = 0, (buf).array = (buf).shrbuf)
+#define aloB_decl(n) ambuf_t n; aloB_open(n)
+#define aloB_open(b) aloE_void((b).cap = sizeof((b).instk), (b).len = 0, (b).buf = (b).instk)
 
-#define aloB_bfree(T,buf) if ((buf).shrbuf != (buf).array) aloB_bfreeaux(T, &(buf))
+#define aloB_close(T,b) ({ if ((b).instk != (b).buf) aloB_bcloseaux(T, &(b)); })
 
-#define aloB_iopen(buf,reader,context) (*(buf) = (aibuf_t) { NULL, 0, reader, context })
-#define aloB_iget(T,buf) ((buf)->len > 0 ? ((buf)->len--, *((buf)->pos++)) : aloB_ifill_(T, buf))
+#define aloB_iopen(b,reader,context) (*(b) = (aibuf_t) { NULL, 0, reader, context })
+#define aloB_iget(T,b) ((b)->len > 0 ? ((b)->len--, *((b)->pos++)) : aloB_ifill_(T, b))
+
+#define aloB_tostr(T,b) aloS_new(T, aloE_cast(char*, (b).buf), (b).len)
 
 int aloB_ifill_(astate, aibuf_t*);
 size_t aloB_iread(astate, aibuf_t*, amem, size_t);
 
 int aloB_bwrite(astate, void*, const void*, size_t);
-void aloB_bfreeaux(astate, asbuf_t*);
+void aloB_bcloseaux(astate, ambuf_t*);
 
-#define aloB_putc(T,buf,ch) ((buf)->length < (buf)->capacity ? aloB_rputc(buf, ch) : (aloB_bgrow_(T, buf), aloB_rputc(buf, ch)))
-#define aloB_rputc(buf,ch) aloE_void((buf)->array[(buf)->length++] = (ch))
+#define aloB_putc(T,b,ch) ((b)->len < (b)->cap ? aloB_rputc(b, ch) : (aloB_bgrow_(T, b), aloB_rputc(b, ch)))
+#define aloB_rputc(b,ch) aloE_void((b)->buf[(b)->len++] = (ch))
 
-void aloB_bgrow_(astate, asbuf_t*);
-void aloB_puts(astate, asbuf_t*, const char*);
-
-struct alo_SBuf {
-	size_t capacity;
-	size_t length;
-	char* array;
-	char shrbuf[ALO_SBUF_SHTLEN];
-};
+void aloB_bgrow_(astate, ambuf_t*);
+void aloB_puts(astate, ambuf_t*, const char*);
 
 struct alo_IBuf {
 	const char* pos;

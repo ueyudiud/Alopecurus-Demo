@@ -32,6 +32,19 @@ typedef struct alo_Version {
 
 #define anoret __attribute__((noreturn)) void
 
+typedef struct alo_MemBuf ambuf_t;
+
+/* minimum capacity of memory buffer, the memory will be allocated on stack */
+#define ALO_MBUF_SHTLEN 32
+
+struct alo_MemBuf {
+	size_t cap; /* the capacity of buffer */
+	size_t len; /* the length filled in buffer */
+	abyte* buf; /* the start pointer of buffer */
+	ambuf_t* prev; /* the previous memory buffer in linked list */
+	abyte instk[ALO_MBUF_SHTLEN]; /* fast buffer in stack */
+};
+
 /**
  ** Alopecurus state and handle types
  */
@@ -119,6 +132,10 @@ enum {
 
 #define ALO_INT_PROP(field) INT64_##field
 #define ALO_FLT_PROP(field) DOUBLE##field
+
+/**
+ ** useful macros
+ */
 
 #define aloE_assert(exp,what) ALO_ASSERT(exp,what)
 #define aloE_log(what,fmt...) ALO_LOG(what, ##fmt)

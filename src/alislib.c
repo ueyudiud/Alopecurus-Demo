@@ -450,23 +450,23 @@ static void l_mkstr_checkarg(astate T) {
  ** prototype: list.mkstr(self,[sep,[left,[right]]])
  */
 static int list_mkstr(astate T) {
-	ambuf_t buf;
 	l_mkstr_checkarg(T);
-	aloL_bempty(T, &buf);
-	size_t n = alo_rawlen(T, 0);
-	aloL_bwrite(&buf, 2);
-	for (size_t i = 0; i < n; ++i) {
-		if (i != 0) {
-			aloL_bwrite(&buf, 1);
+	aloL_usebuf(T, buf) {
+		size_t n = alo_rawlen(T, 0);
+		aloL_bwrite(T, &buf, 2);
+		for (size_t i = 0; i < n; ++i) {
+			if (i != 0) {
+				aloL_bwrite(T, &buf, 1);
+			}
+			alo_push(T, 4); /* push tostring function */
+			alo_rawgeti(T, 0, i);
+			alo_call(T, 1, 1);
+			aloL_bwrite(T, &buf, -1);
+			alo_drop(T);
 		}
-		alo_push(T, 4); /* push tostring function */
-		alo_rawgeti(T, 0, i);
-		alo_call(T, 1, 1);
-		aloL_bwrite(&buf, -1);
-		alo_drop(T);
+		aloL_bwrite(T, &buf, 3);
+		aloL_bpushstring(T, &buf);
 	}
-	aloL_bwrite(&buf, 3);
-	aloL_bpushstring(&buf);
 	return 1;
 }
 
