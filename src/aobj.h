@@ -160,7 +160,7 @@ typedef atval_t *askid_t;
 #define tsettab(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTABLE))
 #define tsetclo(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
 #define tsetthr(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTHREAD))
-#define tsetrdt(T,o,x)  trsetvalx(T, o, tnewref(x, ALO_TRAWDATA))
+#define tsetrdt(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TRAWDATA))
 
 #define tsetobj(T,o1,o2) ({ atval_t* io = (o1); *io = *(o2); checklive(T, io); })
 
