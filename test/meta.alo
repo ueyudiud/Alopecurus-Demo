@@ -1,0 +1,11 @@
+local tag = [
+	'__new': \self, name -> {
+		self.name = name
+	},
+	'__id': 'tag'
+]
+
+local f = new tag('X')
+
+assert(typeof(f) == 'tag')
+assert(f.name == 'X')

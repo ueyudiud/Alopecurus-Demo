@@ -22,7 +22,6 @@ void aloI_trim(astate, alist_t*);
 const atval_t* aloI_geti(alist_t*, aint);
 const atval_t* aloI_get(astate, alist_t*, const atval_t*);
 void aloI_add(astate, alist_t*, const atval_t*);
-void aloI_addall(astate, alist_t*, const atval_t*, size_t);
 int aloI_put(astate, alist_t*, const atval_t*);
 atval_t* aloI_findi(astate, alist_t*, aint);
 atval_t* aloI_find(astate, alist_t*, const atval_t*);

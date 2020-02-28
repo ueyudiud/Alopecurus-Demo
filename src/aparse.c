@@ -276,6 +276,7 @@ static void rootstats(alexer_t* lex) {
 	if (!stats(lex)) {
 		aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
 	}
+	test(lex, TK_EOF); /* should compile to end of script */
 }
 
 static int varexpr(alexer_t* lex, aestat_t* e) {

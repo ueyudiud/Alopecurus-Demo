@@ -85,18 +85,6 @@ int aloI_put(astate T, alist_t* self, const atval_t* value) {
 	return true;
 }
 
-/**
- ** add all elements at the end of list.
- */
-void aloI_addall(astate T, alist_t* self, const atval_t* src, size_t len) {
-	aloI_ensure(T, self, len);
-	atval_t* t = self->array + self->length;
-	for (size_t i = 0; i < len; ++i) {
-		tsetobj(T, t + i, src + i);
-	}
-	self->length += len;
-}
-
 atval_t* aloI_findi(astate T, alist_t* self, aint index) {
 	if (index < 0) {
 		index += self->length;

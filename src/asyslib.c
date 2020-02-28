@@ -18,9 +18,16 @@
 
 #define alo_pusherrcode alo_pushinteger
 
+/**
+ ** terminate the process and send exit status.
+ ** if emergency flag argument is true, the exit will be hard exit
+ ** that the state will not delete.
+ ** this function will not return.
+ ** prototype: sys.exit(status, emergency)
+ */
 static int sys_exit(astate T) {
 	int status = aloL_getoptinteger(T, 0, 0);
-	if (aloL_getoptbool(T, 1, false)) {
+	if (!aloL_getoptbool(T, 1, false)) {
 		alo_deletestate(T);
 	}
 	aloE_void(exit(status));
@@ -40,6 +47,7 @@ static int sys_clock(astate T) {
 /**
  ** get current time measured in milliseconds from
  ** January 1st, 1970 UTC 0:00 to current time.
+ ** prototype: sys.time()
  */
 static int sys_time(astate T) {
 	struct timeval t;
