@@ -20,7 +20,7 @@
 
 static int sys_exit(astate T) {
 	int status = aloL_getoptinteger(T, 0, 0);
-	if (aloL_getoptbool(T, 1, false)) {
+	if (!aloL_getoptbool(T, 1, false)) {
 		alo_deletestate(T);
 	}
 	aloE_void(exit(status));
