@@ -243,13 +243,11 @@ static const amfun_t handles[];
  */
 #ifdef __clang__
 #include <Block.h>
-#define _lambda(name,params...) (^name)(params) = ^
+#define _lambda(name,params...) (^name)(params) = ^(params)
 #define _captured __block
-#define _lleave(lambda) Block_release(lambda)
 #else
 #define _lambda(name,params...) (name)(params)
 #define _captured
-#define _lleave(lambda) aloE_void(lambda)
 #endif
 
 static astr m_bol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
@@ -320,14 +318,13 @@ static astr m_sub(_captured amstat_t* M, _captured amnode_t* node, _captured ast
 	astr _lambda(con1, astr t) {
 		M->groups[node->extra] = (amgroup_t) { s, t }; /* settle group position */
 		return con(t);
-	}
+	};
 	astr e;
 	for (size_t i = 0; i < node->data; ++i) {
 		if ((e = matchs(M, node->arr[i], s, node->extra > 0 ? con1 : con))) {
 			return e;
 		}
 	}
-	_lleave(con1);
 	return NULL;
 }
 
@@ -337,10 +334,8 @@ static astr seqcheck(_captured amstat_t* M, _captured amnode_t* node, astr s, _c
 			aloL_error(M->T, 2, "matching string is too complex.");
 		}
 		return seqcheck(M, node, e, con, index + 1);
-	}
-	astr result = matchs(M, node->arr[index], s, index + 1 == node->data ? con : con1);
-	_lleave(con1);
-	return result;
+	};
+	return matchs(M, node->arr[index], s, index + 1 == node->data ? con : con1);
 }
 
 static astr m_seq(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
@@ -374,10 +369,8 @@ static astr matchx(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 		astr _lambda(cong, astr t) {
 			astr e = handle(M, node, t, nocon);
 			return e && (e = cong(e)) ? e : con(t);
-		}
-		astr r = handle(M, node, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
-		_lleave(cong);
-		return r;
+		};
+		return handle(M, node, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
 	}
 	case M_OPT: {
 		return con(s) ?: handle(M, node, s, con);
@@ -405,9 +398,8 @@ static int match(amstat_t* M, amnode_t* node, astr s, int full) {
 	astr begin = s, end = M->send;
 	astr _lambda(fullcon, astr s) {
 		return s == end ? s : NULL;
-	}
+	};
 	end = matchx(M, node, s, full ? fullcon : nocon);
-	_lleave(fullcon);
 	if (end) {
 		group->begin = group->begin ?: begin;
 		group->end = group->end ?: end;
