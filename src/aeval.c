@@ -486,6 +486,7 @@ int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in
 }
 
 #define checkGC(T,t) aloG_xcheck(T, (T)->top = (t), (T)->top = frame->top)
+#define protect(x) ({ x; base = frame->a.base; })
 
 /**
  ** invoke Alopecurus function.
@@ -493,39 +494,21 @@ int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in
 void aloV_invoke(astate T, int dofinish) {
 	aframe_t* frame = T->frame;
 	const atval_t* consts;
-	atval_t* capture;
+	aclosure_t* closure;
 	askid_t base;
 	aproto_t* proto;
 	const ainsn_t** ppc;
 
-	inline askid_t R(abyte mode, uint16_t index) {
-		return base + index;
-	}
-
-	inline const atval_t* K(uint16_t index) {
-		return consts + index;
-	}
-
-	atval_t* S(abyte mode, uint16_t index) {
-		if (aloK_iscapture(index)) {
-			atval_t* o = capture + aloK_getcapture(index);
-			return ttiscap(o) ? tgetcap(o)->p : o;
-		}
-		else {
-			return base + aloK_getstack(index);
-		}
-	}
-
-	const atval_t* X(abyte mode, uint16_t index) {
-		return mode ? K(index) : S(mode, index);
-	}
+#define R(op) (base + GET_##op(I))
+#define K(op) (consts + GET_##op(I))
+#define S(op) ({ ainsn_t _id = GET_##op(I); aloK_iscapture(_id) ? &closure->delegate + aloK_getcapture(_id) : base + aloK_getstack(_id); })
+#define X(op) (GET_x##op(I) ? K(op) : S(op))
 
 	invoke: {
 		aloE_assert(frame == T->frame, "frame should be current frame.");
-		aclosure_t* c = tgetclo(frame->fun);
+		closure = tgetclo(frame->fun);
 		ppc = &frame->a.pc;
-		capture = &c->delegate;
-		proto = c->a.proto;
+		proto = closure->a.proto;
 		consts = proto->consts;
 		base = frame->a.base;
 
@@ -543,27 +526,11 @@ void aloV_invoke(astate T, int dofinish) {
 /* macros for main interpreting */
 #define pc (*ppc)
 
-#define insn GET_i(I)
-#define x GET_x(I)
-#define xA GET_xA(I)
-#define xB GET_xB(I)
-#define xC GET_xC(I)
-#define yA GET_A(I)
-#define yB GET_B(I)
-#define yC GET_C(I)
-#define A xA, yA
-#define B xB, yB
-#define C xC, yC
-#define Bx GET_Bx(I)
-#define sBx GET_sBx(I)
-#define Ax GET_Ax(I)
-#define protect(x) ({ x; base = frame->a.base; })
-
 	normal:
 	while (true) {
 		I = *pc;
 		pc += 1;
-		switch (insn) { /* get instruction */
+		switch (GET_i(I)) { /* get instruction */
 		case OP_MOV: {
 			tsetobj(T, S(A), X(B));
 			break;
@@ -573,19 +540,19 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_LDN: {
-			for (int n = 0; n < yB; tsetnil(R(A + n)), ++n);
+			for (int n = 0; n < GET_B(I); tsetnil(R(A) + n), ++n);
 			break;
 		}
 		case OP_LDP: {
-			aproto_t* p = proto->children[Bx];
-			aclosure_t* c = aloV_nloadproto(T, p, tgetclo(frame->fun), base);
+			aproto_t* p = proto->children[GET_Bx(I)];
+			aclosure_t* c = aloV_nloadproto(T, p, closure, base);
 			tsetclo(T, S(A), c);
 			T->top = frame->top; /* adjust top */
 			checkGC(T, T->top);
 			break;
 		}
 		case OP_LDV: {
-			int nargs = yB - 1;
+			int nargs = GET_B(I) - 1;
 			int flag = nargs < 0;
 			if (flag) {
 				nargs = base - (frame->fun + 1) - proto->nargs;
@@ -604,7 +571,7 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_SELV: {
 			aint id;
 			size_t n = base - (frame->fun + 1) - proto->nargs;
-			switch (xB) {
+			switch (GET_xB(I)) {
 			case 0: case 1: {
 				if (vm_toint(X(B), id)) {
 					goto indexvar;
@@ -615,7 +582,7 @@ void aloV_invoke(astate T, int dofinish) {
 				break;
 			}
 			case 2: { /* integer constant */
-				id = yB;
+				id = GET_B(I);
 				indexvar: {
 					if (id >= n) {
 						aloU_outofrange(T, id, n);
@@ -634,15 +601,15 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_NEWA: {
 			askid_t s = R(B);
 			size_t n;
-			if (xC) {
+			if (GET_xC(I)) {
 				n = T->top - s;
-				if (yC && yC - 1 != n) {
+				if (GET_C(I) && GET_C(I) - 1 != n) {
 					break;
 				}
 				T->top = frame->top;
 			}
 			else {
-				n = yC;
+				n = GET_C(I);
 			}
 			tsettup(T, S(A), aloA_new(T, n, s));
 			checkGC(T, s);
@@ -651,8 +618,8 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_NEWL: {
 			alist_t* v = aloI_new(T);
 			tsetlis(T, S(A), v);
-			if (Bx > 0) {
-				aloI_ensure(T, v, Bx);
+			if (GET_Bx(I) > 0) {
+				aloI_ensure(T, v, GET_Bx(I));
 			}
 			checkGC(T, T->top);
 			break;
@@ -660,8 +627,8 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_NEWM: {
 			atable_t* v = aloH_new(T);
 			tsettab(T, S(A), v);
-			if (Bx > 0) {
-				aloH_ensure(T, v, Bx);
+			if (GET_Bx(I) > 0) {
+				aloH_ensure(T, v, GET_Bx(I));
 			}
 			checkGC(T, T->top);
 			break;
@@ -670,9 +637,9 @@ void aloV_invoke(astate T, int dofinish) {
 			tb = X(B);
 			protect(tm = aloT_gettm(T, tb, TM_UNBOX, true));
 			if (tm) {
-				tsetobj(T, R(A    ), tm);
-				tsetobj(T, R(A + 1), tb);
-				T->top = R(A + 2);
+				tsetobj(T, R(A)    , tm);
+				tsetobj(T, R(A) + 1, tb);
+				T->top = R(A) + 2;
 				aloD_call(T, R(A), ALO_MULTIRET);
 				goto finish;
 			}
@@ -681,24 +648,26 @@ void aloV_invoke(astate T, int dofinish) {
 					goto notfound;
 				}
 				atuple_t* v = tgettup(tb);
-				int n = yC - 1;
+				int n = GET_C(I) - 1;
 				if (n == ALO_MULTIRET) {
 					askid_t s = R(A);
 					if (s + v->length > T->top) {
 						protect(aloD_growstack(T, s + v->length - T->top));
 					}
+					s = R(A);
 					for (int i = 0; i < v->length; ++i) {
-						tsetobj(T, R(A + i), v->array + i);
+						tsetobj(T, s + i, v->array + i);
 					}
-					T->top = R(A + v->length);
+					T->top = s + v->length;
 				}
 				else {
+					askid_t s = R(A);
 					int i = 0;
 					for (i = 0; i < v->length && i < n; ++i) {
-						tsetobj(T, R(A + i), v->array + i);
+						tsetobj(T, s + i, v->array + i);
 					}
 					for (; i < n; ++i) {
-						tsetnil(R(A + i));
+						tsetnil(s + i);
 					}
 				}
 			}
@@ -756,12 +725,12 @@ void aloV_invoke(astate T, int dofinish) {
 			if (tm == NULL) {
 				aloU_rterror(T, "unable to look up field.");
 			}
-			tsetobj(T, R(A + 1), X(B));
-			tsetobj(T, R(A    ), tm);
+			tsetobj(T, R(A) + 1, X(B));
+			tsetobj(T, R(A)    , tm);
 			break;
 		}
 		case OP_ADD ... OP_BXOR: {
-			int op = insn - OP_ADD;
+			int op = GET_i(I) - OP_ADD;
 			tb = X(B);
 			tc = X(C);
 			if (!(aloV_nbinary[op])(T, S(A), tb, tc)) {
@@ -773,7 +742,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_PNM: case OP_UNM: case OP_BNOT: {
-			int op = insn - OP_PNM;
+			int op = GET_i(I) - OP_PNM;
 			tb = X(B);
 			if (!(aloV_nunary[op])(T, S(A), tb)) {
 				if (!aloT_tryunr(T, tb, op + TM_PNM)) {
@@ -812,7 +781,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_AADD ... OP_AXOR: {
-			int op = insn - OP_AADD;
+			int op = GET_i(I) - OP_AADD;
 			atval_t* s = S(A);
 			tb = X(B);
 			if (!(aloV_nbinary[op])(T, s, s, tb)) {
@@ -825,7 +794,7 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_CAT: {
 			askid_t r = R(B);
-			size_t n = yC - 1;
+			size_t n = GET_C(I) - 1;
 			if (n == ALO_MULTIRET) {
 				n = T->top - r;
 			}
@@ -855,22 +824,22 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_JMP: {
-			if (xA) {
+			if (GET_xA(I)) {
 				aloF_close(T, R(A));
 			}
-			pc += sBx;
+			pc += GET_sBx(I);
 			break;
 		}
 		case OP_JCZ: {
-			if (aloV_getbool(X(A)) == xC) {
-				pc += sBx;
+			if (aloV_getbool(X(A)) == GET_xC(I)) {
+				pc += GET_sBx(I);
 			}
 			break;
 		}
 		case OP_EQ: {
 			int flag;
 			protect(flag = aloV_equal(T, X(A), X(B)));
-			if (flag == xC) {
+			if (flag == GET_xC(I)) {
 				pc += 1;
 			}
 			break;
@@ -878,7 +847,7 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_LT: {
 			int flag;
 			protect(flag = aloV_compare(T, X(A), X(B), ALO_OPLT));
-			if (flag == xC) {
+			if (flag == GET_xC(I)) {
 				pc += 1;
 			}
 			break;
@@ -886,7 +855,7 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_LE: {
 			int flag;
 			protect(flag = aloV_compare(T, X(A), X(B), ALO_OPLE));
-			if (flag == xC) {
+			if (flag == GET_xC(I)) {
 				pc += 1;
 			}
 			break;
@@ -918,9 +887,9 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_CALL: {
 			askid_t r = R(A);
-			int nresult = yC - 1;
-			if (yB != 0) {
-				T->top = r + yB;
+			int nresult = GET_C(I) - 1;
+			if (GET_B(I) != 0) {
+				T->top = r + GET_B(I);
 			}
 			if (aloD_precall(T, r, nresult)) {
 				if (nresult >= 0) {
@@ -938,7 +907,7 @@ void aloV_invoke(astate T, int dofinish) {
 			aloF_close(T, base); /* close captures */
 			askid_t r = R(A);
 			askid_t f = frame->fun;
-			int narg = yB - 1; /* get argument count. */
+			int narg = GET_B(I) - 1; /* get argument count. */
 			if (narg == ALO_MULTIRET) {
 				narg = (T->top - r) - 1;
 			}
@@ -984,7 +953,7 @@ void aloV_invoke(astate T, int dofinish) {
 			tsetobj(T, r + 1, r);
 			T->top = r + 2;
 			int c;
-			if (!aloD_rawcall(T, r + 1, yC - 1, &c)) { /* can be execute by this function */
+			if (!aloD_rawcall(T, r + 1, GET_C(I) - 1, &c)) { /* can be execute by this function */
 				frame = T->frame;
 				goto invoke; /* execute it */
 			}
@@ -998,7 +967,7 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_RET: {
 			aloF_close(T, base); /* close captures */
 			askid_t r = R(A);
-			int nres = yB - 1;
+			int nres = GET_B(I) - 1;
 			if (nres == ALO_MULTIRET) {
 				nres = T->top - r;
 			}
@@ -1024,7 +993,7 @@ void aloV_invoke(astate T, int dofinish) {
 	 ** called when meta call for opcode not found, throw an error.
 	 */
 	notfound:
-	aloU_mnotfound(T, R(A), aloK_opname[insn]);
+	aloU_mnotfound(T, R(A), aloK_opname[GET_i(I)]);
 
 	/**
 	 ** finish block, used for call after 'yield'
@@ -1035,18 +1004,18 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_UNBOX: {
 		int succ;
 		int n = T->top - R(A);
-		if (xC) {
-			succ = yC <= n;
+		if (GET_xC(I)) {
+			succ = GET_C(I) <= n;
 		}
 		else {
-			succ = yC == n;
+			succ = GET_C(I) == n;
 			T->top = frame->top;
 		}
 		pc += succ;
 		break;
 	}
 	case OP_CALL:
-		if (yC) {
+		if (GET_C(I)) {
 			T->top = frame->top;
 		}
 		break;
@@ -1073,7 +1042,7 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_SET:
 		break;
 	case OP_EQ: case OP_LT: case OP_LE:
-		if (tgetbool(--T->top) == xC) {
+		if (tgetbool(--T->top) == GET_xC(I)) {
 			pc += 1;
 		}
 		break;

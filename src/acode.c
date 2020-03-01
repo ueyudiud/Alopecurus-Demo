@@ -284,17 +284,8 @@ void aloK_eval(afstat_t* f, aestat_t* e) {
 	}
 	case E_INDEXED: {
 		typeof(e->v.d) d = e->v.d;
-		if (e->v.d.k < aloK_fastconstsize) { /* if value in register, the constant index is also small than fast constant size */
-			if (!d.fk) freereg(f, d.k);
-			if (!d.fo) freereg(f, d.o);
-		}
-		else {
-			aloK_nextreg(f, e);
-			int reg = e->v.g;
-			aloK_iABx(f, OP_LDC, false, true, reg, d.k);
-			freeexp(f, e);
-			freereg(f, d.o);
-		}
+		if (!d.fk) freereg(f, d.k);
+		if (!d.fo) freereg(f, d.o);
 		e->t = E_ALLOC;
 		e->v.g = aloK_iABC(f, OP_GET, false, d.fo, d.fk, 0, d.o, d.k);
 		break;
@@ -473,6 +464,9 @@ void aloK_member(afstat_t* f, aestat_t* o, aestat_t* k) {
 		size_t oindex = o->v.g;
 		o->v.d.fo = o->t == E_CONST;
 		o->v.d.o = oindex;
+		if (k->t == E_CONST && k->v.g >= aloK_fastconstsize) {
+			aloK_nextreg(f, k);
+		}
 		o->v.d.fk = k->t == E_CONST;
 		o->v.d.k = k->v.g;
 		o->t = E_INDEXED;

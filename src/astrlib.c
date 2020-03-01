@@ -197,16 +197,25 @@ typedef struct alo_CompileState {
 #define sgetc(M,s) ((M)->send == (s) ? EOS : *((s)++))
 
 /* matching continuation */
-typedef astr (*amcon_t)(astr);
+typedef void* amcon_t;
+
+struct alo_MatchContinuation {
+	astr (*handle)(amstat_t*, astr, void*);
+	abyte context[];
+};
+
+#define makec(n,f,t,as...) struct { typeof(f)* _f; t _as; } n = { f, { as } };
+
+#define callc(M,c,s) \
+	({ \
+		struct alo_MatchContinuation* _con = aloE_cast(struct alo_MatchContinuation*, c); \
+		_con ? _con->handle(M, s, _con->context) : s; \
+	})
 
 /* matching function */
 typedef astr (*amfun_t)(amstat_t*, amnode_t*, astr, amcon_t);
 
 /* matcher function */
-static astr nocon(astr s) {
-	return s; /* identical function */
-}
-
 static astr matchx(amstat_t*, amnode_t*, astr, amcon_t);
 
 #define matchs(M,node,s,con) \
@@ -238,28 +247,16 @@ static int match_class(int ch, int cl) {
 
 static const amfun_t handles[];
 
-/**
- ** scoped lambda supporting
- */
-#ifdef __clang__
-#include <Block.h>
-#define _lambda(name,params...) (^name)(params) = ^(params)
-#define _captured __block
-#else
-#define _lambda(name,params...) (name)(params)
-#define _captured
-#endif
-
 static astr m_bol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
-	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') ? con(s) : NULL;
+	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') ? callc(M, con, s) : NULL;
 }
 
 static astr m_eol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
-	return (s == M->send || s[1] == '\r' || s[1] == '\n') ? con(s) : NULL;
+	return (s == M->send || s[1] == '\r' || s[1] == '\n') ? callc(M, con, s) : NULL;
 }
 
 static astr m_chr(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
-	return node->data == sgetc(M, s) ? con(s) : NULL;
+	return node->data == sgetc(M, s) ? callc(M, con, s) : NULL;
 }
 
 static astr m_str(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
@@ -282,7 +279,7 @@ static astr m_str(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 		goto next;
 	}
 	}
-	return con(s);
+	return callc(M, con, s);
 }
 
 static astr m_set(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
@@ -294,19 +291,19 @@ static astr m_set(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	while (*p) {
 		if (*p == '\\') {
 			if (match_class(*(p + 1), ch) != node->extra) {
-				return con(s);
+				return callc(M, con, s);
 			}
 			p += 1;
 		}
 		if (*(p + 1) == '-') {
 			if ((*p <= ch && ch <= *(p + 2)) != node->extra) {
-				return con(s);
+				return callc(M, con, s);
 			}
 			p += 3;
 		}
 		else {
 			if ((*p == ch) != node->extra) {
-				return con(s);
+				return callc(M, con, s);
 			}
 			p += 1;
 		}
@@ -314,28 +311,49 @@ static astr m_set(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	return NULL;
 }
 
-static astr m_sub(_captured amstat_t* M, _captured amnode_t* node, _captured astr s, amcon_t con) {
-	astr _lambda(con1, astr t) {
-		M->groups[node->extra] = (amgroup_t) { s, t }; /* settle group position */
-		return con(t);
-	};
+struct context_sub {
+	astr begin;
+	amcon_t con;
+	abyte index;
+};
+
+static astr subcon(amstat_t* M, astr s, struct context_sub* context) {
+	M->groups[context->index] = (amgroup_t) { context->begin, s }; /* settle group position */
+	return callc(M, context->con, s);
+}
+
+static astr m_sub(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
+	makec(con1, subcon, struct context_sub, s, con, node->extra);
 	astr e;
+	amgroup_t* group = &M->groups[node->extra];
+	group->begin = NULL;
 	for (size_t i = 0; i < node->data; ++i) {
-		if ((e = matchs(M, node->arr[i], s, node->extra > 0 ? con1 : con))) {
+		if ((e = matchs(M, node->arr[i], s, node->extra > 0 ? &con1 : con))) {
+			group->begin = group->begin ?: s;
 			return e;
 		}
 	}
 	return NULL;
 }
 
-static astr seqcheck(_captured amstat_t* M, _captured amnode_t* node, astr s, _captured amcon_t con, _captured size_t index) {
-	astr _lambda(con1, astr e) {
-		if (M->depth-- == 0) {
-			aloL_error(M->T, 2, "matching string is too complex.");
-		}
-		return seqcheck(M, node, e, con, index + 1);
-	};
-	return matchs(M, node->arr[index], s, index + 1 == node->data ? con : con1);
+struct context_seq {
+	amnode_t* node;
+	amcon_t con;
+	size_t index;
+};
+
+static astr seqcheck(amstat_t*, amnode_t*, astr, amcon_t, size_t);
+
+static astr seqcon(amstat_t* M, astr s, struct context_seq* context) {
+	if (M->depth-- == 0) {
+		aloL_error(M->T, 2, "matching string is too complex.");
+	}
+	return seqcheck(M, context->node, s, context->con, context->index + 1);
+}
+
+static astr seqcheck(amstat_t* M, amnode_t* node, astr s, amcon_t con, size_t index) {
+	makec(con1, seqcon, struct context_seq, node, con, index);
+	return matchs(M, node->arr[index], s, index + 1 == node->data ? con : &con1);
 }
 
 static astr m_seq(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
@@ -343,6 +361,17 @@ static astr m_seq(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 }
 
 static const amfun_t handles[] = { NULL, m_bol, m_eol, m_chr, m_str, m_set, m_sub, m_seq };
+
+struct context_greedy {
+	amfun_t handle;
+	amnode_t* node;
+	amcon_t con;
+};
+
+static astr greedycon(amstat_t* M, astr s, struct context_greedy* context) {
+	astr e = context->handle(M, context->node, s, NULL);
+	return e && (e = greedycon(M, e, context)) ? e : callc(M, context->con, s);
+}
 
 static astr matchx(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	if (M->depth-- == 0) {
@@ -354,29 +383,26 @@ static astr matchx(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 		return handle(M, node, s, con);
 	}
 	case M_MORE: {
-		if (!(s = handle(M, node, s, nocon))) {
+		if (!(s = handle(M, node, s, NULL))) {
 			return NULL;
 		}
 	case M_ANY: {}
 		astr t;
-		do if ((t = con(s))) {
+		do if ((t = callc(M, con, s))) {
 			return t;
 		}
-		while ((s = handle(M, node, s, nocon)));
+		while ((s = handle(M, node, s, NULL)));
 		return NULL;
 	}
 	case M_MOREG: case M_ANYG: {
-		astr _lambda(cong, astr t) {
-			astr e = handle(M, node, t, nocon);
-			return e && (e = cong(e)) ? e : con(t);
-		};
-		return handle(M, node, s, cong) ?: node->mode == M_ANYG ? con(s) : NULL;
+		makec(con1, greedycon, struct context_greedy, handle, node, con);
+		return handle(M, node, s, &con1) ?: node->mode == M_ANYG ? callc(M, con, s) : NULL;
 	}
 	case M_OPT: {
-		return con(s) ?: handle(M, node, s, con);
+		return callc(M, con, s) ?: handle(M, node, s, con);
 	}
 	case M_OPTG: {
-		return handle(M, node, s, con) ?: con(s);
+		return handle(M, node, s, con) ?: callc(M, con, s);
 	}
 	default: { /* illegal error */
 		return NULL;
@@ -391,15 +417,21 @@ static void minit(amstat_t* M, astate T, astr src, size_t len, amgroup_t* groups
 	M->groups = groups;
 }
 
+struct context_full {
+	astr end;
+};
+
+static astr fullcon(amstat_t* M, astr s, struct context_full* context) {
+	return s == context->end ? s : NULL;
+}
+
 static int match(amstat_t* M, amnode_t* node, astr s, int full) {
 	M->depth = MAX_MATCH_DEPTH;
 	amgroup_t* group = &M->groups[0];
 	group->begin = group->end = NULL;
 	astr begin = s, end = M->send;
-	astr _lambda(fullcon, astr s) {
-		return s == end ? s : NULL;
-	};
-	end = matchx(M, node, s, full ? fullcon : nocon);
+	makec(con1, fullcon, struct context_full, end);
+	end = matchx(M, node, s, full ? &con1 : NULL);
 	if (end) {
 		group->begin = group->begin ?: begin;
 		group->end = group->end ?: end;
