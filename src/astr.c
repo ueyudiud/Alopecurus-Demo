@@ -93,6 +93,9 @@ static void expandtable(astate T, aitable_t* table) {
 	table->array = array;
 }
 
+/**
+ ** get or create a interned string object from table.
+ */
 static astring_t* intern(astate T, const char* src, size_t len) {
 	aloE_assert(src, "source should not be null.");
 	Gd(T);
@@ -126,7 +129,7 @@ static astring_t* intern(astate T, const char* src, size_t len) {
 }
 
 /**
- ** create a long string object
+ ** create a long string object.
  */
 astring_t* aloS_createlng(astate T, size_t len) {
 	aloE_assert(len > ALO_MAXISTRLEN, "too short to store in heap");
@@ -135,12 +138,18 @@ astring_t* aloS_createlng(astate T, size_t len) {
 	return value;
 }
 
+/**
+ ** create a string object in heap.
+ */
 static astring_t* heap(astate T, const char* src, size_t len) {
 	astring_t* value = aloS_createlng(T, len);
 	memcpy(value->array, src, len * sizeof(char));
 	return value;
 }
 
+/**
+ ** remove short string in cache.
+ */
 void aloS_remove(astate T, astring_t* self) {
 	Gd(T);
 	astring_t** s = &G->itable.array[indexof(G->itable, self->hash)];
@@ -168,7 +177,7 @@ astring_t* aloS_new(astate T, const char* src, size_t len) {
  ** create a fixed string.
  */
 astring_t* aloS_newi(astate T, const char* src, size_t len) {
-	if (len == 0) {
+	if (len == 0) { /* empty string? */
 		return T->g->sempty;
 	}
 	astring_t* s = aloS_new(T, src, len);
@@ -232,6 +241,9 @@ void aloS_init(astate T) {
 	aloG_fix(T, G->smerrmsg);
 }
 
+/**
+ ** resize short string cache.
+ */
 void aloS_resizecache(astate T, size_t size) {
 	Gd(T);
 	aitable_t* table = &G->itable;
@@ -256,9 +268,12 @@ void aloS_resizecache(astate T, size_t size) {
 	table->capacity = size;
 }
 
+/**
+ ** clean short string cache.
+ */
 void aloS_cleancache(astate T) {
 	Gd(T);
-	if (T->g->itable.length == 0) { /* if string table is not initialized*/
+	if (T->g->itable.length == 0) { /* if string table is not initialized */
 		return;
 	}
 	for (int i = 0; i < ALO_STRCACHE_N; ++i) {
