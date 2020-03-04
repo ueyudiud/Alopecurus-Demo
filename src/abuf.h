@@ -30,7 +30,7 @@ typedef struct alo_IBuf aibuf_t;
 #define aloB_close(T,b) ({ if ((b).instk != (b).buf) aloB_bcloseaux(T, &(b)); })
 
 #define aloB_iopen(b,reader,context) (*(b) = (aibuf_t) { NULL, 0, reader, context })
-#define aloB_iget(T,b) ((b)->len > 0 ? ((b)->len--, *((b)->pos++)) : aloB_ifill_(T, b))
+#define aloB_iget(T,b) ((b)->len > 0 ? ((b)->len--, aloE_byte(*((b)->pos++))) : aloB_ifill_(T, b))
 
 #define aloB_tostr(T,b) aloS_new(T, aloE_cast(char*, (b).buf), (b).len)
 
