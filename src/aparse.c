@@ -185,6 +185,13 @@ static void initproto(astate T, afstat_t* f) {
 	f->nconst = 2;
 }
 
+static void closelineinfo(astate T, afstat_t* f) {
+	aloM_adjb(T, f->p->lineinfo, f->p->nlineinfo, f->nline + 1); /* close line info array */
+	alineinfo_t* info = &f->p->lineinfo[f->nline];
+	info->begin = f->ncode;
+	info->line = f->l->pl; /* set last line defined of prototype as last line info */
+}
+
 static void closeproto(astate T, afstat_t* f) {
 	aproto_t* p = f->p;
 	p->lineldef = f->l->pl;
@@ -193,7 +200,7 @@ static void closeproto(astate T, afstat_t* f) {
 	aloM_adjb(T, p->captures, p->ncap, f->ncap);
 	aloM_adjb(T, p->locvars, p->nlocvar, f->nlocvar);
 	aloM_adjb(T, p->children, p->nchild, f->nchild);
-	aloM_adjb(T, p->lineinfo, p->nlineinfo, f->nline);
+	closelineinfo(T, f);
 }
 
 static void enterblock(afstat_t* f, ablock_t* b, int isloop) {
@@ -276,7 +283,6 @@ static void rootstats(alexer_t* lex) {
 	if (!stats(lex)) {
 		aloK_return(lex->f, 0, 0); /* add return statement if no statement exist */
 	}
-	test(lex, TK_EOF); /* should compile to end of script */
 }
 
 static int varexpr(alexer_t* lex, aestat_t* e) {
@@ -1581,6 +1587,7 @@ void pparse(astate T, void* raw) {
 	initproto(T, &f);
 	enterblock(&f, &b, false);
 	rootstats(&ctx->lex);
+	test(&ctx->lex, TK_EOF); /* should compile to end of script */
 	leaveblock(&f);
 	closeproto(T, &f);
 }

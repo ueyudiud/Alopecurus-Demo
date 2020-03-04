@@ -138,6 +138,7 @@ int alo_growbuf(astate T, ambuf_t* buf, size_t req) {
 
 void alo_delbuf(astate T, ambuf_t* buf) {
 	aloB_close(T, *buf);
+	buf->buf = NULL; /* force to close buffer */
 }
 
 void aloB_puts(astate T, ambuf_t* buf, const char* src) {
