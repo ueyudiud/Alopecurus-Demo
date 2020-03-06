@@ -86,13 +86,14 @@ static int compilec(astate T, astr name, int strict) {
 #define MAXINPUT 1024
 
 /**
- ** read line from stdin.
+ ** read line from standard input stream.
  */
 static char* readline(astate T) {
 	static char buf[MAXINPUT + 1];
-	char* p = fgets(buf, MAXINPUT, stdin);
+	char* p = fgets(buf, MAXINPUT + 1, stdin);
 	if (p == NULL) {
 		if (feof(stdin)) {
+			alo_deletestate(T);
 			exit(EXIT_SUCCESS);
 		}
 		alo_pushstring(T, strerror(errno));
