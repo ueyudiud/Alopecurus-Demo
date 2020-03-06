@@ -2,7 +2,7 @@
 Alopecurus is a light script language run on VM.
 ## Getting Started
 ### Compilation
-**This project is only compilable with gcc or Clang for now.**
+**This project is compatible with gcc and Clang.**
 
 To build the project in Microsoft Windows, run the following command in `src` directory .
 ```
