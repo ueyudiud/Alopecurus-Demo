@@ -86,7 +86,7 @@ void aloB_bcloseaux(astate T, ambuf_t* buf) {
 }
 
 void aloB_bgrow_(astate T, ambuf_t* buf) {
-	aloE_assert(buf->length == buf->capacity, "buffer not full filled.");
+	aloE_assert(buf->len == buf->cap, "buffer not full filled.");
 	aloB_lock(buf);
 	size_t ncap = aloM_growsize(T, buf->cap, ALO_MBUF_LIMIT);
 	if (isinner(buf)) {
