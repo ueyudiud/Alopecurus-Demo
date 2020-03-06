@@ -44,15 +44,25 @@ static void jmplist(afstat_t* f, int list) {
 	while ((list = next) != NO_JUMP);
 }
 
+static void checkline(afstat_t* f) {
+	int line = f->l->pl;
+	if (f->lastline != line) {
+		aloM_chkb(f->l->T, f->p->lineinfo, f->p->nlineinfo, f->nline, ALO_MAX_BUFSIZE);
+		alineinfo_t* info = f->p->lineinfo + f->nline++;
+		info->begin = f->ncode;
+		f->lastline = info->line = line; /* settle line number */
+	}
+}
+
 size_t aloK_insn(afstat_t* f, ainsn_t insn) {
 	if (f->cjump != NO_JUMP) {
 		jmplist(f, f->cjump);
 		f->cjump = NO_JUMP;
 	}
+	checkline(f);
 	aloM_chkb(f->l->T, f->p->code, f->p->ncode, f->ncode, ALO_MAX_BUFSIZE);
 	size_t pc = f->ncode++;
 	f->p->code[pc] = insn;
-	aloK_fixline(f, f->l->pl);
 	return pc;
 }
 
@@ -224,13 +234,14 @@ int aloK_jumpforward(afstat_t* f, int index) {
 
 void aloK_jumpbackward(afstat_t* f, int index) {
 	alabel* label = f->d->lb.a + index;
-	aloK_iAsBx(f, OP_JMP, label->nactvar != f->nactvar, false, f->nactvar, getoffset(label->pc, f->ncode));
+	aloK_iAsBx(f, OP_JMP, label->nactvar != f->nactvar, false, label->nactvar, getoffset(label->pc, f->ncode));
 }
 
 void aloK_fixline(afstat_t* f, int line) {
 	if (f->lastline != line) {
 		alineinfo_t* infos = f->p->lineinfo;
-		if (f->nline > 0 && infos[f->nline - 1].begin == f->ncode - 1) { /* is line begin here */
+		aloE_assert(f->nline > 0, "no code to fix line.");
+		if (infos[f->nline - 1].begin == f->ncode - 1) { /* is line begin here */
 			if (f->nline == 1 || infos[f->nline - 2].line != line) { /* not fit to previous line */
 				infos[f->nline - 1].line = line;
 			}
@@ -265,7 +276,10 @@ static void fixR(afstat_t*, aestat_t*, int);
 
 static void newR(afstat_t* f, aestat_t* e) {
 	aloK_checkstack(f, 1);
-	fixR(f, e, f->freelocal++);
+	int index = f->freelocal;
+	fixR(f, e, index);
+	aloE_xassert(f->freelocal == index);
+	f->freelocal++;
 }
 
 #define move(f,a,xb,b) aloK_iABC(f, OP_MOV, false, xb, false, a, b, 0)
@@ -405,32 +419,15 @@ static void fixR(afstat_t* f, aestat_t* e, int reg) {
  ** get new temporary register and put expression into it.
  */
 int aloK_nextreg(afstat_t* f, aestat_t* e) {
-	aloK_evalk(f, e);
-	freeexp(f, e);
+	if (!hasjump(e) || !(e->t == E_TRUE || e->t == E_FALSE)) { /* special cases for jump */
+		aloK_evalk(f, e);
+		freeexp(f, e);
+	}
 	newR(f, e);
 	return e->v.g;
 }
 
 void aloK_anyRK(afstat_t* f, aestat_t* e) {
-	aloK_evalk(f, e);
-	if (e->t == E_CONST) {
-		return;
-	}
-	else if (e->t == E_FIXED) {
-		if (!hasjump(e)) {
-			return;
-		}
-		else if (e->v.g >= f->freelocal) { /* temporary value */
-			fixregaux(f, e, e->v.g);
-			return;
-		}
-	}
-	freeexp(f, e);
-	newR(f, e);
-}
-
-void aloK_anyR(afstat_t* f, aestat_t* e) {
-	aloK_evalk(f, e);
 	if (e->t == E_FIXED) {
 		if (!hasjump(e)) {
 			return;
@@ -439,6 +436,29 @@ void aloK_anyR(afstat_t* f, aestat_t* e) {
 			fixregaux(f, e, e->v.g);
 			return;
 		}
+	}
+	else {
+		aloK_evalk(f, e);
+		if (e->t == E_CONST) {
+			return;
+		}
+	}
+	freeexp(f, e);
+	newR(f, e);
+}
+
+void aloK_anyR(afstat_t* f, aestat_t* e) {
+	if (e->t == E_FIXED) {
+		if (!hasjump(e)) {
+			return;
+		}
+		else if (e->v.g >= f->freelocal) { /* temporary value */
+			fixregaux(f, e, e->v.g);
+			return;
+		}
+	}
+	else {
+		aloK_evalk(f, e);
 	}
 	freeexp(f, e);
 	newR(f, e);
@@ -766,6 +786,7 @@ void aloK_gwt(afstat_t* f, aestat_t* e) {
 	}
 	linkcjmp(f, &e->lf, label);
 	aloK_putlabel(f, e->lt);
+	e->t = E_TRUE;
 	e->lt = NO_JUMP;
 }
 
@@ -793,6 +814,7 @@ void aloK_gwf(afstat_t* f, aestat_t* e) {
 	}
 	linkcjmp(f, &e->lt, label);
 	aloK_putlabel(f, e->lf);
+	e->t = E_FALSE;
 	e->lf = NO_JUMP;
 }
 
@@ -928,7 +950,7 @@ static void codenot(afstat_t* f, aestat_t* e) {
 		flipcond(f, e->v.g);
 		break;
 	default: {
-		aloK_anyRK(f, e);
+		aloK_anyR(f, e);
 		freeexp(f, e);
 		e->t = E_JMP;
 		e->v.g = putjump(f, NO_JUMP, OP_JCZ, true, false, e->v.g);
@@ -1000,18 +1022,21 @@ static int cmpjmp(afstat_t* f, aestat_t* l, aestat_t* r, int op, int cond) {
 }
 
 void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
+	int label;
 	switch (op) {
 	case OPR_AND:
 		aloE_assert(l->lt == NO_JUMP, "illegal jump label");
 		aloK_gwt(f, r);
-		linkcjmp(f, &r->lf, l->lf);
+		label = l->lf;
 		*l = *r;
+		linkcjmp(f, &l->lf, label);
 		break;
 	case OPR_OR:
 		aloE_assert(l->lf == NO_JUMP, "illegal jump label");
 		aloK_gwf(f, r);
-		linkcjmp(f, &r->lt, l->lt);
+		label = l->lt;
 		*l = *r;
+		linkcjmp(f, &l->lt, label);
 		break;
 	case OPR_ADD ... OPR_BXOR:
 		if (foldbinary(f, l, r, op + ALO_OPADD - OPR_ADD)) {

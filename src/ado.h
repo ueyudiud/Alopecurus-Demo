@@ -42,6 +42,7 @@ void aloD_growstack(astate, size_t);
 void aloD_reallocstack(astate, size_t);
 int aloD_prun(astate, apfun, void*);
 anoret aloD_throw(astate, int);
+void aloD_hook(astate, int, int);
 int aloD_rawcall(astate, askid_t, int, int*);
 int aloD_precall(astate, askid_t, int);
 void aloD_postcall(astate, askid_t, int);

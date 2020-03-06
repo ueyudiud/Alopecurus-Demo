@@ -12,6 +12,7 @@
 
 #include "aobj.h"
 #include "ameta.h"
+#include "alo.h"
 
 #include <signal.h>
 
@@ -113,6 +114,7 @@ struct alo_Frame {
 			abyte fypc : 1; /* is function calling in yieldable protection */
 			abyte fact : 1; /* is active calling by VM */
 			abyte fitr : 1; /* is iterator 'hasNext' checking */
+			abyte fhook: 1; /* is frame calling a hook */
 		};
 		abyte flags;
 	};
@@ -133,7 +135,8 @@ struct alo_Thread {
 				abyte fallowhook : 1;
 			};
 			abyte flags;
-		}
+		};
+		abyte hookmask; /* hook mask */
 	);
 	aglobal_t* g; /* global state */
 	athread_t* caller;
@@ -144,6 +147,7 @@ struct alo_Thread {
 	size_t stacksize; /* current stack size */
 	ajmp_t* label;
 	ambuf_t* memstk; /* memory stack */
+	ahfun hook;
 	aframe_t base_frame;
 	int berrno; /* buffer error */
 	uint16_t nframe; /* frame depth */

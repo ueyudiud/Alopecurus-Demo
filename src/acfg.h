@@ -46,6 +46,12 @@
 #define ALO_STRICT_NUMTYPE false
 
 /**
+ ** when enable this option, the runtime debugger and related tools
+ ** will be available.
+ */
+#define ALO_RUNTIME_DEBUG true
+
+/**
  ** optional macro list:
  ** - ALO_HARDMEMTEST
  ** 	when enable this option, the VM will do strict GC and stack allocation.

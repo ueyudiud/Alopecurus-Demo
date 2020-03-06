@@ -87,6 +87,9 @@ static void preinit(astate T, aglobal_t* G) {
 	T->base_frame.c.kfun = NULL;
 	T->base_frame.c.ctx = NULL;
 	T->captures = NULL;
+	T->hook = NULL;
+	T->hookmask = 0;
+	T->fallowhook = true;
 }
 
 astate alo_newstate(aalloc alloc, void* ctx) {

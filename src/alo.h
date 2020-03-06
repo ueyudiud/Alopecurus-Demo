@@ -216,10 +216,31 @@ ALO_API int alo_vformat(astate, awriter, void*, astr, va_list);
 
 typedef struct alo_FrameDebug aframeinfo_t;
 
+/* hook function type, the function will be called in specific events */
+typedef void (*ahfun)(astate, aframeinfo_t*);
+
 ALO_API void alo_getframe(astate, astr, aframeinfo_t*);
 ALO_API int alo_prevframe(astate, astr, aframeinfo_t*);
 
+#define ALO_HMASKCALL  (1 << 0)
+#define ALO_HMASKRET   (1 << 1)
+#define ALO_HMASKLINE  (1 << 2)
+#define ALO_HMASKCOUNT (1 << 2)
+
+#if ALO_RUNTIME_DEBUG
+
+ALO_API void alo_sethook(astate, ahfun, int, int);
+ALO_API ahfun alo_gethook(astate);
+ALO_API int alo_gethookmask(astate);
+
+#else
+
+#define alo_sethook(T,fun,mask,count)
+
+#endif
+
 struct alo_FrameDebug {
+	int event;
 	astr name; /* apply by 'n' */
 	astr kind; /* kind of frame, apply by 'n' */
 	astr src; /* apply by 's' */

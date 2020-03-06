@@ -16,6 +16,7 @@
 
 void aloU_init(astate);
 astr aloU_getcname(astate, acfun);
+alineinfo_t* aloU_lineof(aproto_t*, const ainsn_t*);
 void aloU_bind(astate, acfun, astring_t*);
 void aloU_clearbuf(astate);
 
