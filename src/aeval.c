@@ -19,6 +19,7 @@
 #include "adebug.h"
 #include "ado.h"
 #include "aeval.h"
+#include "alo.h"
 
 #include <math.h>
 
@@ -488,6 +489,8 @@ int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in
 #define checkGC(T,t) aloG_xcheck(T, (T)->top = (t), (T)->top = frame->top)
 #define protect(x) ({ x; base = frame->a.base; })
 
+#define decapture(c) ({ atval_t* _co = c; ttiscap(_co) ? tgetcap(_co)->p : _co; })
+
 /**
  ** invoke Alopecurus function.
  */
@@ -498,10 +501,13 @@ void aloV_invoke(astate T, int dofinish) {
 	askid_t base;
 	aproto_t* proto;
 	const ainsn_t** ppc;
+#if ALO_RUNTIME_DEBUG
+	alineinfo_t* line;
+#endif
 
 #define R(op) (base + GET_##op(I))
 #define K(op) (consts + GET_##op(I))
-#define S(op) ({ ainsn_t _id = GET_##op(I); aloK_iscapture(_id) ? &closure->delegate + aloK_getcapture(_id) : base + aloK_getstack(_id); })
+#define S(op) ({ ainsn_t _id = GET_##op(I); aloK_iscapture(_id) ? decapture(&closure->delegate + aloK_getcapture(_id)) : base + aloK_getstack(_id); })
 #define X(op) (GET_x##op(I) ? K(op) : S(op))
 
 	invoke: {
@@ -510,6 +516,17 @@ void aloV_invoke(astate T, int dofinish) {
 		ppc = &frame->a.pc;
 		proto = closure->a.proto;
 		consts = proto->consts;
+
+/* macros for main interpreting */
+#define pc (*ppc)
+
+#if ALO_RUNTIME_DEBUG
+		line = aloU_lineof(proto, pc);
+		if (pc - proto->code != 0 && (T->hookmask & ALO_HMASKLINE)) {
+			aloD_hook(T, ALO_HMASKLINE, line->line);
+		}
+		line += 1;
+#endif
 		base = frame->a.base;
 
 		frame->fact = true; /* start active */
@@ -523,13 +540,16 @@ void aloV_invoke(astate T, int dofinish) {
 		goto finish;
 	}
 
-/* macros for main interpreting */
-#define pc (*ppc)
-
 	normal:
 	while (true) {
 		I = *pc;
 		pc += 1;
+#if ALO_RUNTIME_DEBUG
+		if (pc - proto->code >= line->begin) {
+			protect(aloD_hook(T, ALO_HMASKLINE, line->line));
+			line += 1;
+		}
+#endif
 		switch (GET_i(I)) { /* get instruction */
 		case OP_MOV: {
 			tsetobj(T, S(A), X(B));
@@ -828,11 +848,12 @@ void aloV_invoke(astate T, int dofinish) {
 				aloF_close(T, R(A));
 			}
 			pc += GET_sBx(I);
-			break;
+			goto jmp;
 		}
 		case OP_JCZ: {
 			if (aloV_getbool(X(A)) == GET_xC(I)) {
 				pc += GET_sBx(I);
+				goto jmp;
 			}
 			break;
 		}
@@ -841,6 +862,7 @@ void aloV_invoke(astate T, int dofinish) {
 			protect(flag = aloV_equal(T, X(A), X(B)));
 			if (flag == GET_xC(I)) {
 				pc += 1;
+				goto jmp;
 			}
 			break;
 		}
@@ -849,6 +871,7 @@ void aloV_invoke(astate T, int dofinish) {
 			protect(flag = aloV_compare(T, X(A), X(B), ALO_OPLT));
 			if (flag == GET_xC(I)) {
 				pc += 1;
+				goto jmp;
 			}
 			break;
 		}
@@ -857,6 +880,7 @@ void aloV_invoke(astate T, int dofinish) {
 			protect(flag = aloV_compare(T, X(A), X(B), ALO_OPLE));
 			if (flag == GET_xC(I)) {
 				pc += 1;
+				goto jmp;
 			}
 			break;
 		}
@@ -990,6 +1014,20 @@ void aloV_invoke(astate T, int dofinish) {
 	}
 
 	/**
+	 ** called when pc take a jump.
+	 */
+	jmp: {
+#if ALO_RUNTIME_DEBUG
+		alineinfo_t* nl = aloU_lineof(proto, pc);
+		if (nl->line != line[-1].line) {
+			protect(aloD_hook(T, ALO_HMASKLINE, nl->line));
+		}
+		line = nl;
+#endif
+		goto normal;
+	}
+
+	/**
 	 ** called when meta call for opcode not found, throw an error.
 	 */
 	notfound:
@@ -1044,6 +1082,7 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_EQ: case OP_LT: case OP_LE:
 		if (tgetbool(--T->top) == GET_xC(I)) {
 			pc += 1;
+			goto jmp;
 		}
 		break;
 	default:

@@ -133,10 +133,13 @@ void aloU_clearbuf(astate T) {
 	aloM_delb(T, table->array, table->capacity);
 }
 
-static int lineof(alineinfo_t* ls, size_t nl, size_t index) {
+alineinfo_t* aloU_lineof(aproto_t* proto, const ainsn_t* pc) {
+	alineinfo_t* ls = proto->lineinfo;
 	if (ls == NULL)
-		return 0; /* no line information provided */
-	size_t h = nl - 1, l = 0, m;
+		return NULL; /* no line information provided */
+	ptrdiff_t index = pc - proto->code;
+	aloE_assert(index >= 0, "illegal code.");
+	size_t h = proto->nlineinfo - 1, l = 0, m;
 	while (l + 1 < h) {
 		m = (l + h) / 2;
 		if (ls[m].begin > index) {
@@ -146,11 +149,13 @@ static int lineof(alineinfo_t* ls, size_t nl, size_t index) {
 			l = m;
 		}
 		else {
-			return ls[m].line;
+			return ls + m;
 		}
 	}
-	return ls[l].line;
+	return ls + l;
 }
+
+#define lineof(p,i) ({ alineinfo_t* _info = aloU_lineof(p,i); _info ? _info->line : 0; })
 
 static void write_stacktrace(astate T, ambuf_t* buf, int level) {
 	aframe_t* frame = T->frame;
@@ -161,7 +166,7 @@ static void write_stacktrace(astate T, ambuf_t* buf, int level) {
 		if (frame->falo) {
 			aproto_t* p = tgetclo(frame->fun)->a.proto;
 			src = p->src->array;
-			line = lineof(p->lineinfo, p->nlineinfo, frame->a.pc - p->code);
+			line = lineof(p, frame->a.pc);
 		}
 		else {
 			src = NATIVE_SOURCE;
@@ -254,7 +259,7 @@ static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {
 	if (strchr(what, 'l')) {
 		if (frame->falo) {
 			aproto_t* proto = tgetclo(frame->fun)->a.proto;
-			info->line = lineof(proto->lineinfo, proto->nlineinfo, frame->a.pc - proto->code);
+			info->line = lineof(proto, frame->a.pc);
 		}
 		else {
 			info->line = -1;
@@ -274,3 +279,24 @@ int alo_prevframe(__attribute__((unused)) astate T, astr what, aframeinfo_t* inf
 	getframeinfo(frame->prev, what, info);
 	return true;
 }
+
+#if ALO_RUNTIME_DEBUG
+
+void alo_sethook(astate T, ahfun fun, int mask, int count) {
+	if (fun == NULL || mask == 0) {
+		fun = NULL;
+		mask = 0;
+	}
+	T->hook = fun;
+	T->hookmask = aloE_byte(mask);
+}
+
+ahfun alo_gethook(astate T) {
+	return T->hook;
+}
+
+int alo_gethookmask(astate T) {
+	return T->hookmask;
+}
+
+#endif

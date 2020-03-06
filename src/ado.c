@@ -12,6 +12,7 @@
 #include "adebug.h"
 #include "avm.h"
 #include "ado.h"
+#include "alo.h"
 
 #include <stdlib.h>
 
@@ -122,6 +123,33 @@ anoret aloD_throw(astate T, int status) {
 	}
 }
 
+void aloD_hook(astate T, int event, int line) {
+#if ALO_RUNTIME_DEBUG
+	ahfun hook = T->hook;
+	if (hook && T->fallowhook) {
+		aframe_t* frame = T->frame;
+		ptrdiff_t top = getstkoff(T, T->top);
+		ptrdiff_t ftop = getstkoff(T, frame->top);
+		aframeinfo_t info;
+		info.event = event;
+		info.line = line;
+		info._frame = frame;
+		aloD_checkstack(T, ALO_MINSTACKSIZE);
+		T->frame->top = T->top + ALO_MINSTACKSIZE;
+		T->fallowhook = false;
+		frame->fhook = true;
+
+		hook(T, &info);
+
+		aloE_assert(!T->fallowhook, "hook should not allowed.");
+		T->fallowhook = true;
+		T->top = putstkoff(T, top);
+		frame->top = putstkoff(T, ftop);
+		frame->fhook = false;
+	}
+#endif
+}
+
 #define checkstack(T,n,f) aloD_checkstackaux(T, n, ptrdiff_t _off = getstkoff(T, f); aloG_check(T), f = putstkoff(T, _off))
 
 #define nextframe(T) ((T)->frame->next ?: aloR_pushframe(T))
@@ -190,6 +218,9 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 			frame->top = T->top + ALO_MINSTACKSIZE;
 			frame->flags = 0;
 			T->frame = frame;
+			if (T->hookmask & ALO_HMASKCALL) {
+				aloD_hook(T, ALO_HMASKCALL, -1);
+			}
 			int n = *nactual = caller(T);
 			aloE_assert(frame->fun + n <= T->top, "no enough elements in stack.");
 			aloD_postcall(T, T->top - n, n);
@@ -228,6 +259,9 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->a.pc = p->code;
 		T->frame = frame;
 		T->top = frame->top = base + p->nstack;
+		if (T->hookmask & ALO_HMASKCALL) {
+			aloD_hook(T, ALO_HMASKCALL, -1);
+		}
 		return false;
 	}
 	default: { /* not a function, try call meta method */
@@ -254,6 +288,13 @@ int aloD_precall(astate T, askid_t fun, int nresult) {
 
 void aloD_postcall(astate T, askid_t ret, int nresult) {
 	aframe_t* const frame = T->frame;
+#if ALO_RUNTIME_DEBUG
+	if (T->hookmask & ALO_HMASKRET) {
+		ptrdiff_t r = getstkoff(T, ret);
+		aloD_hook(T, ALO_HMASKRET, -1);
+		ret = putstkoff(T, r);
+	}
+#endif
 	askid_t res = frame->fun;
 	int expected = frame->nresult;
 	T->frame = frame->prev; /* back to previous frame */
