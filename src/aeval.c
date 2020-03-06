@@ -824,7 +824,7 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			aloV_concat(T, n);
 			checkGC(T, T->top);
-			goto finish;
+			break;
 		}
 		case OP_ACAT: {
 			atval_t* s = S(A);
