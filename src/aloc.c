@@ -99,8 +99,13 @@ static void dump(astate T, aproto_t* p) {
 			prtrk(T, p, GET_B(code), GET_xB(code));
 			break;
 		case OP_JMP:
-			prtreg(T, p, GET_A(code));
-			printf(" %d", GET_sBx(code) + i + 2);
+			if (GET_xA(code)) {
+				prtreg(T, p, GET_A(code));
+				printf(" %d", GET_sBx(code) + i + 2);
+			}
+			else {
+				printf("%d", GET_sBx(code) + i + 2);
+			}
 			break;
 		case OP_JCZ:
 			prtreg(T, p, GET_A(code));
