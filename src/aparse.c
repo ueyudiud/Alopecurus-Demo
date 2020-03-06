@@ -901,6 +901,7 @@ static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
 		aloK_suffix(f, e, &v->expr, OPR_EQ, f->l->cl);
 		e->lf = *fail;
 		aloK_gwt(f, e);
+		e->t = E_TRUE;
 		*fail = e->lf;
 		break;
 	}
@@ -998,6 +999,7 @@ static void putvar(afstat_t* f, int* i, struct context_caseassign* ctx) {
 		ctx->e.lf = ctx->fail;
 		aloK_suffix(f, &ctx->e, &ctx->v->expr, OPR_EQ, f->l->cl);
 		aloK_gwt(f, &ctx->e);
+		ctx->e.t = E_TRUE;
 		ctx->fail = ctx->e.lf;
 		break;
 	default:

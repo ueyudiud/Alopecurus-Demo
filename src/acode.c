@@ -786,7 +786,6 @@ void aloK_gwt(afstat_t* f, aestat_t* e) {
 	}
 	linkcjmp(f, &e->lf, label);
 	aloK_putlabel(f, e->lt);
-	e->t = E_TRUE;
 	e->lt = NO_JUMP;
 }
 
@@ -814,7 +813,6 @@ void aloK_gwf(afstat_t* f, aestat_t* e) {
 	}
 	linkcjmp(f, &e->lt, label);
 	aloK_putlabel(f, e->lf);
-	e->t = E_FALSE;
 	e->lf = NO_JUMP;
 }
 
@@ -997,9 +995,11 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 	switch (op) {
 	case OPR_AND:
 		aloK_gwt(f, e);
+		e->t = E_TRUE;
 		break;
 	case OPR_OR:
 		aloK_gwf(f, e);
+		e->t = E_FALSE;
 		break;
 	case OPR_ADD ... OPR_BXOR:
 	case OPR_EQ ... OPR_GE:
@@ -1027,6 +1027,7 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 	case OPR_AND:
 		aloE_assert(l->lt == NO_JUMP, "illegal jump label");
 		aloK_gwt(f, r);
+		r->t = E_TRUE;
 		label = l->lf;
 		*l = *r;
 		linkcjmp(f, &l->lf, label);
@@ -1034,6 +1035,7 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 	case OPR_OR:
 		aloE_assert(l->lf == NO_JUMP, "illegal jump label");
 		aloK_gwf(f, r);
+		r->t = E_FALSE;
 		label = l->lt;
 		*l = *r;
 		linkcjmp(f, &l->lt, label);
