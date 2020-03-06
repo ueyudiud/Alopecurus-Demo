@@ -829,7 +829,9 @@ void alo_rawsets(astate T, aindex_t idown, astr key) {
 	askid_t o = index2addr(T, idown);
 	askid_t v = T->top - 1;
 	api_check(T, ttistab(o), "illegal owner for 'rawsets'");
-	tsetobj(T, aloH_finds(T, tgettab(o), key, strlen(key)), v);
+	atable_t* table = tgettab(o);
+	tsetobj(T, aloH_finds(T, table, key, strlen(key)), v);
+	aloG_barrierbackt(T, table, v);
 	T->top -= 1;
 	aloG_check(T);
 }
