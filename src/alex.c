@@ -241,6 +241,7 @@ number:
 
 	int_val: {
 		lstore(lex, '\0');
+		errno = 0;
 		aint value = strtoll(lmake(lex), NULL, 0);
 		if (errno) {
 			lerror(lex, "fail to parse integer value: %s", strerror(errno));
@@ -253,6 +254,7 @@ number:
 
 	flt_val: {
 		afloat value = strtod(lmake(lex), NULL);
+		errno = 0;
 		if (errno) {
 			lerror(lex, "fail to parse float value: %s", strerror(errno));
 			return TK_ERR;
