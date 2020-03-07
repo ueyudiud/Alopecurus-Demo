@@ -1019,6 +1019,7 @@ static void pnewclosure(astate T, void* context) {
 }
 
 int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
+	askid_t top = T->top;
 	aclosure_t* c = NULL;
 	int status = aloD_prun(T, pnewclosure, &c);
 	if (status != ThreadStateRun) {
@@ -1026,7 +1027,6 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 	}
 	aibuf_t buf;
 	aproto_t* p;
-	askid_t top = T->top;
 	aloB_iopen(&buf, reader, context);
 	status = aloP_parse(T, src, &buf, &p);
 	if (p) { /* compile success */
