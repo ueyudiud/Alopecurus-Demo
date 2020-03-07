@@ -1009,14 +1009,26 @@ int alo_pcallk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	return status;
 }
 
+/**
+ ** create a new closure and push into top of stack, used to avoid memory error.
+ */
+static void pnewclosure(astate T, void* context) {
+	aclosure_t** p = aloE_cast(aclosure_t**, context);
+	*p = aloF_new(T, 0, NULL);
+	tsetclo(T, api_incrtop(T), *p); /* put closure into stack to avoid GC */
+}
+
 int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
+	aclosure_t* c = NULL;
+	int status = aloD_prun(T, pnewclosure, &c);
+	if (status != ThreadStateRun) {
+		return status;
+	}
 	aibuf_t buf;
-	aloB_iopen(&buf, reader, context);
-	aclosure_t* c = aloF_new(T, 0, NULL);
-	tsetclo(T, api_incrtop(T), c); /* put closure into stack to avoid GC */
 	aproto_t* p;
 	askid_t top = T->top;
-	int status = aloP_parse(T, src, &buf, &p);
+	aloB_iopen(&buf, reader, context);
+	status = aloP_parse(T, src, &buf, &p);
 	if (p) { /* compile success */
 		c->a.proto = p;
 		p->name = aloS_of(T, name);

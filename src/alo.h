@@ -227,17 +227,9 @@ ALO_API int alo_prevframe(astate, astr, aframeinfo_t*);
 #define ALO_HMASKLINE  (1 << 2)
 #define ALO_HMASKCOUNT (1 << 2)
 
-#if ALO_RUNTIME_DEBUG
-
 ALO_API void alo_sethook(astate, ahfun, int, int);
 ALO_API ahfun alo_gethook(astate);
 ALO_API int alo_gethookmask(astate);
-
-#else
-
-#define alo_sethook(T,fun,mask,count)
-
-#endif
 
 struct alo_FrameDebug {
 	int event;
