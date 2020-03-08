@@ -49,7 +49,7 @@ void aloL_newstringlist_(astate T, size_t size, ...) {
 	va_end(varg);
 }
 
-void aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
+anoret aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	astr s = alo_pushvfstring(T, fmt, varg);
@@ -57,11 +57,11 @@ void aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
 	aloL_error(T, 2, "illegal argument #%d: %s", (int) i, s);
 }
 
-void aloL_typeerror(astate T, aindex_t i, astr t) {
+anoret aloL_typeerror(astate T, aindex_t i, astr t) {
 	aloL_argerror(T, i, "type mismatched, expected: %s, got: %s", t, alo_typename(T, i));
 }
 
-void aloL_tagerror(astate T, aindex_t i, int t) {
+anoret aloL_tagerror(astate T, aindex_t i, int t) {
 	aloL_typeerror(T, i, alo_tpidname(T, t));
 }
 
@@ -197,6 +197,27 @@ const char* aloL_tostring(astate T, aindex_t index, size_t* psize) {
 		break;
 	}
 	return alo_tolstring(T, -1, psize);
+}
+
+/**
+ ** push a string that replaced all t as sub sequence in s into m.
+ */
+astr aloL_sreplace(astate T, astr s, astr t, astr m) {
+	size_t l1 = strlen(t);
+	size_t l2 = strlen(m);
+	astr result;
+	aloL_usebuf(T, buf) {
+		const char* s1 = s;
+		const char* s2;
+		while ((s2 = strstr(s1, t))) {
+			aloL_bputls(T, &buf, s1, s2 - s1);
+			aloL_bputls(T, &buf, m, l2);
+			s1 = s2 + l1;
+		}
+		aloL_bputs(T, &buf, s1);
+		result = aloL_bpushstring(T, &buf);
+	}
+	return result;
 }
 
 /**
@@ -432,7 +453,7 @@ void aloL_where(astate T, int level) {
 /**
  ** throw a runtime error.
  */
-void aloL_error(astate T, int level, astr fmt, ...) {
+anoret aloL_error(astate T, int level, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	alo_pushvfstring(T, fmt, varg);
@@ -524,8 +545,8 @@ void aloL_bwrite(astate T, ambuf_t* buf, aindex_t index) {
 	aloL_bputls(T, buf, src, len);
 }
 
-void aloL_bpushstring(astate T, ambuf_t* buf) {
-	alo_pushlstring(T, aloE_cast(char*, buf->buf), buf->len / sizeof(char));
+astr aloL_bpushstring(astate T, ambuf_t* buf) {
+	return alo_pushlstring(T, aloE_cast(char*, buf->buf), buf->len / sizeof(char));
 }
 
 int aloL_bwriter(astate T, void* buf, const void* src, size_t len) {

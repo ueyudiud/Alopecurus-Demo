@@ -37,6 +37,7 @@ ALO_API int aloL_checkenum(astate, aindex_t, astr, const astr[]);
 
 ALO_API void aloL_checkcall(astate, aindex_t);
 ALO_API const char* aloL_tostring(astate, aindex_t, size_t*);
+ALO_API astr aloL_sreplace(astate, astr, astr, astr);
 
 ALO_API void aloL_setfuns(astate, aindex_t, const acreg_t*);
 
@@ -59,11 +60,11 @@ ALO_API int aloL_savef(astate, aindex_t, astr, int);
 
 ALO_API int aloL_getframe(astate, int, astr, aframeinfo_t*);
 ALO_API void aloL_where(astate, int);
-ALO_API void aloL_error(astate, int, astr, ...);
+ALO_API anoret aloL_error(astate, int, astr, ...);
 
-ALO_API void aloL_argerror(astate, aindex_t, astr, ...);
-ALO_API void aloL_typeerror(astate, aindex_t, astr);
-ALO_API void aloL_tagerror(astate, aindex_t, int);
+ALO_API anoret aloL_argerror(astate, aindex_t, astr, ...);
+ALO_API anoret aloL_typeerror(astate, aindex_t, astr);
+ALO_API anoret aloL_tagerror(astate, aindex_t, int);
 
 /**
  ** base layer of messaging and logging.
@@ -103,7 +104,7 @@ ALO_API void aloL_bputs(astate, ambuf_t*, astr);
 ALO_API void aloL_bputf(astate, ambuf_t*, astr, ...);
 ALO_API void aloL_bputvf(astate, ambuf_t*, astr, va_list);
 ALO_API void aloL_bwrite(astate, ambuf_t*, aindex_t);
-ALO_API void aloL_bpushstring(astate, ambuf_t*);
+ALO_API astr aloL_bpushstring(astate, ambuf_t*);
 
 ALO_API int aloL_bwriter(astate, void*, const void*, size_t);
 
