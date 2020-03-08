@@ -148,6 +148,7 @@ static int runc(astate T) {
 			if (s[2] == '\0') {
 				switch (s[1]) {
 				case 'q': case 'Q': /* quit */
+					alo_deletestate(T);
 					exit(EXIT_SUCCESS);
 				case 'v': case 'V': /* display local values */
 					alo_getreg(T, "println");
