@@ -75,7 +75,4 @@
  ** 		T		the thread been destroyed
  */
 
-#define ALO_BUILD_TO_DL
-#define ALO_CORE
-
 #endif /* ACFG_H_ */
