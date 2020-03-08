@@ -24,7 +24,18 @@
 #include "adef.h"
 #include "acfg.h"
 
+/**
+ ** the ALO_API marked for API functions.
+ */
+#if defined(ALO_BUILD_TO_DL)
+#if defined(ALO_CORE) || defined(ALO_LIB)
+#define ALO_API __declspec(dllexport)
+#else
+#define ALO_API __declspec(dllimport)
+#endif
+#else
 #define ALO_API extern
+#endif
 
 typedef ptrdiff_t aindex_t;
 
@@ -115,6 +126,7 @@ ALO_API void alo_pushpointer(astate, void*);
 ALO_API int alo_pushthread(astate);
 
 #define alo_pushunit(T) alo_newtuple(T, 0)
+#define alo_pushcstring(T,s) alo_pushlstring(T, ""s, sizeof(s) / sizeof(char) - 1)
 
 /**
  ** arithmetic operation, comparison and other functions

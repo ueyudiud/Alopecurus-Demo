@@ -147,4 +147,25 @@ enum {
 #define aloE_cast(type,exp) ((type) (exp))
 #define aloE_byte(exp) aloE_cast(abyte, exp)
 
+/**
+ ** non-standard features using controls,
+ ** detecting specific environment.
+ */
+
+#if defined(_WIN32) && !defined(_WIN32_WCE)
+#define ALOE_WINDOWS /* enable Windows features */
+#endif
+
+#if defined(ALOE_WINDOWS)
+#define ALO_USE_DLL /* enable support for dll */
+#endif
+
+#if defined(ALOE_LINUX)
+#define ALO_USE_DLOPEN		/* needs an extra library: -ldl */
+#endif
+
+#if defined(ALOE_MACOSX)
+#define ALO_USE_DLOPEN		/* MacOS does not need -ldl */
+#endif
+
 #endif /* ADEF_H_ */
