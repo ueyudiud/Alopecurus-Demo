@@ -46,8 +46,8 @@ ALO_IFUN void aloS_remove(astate, astring_t*);
  ** string cache helper methods
  */
 
-void aloS_init(astate);
-void aloS_resizecache(astate, size_t);
-void aloS_cleancache(astate);
+ALO_IFUN void aloS_init(astate);
+ALO_IFUN void aloS_resizecache(astate, size_t);
+ALO_IFUN void aloS_cleancache(astate);
 
 #endif /* ASTR_H_ */
