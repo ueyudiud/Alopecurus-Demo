@@ -19,7 +19,7 @@ typedef struct alo_Block ablock_t;
 typedef struct alo_PData apdata_t;
 typedef struct alo_Lexer alexer_t;
 
-int aloP_parse(astate, astr, aibuf_t*, aproto_t**);
+ALO_IFUN int aloP_parse(astate, astr, aibuf_t*, aproto_t**, astring_t**);
 
 enum {
 	SYMBOL_LOC,

@@ -30,17 +30,17 @@
  */
 #define aloS_len(o) (ttishstr(o) ? (o)->lnglen : (o)->shtlen)
 
-ahash_t aloS_rhash(astr, size_t, uint64_t);
-ahash_t aloS_hash(astate, astring_t*);
-astring_t* aloS_of(astate, astr);
-astring_t* aloS_new(astate, const char*, size_t);
-astring_t* aloS_newi(astate, const char*, size_t);
-astring_t* aloS_createlng(astate, size_t);
-arawdata_t* aloS_newr(astate, size_t);
-int aloS_hequal(astring_t*, astring_t*);
-int aloS_requal(astring_t*, astr, size_t);
-int aloS_compare(astring_t*, astring_t*);
-void aloS_remove(astate, astring_t*);
+ALO_IFUN ahash_t aloS_rhash(astr, size_t, uint64_t);
+ALO_IFUN ahash_t aloS_hash(astate, astring_t*);
+ALO_IFUN astring_t* aloS_of(astate, astr);
+ALO_IFUN astring_t* aloS_new(astate, const char*, size_t);
+ALO_IFUN astring_t* aloS_newi(astate, const char*, size_t);
+ALO_IFUN astring_t* aloS_createlng(astate, size_t);
+ALO_IFUN arawdata_t* aloS_newr(astate, size_t);
+ALO_IFUN int aloS_hequal(astring_t*, astring_t*);
+ALO_IFUN int aloS_requal(astring_t*, astr, size_t);
+ALO_IFUN int aloS_compare(astring_t*, astring_t*);
+ALO_IFUN void aloS_remove(astate, astring_t*);
 
 /**
  ** string cache helper methods

@@ -118,19 +118,19 @@ typedef enum {
 
 extern const astr aloT_typenames[ALO_NUMTYPE];
 
-void aloT_init(astate);
-atable_t* aloT_getmt(const atval_t*);
-const atval_t* aloT_gettm(astate, const atval_t*, atmi, int);
-const atval_t* aloT_fastgetaux(atable_t*, astring_t*, atmi);
-const atval_t* aloT_fastget(astate, const atval_t*, atmi);
-const atval_t* aloT_fastgetx(astate, const atval_t*, atmi);
-const atval_t* aloT_index(astate, const atval_t*, const atval_t*);
-const atval_t* aloT_lookup(astate, const atval_t*, const atval_t*);
-void aloT_callunr(astate, const atval_t*, const atval_t*, atval_t*);
-void aloT_callbin(astate, const atval_t*, const atval_t*, const atval_t*, atval_t*);
-int aloT_callcmp(astate, const atval_t*, const atval_t*, const atval_t*);
-const atval_t* aloT_getreg(astate);
-int aloT_tryunr(astate, const atval_t*, atmi);
-int aloT_trybin(astate, const atval_t*, const atval_t*, atmi);
+ALO_IFUN void aloT_init(astate);
+ALO_IFUN atable_t* aloT_getmt(const atval_t*);
+ALO_IFUN const atval_t* aloT_gettm(astate, const atval_t*, atmi, int);
+ALO_IFUN const atval_t* aloT_fastgetaux(atable_t*, astring_t*, atmi);
+ALO_IFUN const atval_t* aloT_fastget(astate, const atval_t*, atmi);
+ALO_IFUN const atval_t* aloT_fastgetx(astate, const atval_t*, atmi);
+ALO_IFUN const atval_t* aloT_index(astate, const atval_t*, const atval_t*);
+ALO_IFUN const atval_t* aloT_lookup(astate, const atval_t*, const atval_t*);
+ALO_IFUN void aloT_callunr(astate, const atval_t*, const atval_t*, atval_t*);
+ALO_IFUN void aloT_callbin(astate, const atval_t*, const atval_t*, const atval_t*, atval_t*);
+ALO_IFUN int aloT_callcmp(astate, const atval_t*, const atval_t*, const atval_t*);
+ALO_IFUN const atval_t* aloT_getreg(astate);
+ALO_IFUN int aloT_tryunr(astate, const atval_t*, atmi);
+ALO_IFUN int aloT_trybin(astate, const atval_t*, const atval_t*, atmi);
 
 #endif /* AMETA_H_ */

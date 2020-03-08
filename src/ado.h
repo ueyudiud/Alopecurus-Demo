@@ -37,16 +37,16 @@
  */
 typedef void (*apfun)(astate, void*);
 
-void aloD_setdebt(aglobal_t*, ssize_t);
-void aloD_growstack(astate, size_t);
-void aloD_reallocstack(astate, size_t);
-int aloD_prun(astate, apfun, void*);
-anoret aloD_throw(astate, int);
-void aloD_hook(astate, int, int);
-int aloD_rawcall(astate, askid_t, int, int*);
-int aloD_precall(astate, askid_t, int);
-void aloD_postcall(astate, askid_t, int);
-void aloD_call(astate, askid_t, int);
-void aloD_callnoyield(astate, askid_t, int);
+ALO_IFUN void aloD_setdebt(aglobal_t*, ssize_t);
+ALO_IFUN void aloD_growstack(astate, size_t);
+ALO_IFUN void aloD_reallocstack(astate, size_t);
+ALO_IFUN int aloD_prun(astate, apfun, void*);
+ALO_IFUN anoret aloD_throw(astate, int);
+ALO_IFUN void aloD_hook(astate, int, int);
+ALO_IFUN int aloD_rawcall(astate, askid_t, int, int*);
+ALO_IFUN int aloD_precall(astate, askid_t, int);
+ALO_IFUN void aloD_postcall(astate, askid_t, int);
+ALO_IFUN void aloD_call(astate, askid_t, int);
+ALO_IFUN void aloD_callnoyield(astate, askid_t, int);
 
 #endif /* ADO_H_ */

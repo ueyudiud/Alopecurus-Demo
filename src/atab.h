@@ -31,19 +31,19 @@
  */
 #define aloH_set(T,self,key,value) { tsetobj(T, aloH_find(T, self, key), value); aloG_barrierbackt(T, self, value); }
 
-atable_t* aloH_new(astate);
-int aloH_ensure(astate, atable_t*, size_t);
-void aloH_trim(astate, atable_t*);
-const atval_t* aloH_geti(atable_t*, aint);
-const atval_t* aloH_gets(astate, atable_t*, astr, size_t);
-const atval_t* aloH_getis(atable_t*, astring_t*);
-const atval_t* aloH_getxs(astate, atable_t*, astring_t*);
-const atval_t* aloH_get(astate, atable_t*, const atval_t*);
-atval_t* aloH_find(astate, atable_t*, const atval_t*);
-atval_t* aloH_findxset(astate, atable_t*, const char*, size_t);
-atval_t* aloH_finds(astate, atable_t*, astr, size_t);
-void aloH_rawrem(astate, atable_t*, ptrdiff_t*, atval_t*);
-int aloH_remove(astate, atable_t*, const atval_t*, atval_t*);
-const aentry_t* aloH_next(atable_t*, ptrdiff_t*);
+ALO_IFUN atable_t* aloH_new(astate);
+ALO_IFUN int aloH_ensure(astate, atable_t*, size_t);
+ALO_IFUN void aloH_trim(astate, atable_t*);
+ALO_IFUN const atval_t* aloH_geti(atable_t*, aint);
+ALO_IFUN const atval_t* aloH_gets(astate, atable_t*, astr, size_t);
+ALO_IFUN const atval_t* aloH_getis(atable_t*, astring_t*);
+ALO_IFUN const atval_t* aloH_getxs(astate, atable_t*, astring_t*);
+ALO_IFUN const atval_t* aloH_get(astate, atable_t*, const atval_t*);
+ALO_IFUN atval_t* aloH_find(astate, atable_t*, const atval_t*);
+ALO_IFUN atval_t* aloH_findxset(astate, atable_t*, const char*, size_t);
+ALO_IFUN atval_t* aloH_finds(astate, atable_t*, astr, size_t);
+ALO_IFUN void aloH_rawrem(astate, atable_t*, ptrdiff_t*, atval_t*);
+ALO_IFUN int aloH_remove(astate, atable_t*, const atval_t*, atval_t*);
+ALO_IFUN const aentry_t* aloH_next(atable_t*, ptrdiff_t*);
 
 #endif /* ATAB_H_ */

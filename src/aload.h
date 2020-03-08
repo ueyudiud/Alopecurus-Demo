@@ -36,12 +36,12 @@ enum {
 	CT_LSTR
 };
 
-void aloZ_delete(astate, aproto_t*);
+ALO_IFUN void aloZ_delete(astate, aproto_t*);
 
 /* load chunk, from aload.c */
-int aloZ_load(astate, aproto_t**, astr, areader, void*);
+ALO_IFUN int aloZ_load(astate, aproto_t**, astr, areader, void*);
 
 /* save chunk, from asave.c */
-int aloZ_save(astate, const aproto_t*, awriter, void*, int);
+ALO_IFUN int aloZ_save(astate, const aproto_t*, awriter, void*, int);
 
 #endif /* ALOAD_H_ */

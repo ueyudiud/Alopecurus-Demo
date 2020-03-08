@@ -34,17 +34,17 @@ typedef struct alo_IBuf aibuf_t;
 
 #define aloB_tostr(T,b) aloS_new(T, aloE_cast(char*, (b).buf), (b).len)
 
-int aloB_ifill_(astate, aibuf_t*);
-size_t aloB_iread(astate, aibuf_t*, amem, size_t);
+ALO_IFUN int aloB_ifill_(astate, aibuf_t*);
+ALO_IFUN size_t aloB_iread(astate, aibuf_t*, amem, size_t);
 
-int aloB_bwrite(astate, void*, const void*, size_t);
-void aloB_bcloseaux(astate, ambuf_t*);
+ALO_IFUN int aloB_bwrite(astate, void*, const void*, size_t);
+ALO_IFUN void aloB_bcloseaux(astate, ambuf_t*);
 
 #define aloB_putc(T,b,ch) ((b)->len < (b)->cap ? aloB_rputc(b, ch) : (aloB_bgrow_(T, b), aloB_rputc(b, ch)))
 #define aloB_rputc(b,ch) aloE_void((b)->buf[(b)->len++] = (ch))
 
-void aloB_bgrow_(astate, ambuf_t*);
-void aloB_puts(astate, ambuf_t*, const char*);
+ALO_IFUN void aloB_bgrow_(astate, ambuf_t*);
+ALO_IFUN void aloB_puts(astate, ambuf_t*, const char*);
 
 struct alo_IBuf {
 	const char* pos;

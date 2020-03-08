@@ -43,67 +43,67 @@ enum {
 #define aloK_iABx(f,i,xA,xB,A,Bx) aloK_insn(f, CREATE_iABx(i, xA, xB, A, Bx))
 #define aloK_iAsBx(f,i,xA,xC,A,Bx) aloK_insn(f, CREATE_iAsBx(i, xA, xC, A, Bx))
 
-size_t aloK_insn(afstat_t*, ainsn_t);
-int aloK_kstr(afstat_t*, astring_t*);
+ALO_IFUN size_t aloK_insn(afstat_t*, ainsn_t);
+ALO_IFUN int aloK_kstr(afstat_t*, astring_t*);
 
 /**
  ** stack manipulation.
  */
 
-void aloK_checkstack(afstat_t*, int);
-void aloK_incrstack(afstat_t*, int);
+ALO_IFUN void aloK_checkstack(afstat_t*, int);
+ALO_IFUN void aloK_incrstack(afstat_t*, int);
 
 /**
  ** process control
  */
 
-int aloK_newlabel(afstat_t*);
-void aloK_putlabel(afstat_t*, int);
-void aloK_marklabel(afstat_t*, int, int);
-int aloK_jumpforward(afstat_t*, int);
-void aloK_jumpbackward(afstat_t*, int);
-void aloK_fixline(afstat_t*, int);
-void aloK_return(afstat_t*, int, int);
-void aloK_gwt(afstat_t*, aestat_t*);
-void aloK_gwf(afstat_t*, aestat_t*);
+ALO_IFUN int aloK_newlabel(afstat_t*);
+ALO_IFUN void aloK_putlabel(afstat_t*, int);
+ALO_IFUN void aloK_marklabel(afstat_t*, int, int);
+ALO_IFUN int aloK_jumpforward(afstat_t*, int);
+ALO_IFUN void aloK_jumpbackward(afstat_t*, int);
+ALO_IFUN void aloK_fixline(afstat_t*, int);
+ALO_IFUN void aloK_return(afstat_t*, int, int);
+ALO_IFUN void aloK_gwt(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_gwf(afstat_t*, aestat_t*);
 
 /**
  ** data -> reference
  */
 
-void aloK_eval(afstat_t*, aestat_t*);
-void aloK_evalk(afstat_t*, aestat_t*);
-void aloK_anyR(afstat_t*, aestat_t*);
-void aloK_anyRK(afstat_t*, aestat_t*);
-int aloK_nextreg(afstat_t*, aestat_t*);
-void aloK_member(afstat_t*, aestat_t*, aestat_t*);
-void aloK_fromreg(afstat_t*, aestat_t*, astring_t*);
-void aloK_field(afstat_t*, aestat_t*, astring_t*);
-void aloK_drop(afstat_t*, aestat_t*);
-int aloK_reuse(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_eval(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_evalk(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_anyR(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_anyRK(afstat_t*, aestat_t*);
+ALO_IFUN int aloK_nextreg(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_member(afstat_t*, aestat_t*, aestat_t*);
+ALO_IFUN void aloK_fromreg(afstat_t*, aestat_t*, astring_t*);
+ALO_IFUN void aloK_field(afstat_t*, aestat_t*, astring_t*);
+ALO_IFUN void aloK_drop(afstat_t*, aestat_t*);
+ALO_IFUN int aloK_reuse(afstat_t*, aestat_t*);
 
 /**
  ** evaluation
  */
 
-size_t aloK_loadnil(afstat_t*, int, int);
-void aloK_loadproto(afstat_t*, aestat_t*);
-int aloK_putreg(afstat_t*, aestat_t*);
-void aloK_singleret(afstat_t*, aestat_t*);
-void aloK_fixedret(afstat_t*, aestat_t*, int);
-void aloK_multiret(afstat_t*, aestat_t*);
-void aloK_self(afstat_t*, aestat_t*, astring_t*);
-void aloK_unbox(afstat_t*, aestat_t*, int);
-void aloK_boxt(afstat_t*, aestat_t*, int);
-void aloK_newcol(afstat_t*, aestat_t*, int, size_t);
-void aloK_newitr(afstat_t*, aestat_t*);
-void aloK_rawseti(afstat_t*, int, aint, aestat_t*);
-void aloK_rawset(afstat_t*, int, aestat_t*, aestat_t*);
-void aloK_move(afstat_t*, aestat_t*, int);
-void aloK_assign(afstat_t*, aestat_t*, aestat_t*);
-void aloK_prefix(afstat_t*, aestat_t*, int, int);
-void aloK_infix(afstat_t*, aestat_t*, int);
-void aloK_suffix(afstat_t*, aestat_t*, aestat_t*, int, int);
-void aloK_opassign(afstat_t*, aestat_t*, aestat_t*, int, int);
+ALO_IFUN size_t aloK_loadnil(afstat_t*, int, int);
+ALO_IFUN void aloK_loadproto(afstat_t*, aestat_t*);
+ALO_IFUN int aloK_putreg(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_singleret(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_fixedret(afstat_t*, aestat_t*, int);
+ALO_IFUN void aloK_multiret(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_self(afstat_t*, aestat_t*, astring_t*);
+ALO_IFUN void aloK_unbox(afstat_t*, aestat_t*, int);
+ALO_IFUN void aloK_boxt(afstat_t*, aestat_t*, int);
+ALO_IFUN void aloK_newcol(afstat_t*, aestat_t*, int, size_t);
+ALO_IFUN void aloK_newitr(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_rawseti(afstat_t*, int, aint, aestat_t*);
+ALO_IFUN void aloK_rawset(afstat_t*, int, aestat_t*, aestat_t*);
+ALO_IFUN void aloK_move(afstat_t*, aestat_t*, int);
+ALO_IFUN void aloK_assign(afstat_t*, aestat_t*, aestat_t*);
+ALO_IFUN void aloK_prefix(afstat_t*, aestat_t*, int, int);
+ALO_IFUN void aloK_infix(afstat_t*, aestat_t*, int);
+ALO_IFUN void aloK_suffix(afstat_t*, aestat_t*, aestat_t*, int, int);
+ALO_IFUN void aloK_opassign(afstat_t*, aestat_t*, aestat_t*, int, int);
 
 #endif /* ACODE_H_ */

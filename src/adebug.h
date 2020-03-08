@@ -14,14 +14,14 @@
 #define aloU_outofrange(T,idx,len) aloU_rterror(T, "index out of bound");
 #define aloU_invalidkey(T) aloU_rterror(T, "invalid key")
 
-void aloU_init(astate);
-astr aloU_getcname(astate, acfun);
-alineinfo_t* aloU_lineof(aproto_t*, const ainsn_t*);
-void aloU_bind(astate, acfun, astring_t*);
-void aloU_clearbuf(astate);
+ALO_IFUN void aloU_init(astate);
+ALO_IFUN astr aloU_getcname(astate, acfun);
+ALO_IFUN alineinfo_t* aloU_lineof(aproto_t*, const ainsn_t*);
+ALO_IFUN void aloU_bind(astate, acfun, astring_t*);
+ALO_IFUN void aloU_clearbuf(astate);
 
-anoret aloU_mnotfound(astate, const atval_t*, astr);
-astring_t* aloU_pushmsg(astate, astr, ...);
-anoret aloU_rterror(astate, astr, ...);
+ALO_IFUN anoret aloU_mnotfound(astate, const atval_t*, astr);
+ALO_IFUN astring_t* aloU_pushmsg(astate, astr, ...);
+ALO_IFUN anoret aloU_rterror(astate, astr, ...);
 
 #endif /* ADEBUG_H_ */

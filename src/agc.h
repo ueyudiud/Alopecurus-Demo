@@ -57,40 +57,27 @@ enum {
  ** GC functions.
  */
 
-void aloG_register_(astate, agct, abyte);
-
 #define aloG_register(T,g,tt) aloG_register_(T, r2g(g), tt)
 
-void aloG_fix_(astate, agct);
-
 #define aloG_fix(T,g) aloG_fix_(T, r2g(g))
-
-void aloG_unfix_(astate, agct);
-
 #define aloG_unfix(T,g) aloG_unfix_(T, r2g(g))
 
-void aloG_checkfnzobj(astate, agct, atable_t*);
-
-void aloG_barrier_(astate, agct, agct);
-
 #define aloG_barrier(T,owner,value) if (aloG_isblack(owner) && aloG_iswhite(value)) aloG_barrier_(T, r2g(owner), r2g(value))
-
 #define aloG_barriert(T,owner,value) if (ttisref(value)) aloG_barrier(T, owner, tgetref(value))
-
-void aloG_barrierback_(astate, agct);
-
 #define aloG_barrierback(T,owner,value) if (aloG_isblack(owner) && aloG_iswhite(value)) aloG_barrierback_(T, r2g(owner))
-
 #define aloG_barrierbackt(T,owner,value) if (ttisref(value)) aloG_barrierback(T, owner, tgetref(value))
 
-void aloG_step(astate);
-
 #define aloG_xcheck(T,pre,post) if ((T)->g->mdebt > 0) { pre; aloG_step(T); post; }
-
 #define aloG_check(T) aloG_xcheck(T,,)
 
-void aloG_fullgc(astate, int);
-
-void aloG_clear(astate);
+ALO_IFUN void aloG_register_(astate, agct, abyte);
+ALO_IFUN void aloG_fix_(astate, agct);
+ALO_IFUN void aloG_unfix_(astate, agct);
+ALO_IFUN void aloG_checkfnzobj(astate, agct, atable_t*);
+ALO_IFUN void aloG_barrier_(astate, agct, agct);
+ALO_IFUN void aloG_barrierback_(astate, agct);
+ALO_IFUN void aloG_step(astate);
+ALO_IFUN void aloG_fullgc(astate, int);
+ALO_IFUN void aloG_clear(astate);
 
 #endif /* AGC_H_ */

@@ -1019,25 +1019,23 @@ static void pnewclosure(astate T, void* context) {
 }
 
 int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
-	askid_t top = T->top;
 	aclosure_t* c = NULL;
 	int status = aloD_prun(T, pnewclosure, &c);
 	if (status != ThreadStateRun) {
 		return status;
 	}
+	astring_t* s;
 	aibuf_t buf;
-	aproto_t* p;
 	aloB_iopen(&buf, reader, context);
-	status = aloP_parse(T, src, &buf, &p);
-	if (p) { /* compile success */
-		c->a.proto = p;
-		p->name = aloS_of(T, name);
+	status = aloP_parse(T, src, &buf, &c->a.proto, &s);
+	if (status == ThreadStateRun) { /* compile success */
+		c->a.proto->name = aloS_of(T, name);
 		tsetobj(T, &c->delegate, aloT_getreg(T));
 	}
 	else { /* failed */
-		tsetobj(T, top - 1, T->top - 1); /* move error message into top of stack */
+		tsetstr(T, T->top - 1, s); /* move error message into top of stack */
 	}
-	T->top = top;
+	aloG_check(T);
 	return status;
 }
 

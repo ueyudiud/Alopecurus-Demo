@@ -15,12 +15,12 @@
 #define aclosizel(l) (sizeof(aclosure_t) + (l) * sizeof(atval_t))
 #define aclosize(o) aclosizel((o)->length)
 
-aclosure_t* aloF_new(astate, size_t, aproto_t*);
-aclosure_t* aloF_newc(astate, acfun, size_t);
-aproto_t* aloF_newp(astate);
-atval_t* aloF_get(aclosure_t*, size_t);
-acap* aloF_find(astate, askid_t);
-void aloF_close(astate, askid_t);
-void aloF_deletep(astate, aproto_t*);
+ALO_IFUN aclosure_t* aloF_new(astate, size_t, aproto_t*);
+ALO_IFUN aclosure_t* aloF_newc(astate, acfun, size_t);
+ALO_IFUN aproto_t* aloF_newp(astate);
+ALO_IFUN atval_t* aloF_get(aclosure_t*, size_t);
+ALO_IFUN acap* aloF_find(astate, askid_t);
+ALO_IFUN void aloF_close(astate, askid_t);
+ALO_IFUN void aloF_deletep(astate, aproto_t*);
 
 #endif /* AFUN_H_ */

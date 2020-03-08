@@ -280,8 +280,6 @@ int alo_prevframe(__attribute__((unused)) astate T, astr what, aframeinfo_t* inf
 	return true;
 }
 
-#if ALO_RUNTIME_DEBUG
-
 void alo_sethook(astate T, ahfun fun, int mask, int count) {
 	if (fun == NULL || mask == 0) {
 		fun = NULL;
@@ -298,5 +296,3 @@ ahfun alo_gethook(astate T) {
 int alo_gethookmask(astate T) {
 	return T->hookmask;
 }
-
-#endif

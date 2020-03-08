@@ -16,11 +16,11 @@
  ** basic memory allocation.
  */
 
-amem aloM_realloc(astate, amem, size_t, size_t);
+ALO_IFUN amem aloM_realloc(astate, amem, size_t, size_t);
 
 #define aloM_malloc(T,newlen) aloM_realloc(T, NULL, 0, newlen)
 
-void aloM_free(astate, amem, size_t);
+ALO_IFUN void aloM_free(astate, amem, size_t);
 
 /**
  ** typed memory allocation.
@@ -38,9 +38,9 @@ void aloM_free(astate, amem, size_t);
 
 #define aloM_dela(T,b,l) aloM_free(T, b, (l) * sizeof((b)[0]))
 
-size_t aloM_adjsize(astate, size_t capacity, size_t require, size_t limit);
+ALO_IFUN size_t aloM_adjsize(astate, size_t capacity, size_t require, size_t limit);
 
-size_t aloM_growsize(astate, size_t capacity, size_t limit);
+ALO_IFUN size_t aloM_growsize(astate, size_t capacity, size_t limit);
 
 /**
  ** buffer auxiliary macros.
