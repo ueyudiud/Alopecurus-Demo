@@ -1601,7 +1601,8 @@ void destory_context(astate T, apdata_t* data) {
 	aloM_dela(T, data->cv.a, data->cv.c);
 }
 
-int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
+int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out, astring_t** msg) {
+	askid_t top = T->top;
 	/* open lexer */
 	struct alo_ParseContext context;
 	context.data = (apdata_t) { };
@@ -1609,6 +1610,7 @@ int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
 
 	int status = aloD_prun(T, pparse, &context);
 	*out = !status ? context.data.p : NULL;
+	*msg = status ? tgetstr(T->top - 1) : NULL;
 
 	destory_context(T, &context.data);
 	aloX_close(&context.lex);
@@ -1618,7 +1620,7 @@ int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out) {
 	else {
 		registerproto(T, context.data.p);
 	}
-
+	T->top = top;
 	return status;
 }
 
