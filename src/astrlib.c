@@ -94,12 +94,12 @@ static int str_trim(astate T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	size_t i, j;
-	for (i = 0; i < len && isspace(src[i]); ++i);
+	for (i = 0; i < len && isspace(aloE_byte(src[i])); ++i);
 	if (i == len) {
 		alo_pushstring(T, "");
 		return 1;
 	}
-	for (j = len; j > 0 && isspace(src[j - 1]); --j);
+	for (j = len; j > 0 && isspace(aloE_byte(src[j - 1])); --j);
 	if (i == 0 && j == len) {
 		alo_settop(T, 1);
 	}

@@ -16,12 +16,12 @@
 
 #define CHAR_COUNT 256
 
-#define aisprint(ch) (ALO_CHAR_TYPES[ch].fprint)
-#define aisalpha(ch) (ALO_CHAR_TYPES[ch].falpha)
-#define aisdigit(ch) (ALO_CHAR_TYPES[ch].fdigit)
-#define aisxdigit(ch) (ALO_CHAR_TYPES[ch].fxdigit)
-#define aisident(ch) ({ int _ch = (ch); isalnum(_ch) || (_ch) == '_'; })
-#define axdigit(ch) (ALO_CHAR_TYPES[ch].digit)
+#define aisprint(ch) (ALO_CHAR_TYPES[aloE_byte(ch)].fprint)
+#define aisalpha(ch) (ALO_CHAR_TYPES[aloE_byte(ch)].falpha)
+#define aisdigit(ch) (ALO_CHAR_TYPES[aloE_byte(ch)].fdigit)
+#define aisxdigit(ch) (ALO_CHAR_TYPES[aloE_byte(ch)].fxdigit)
+#define aisident(ch) ({ abyte _ch = aloE_byte(ch); isalnum(_ch) || (_ch) == '_'; })
+#define axdigit(ch) (ALO_CHAR_TYPES[aloE_byte(ch)].digit)
 
 extern const struct alo_CharType {
 	abyte fprint : 1;

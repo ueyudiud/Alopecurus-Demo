@@ -32,7 +32,7 @@ static void getpath(astate T, char* buf, const char* src, size_t len) {
 				*(buf++) = '.';
 			}
 		}
-		else if (!isalnum(src[i])) {
+		else if (!isalnum(aloE_byte(src[i]))) {
 			aloL_error(T, 2, "illegal module path name");
 		}
 		else {
