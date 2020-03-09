@@ -14,7 +14,10 @@
 #include <ctype.h>
 #include <string.h>
 
-#define MAX_HEAPBUF_LEN 256
+/**
+ ** max buffer length in stack.
+ */
+#define MAX_STACKBUF_LEN 256
 
 #define l_strcpy(dest,src,len) memcpy(dest, src, (len) * sizeof(char))
 
@@ -25,7 +28,7 @@
 static int str_reverse(astate T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
-	if (len < MAX_HEAPBUF_LEN) { /* for short string, use heap memory */
+	if (len < MAX_STACKBUF_LEN) { /* for short string, use heap memory */
 		char buf[len];
 		for (size_t i = 0; i < len; ++i) {
 			buf[i] = src[len - 1 - i];
@@ -45,8 +48,6 @@ static int str_reverse(astate T) {
 	return 1;
 }
 
-#define STRBUF_SIZE 256
-
 /**
  ** repeat string with number of times.
  ** prototype: string.repeat(self, times)
@@ -62,7 +63,7 @@ static int str_repeat(astate T) {
 	if (nlen == 0) {
 		alo_pushstring(T, "");
 	}
-	else if (nlen <= STRBUF_SIZE) { /* for short string, use buffer on stack */
+	else if (nlen <= MAX_STACKBUF_LEN) { /* for short string, use buffer on stack */
 		char buf[nlen];
 		char* p = buf;
 		for (size_t i = 0; i < time; ++i) {
@@ -105,7 +106,7 @@ static int str_trim(astate T) {
 	}
 	else {
 		len = j - i;
-		if (len <= STRBUF_SIZE) {
+		if (len <= MAX_STACKBUF_LEN) {
 			char buf[len];
 			l_strcpy(buf, src + i, len);
 			alo_pushlstring(T, buf, len);
