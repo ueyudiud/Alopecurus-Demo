@@ -25,6 +25,8 @@
 
 #define ALO_SUFFIX ".alo"
 
+#define MAX_PATH_LENGTH 1024
+
 static void getpath(astate T, char* buf, const char* src, size_t len) {
 	for (size_t i = 0; i < len; ++i) {
 		if (src[i] == '\\' || src[i] == '/') {
@@ -202,6 +204,9 @@ static int mod_loaddl(astate T) {
 	alo_getreg(T, "mod"); /* stack[1] = mod */
 	size_t len;
 	const char* src = alo_tolstring(T, 0, &len);
+	if (len > MAX_PATH_LENGTH) {
+		aloL_error(T, 2, "module name too long.");
+	}
 	char buf[len + 1];
 	getpath(T, buf, src, len);
 	if (alo_rawgets(T, ALO_CAPTURE_INDEX(0), buf) != ALO_TUNDEF || !load) { /* module already loaded */
@@ -262,6 +267,9 @@ static int mod_import(astate T) {
 	alo_getreg(T, "mod"); /* stack[1] = mod */
 	size_t len;
 	const char* src = alo_tolstring(T, 0, &len);
+	if (len > MAX_PATH_LENGTH) {
+		aloL_error(T, 2, "module name too long.");
+	}
 	char buf[len + 1];
 	getpath(T, buf, src, len);
 	if (alo_rawgets(T, ALO_CAPTURE_INDEX(0), buf) != ALO_TUNDEF || !load) { /* module already imported */
