@@ -316,7 +316,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-#define lstrchr(s,c,l) aloE_cast(astr, memchr(s, c, l))
+#define l_strchr(s,c,l) aloE_cast(const char*, memchr(s, c, (l) * sizeof(char)))
 
 /**
  ** create search path list and push into top of state.
@@ -327,7 +327,7 @@ static void l_createsp(astate T, astr search) {
 	int l = 0;
 	astr s1 = search, s2, s3, s4, s5;
 	while ((s2 = strchr(s1, ';')) != NULL) {
-		if ((s3 = lstrchr(s1, '~', s2 - s1))) { /* environmental path? */
+		if ((s3 = l_strchr(s1, '~', s2 - s1))) { /* environmental path? */
 			if (path) { /* has path? */
 				s4 = path;
 				while ((s5 = strchr(s4, ';'))) {
