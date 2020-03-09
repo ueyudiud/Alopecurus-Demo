@@ -19,7 +19,8 @@
  */
 #define MAX_STACKBUF_LEN 256
 
-#define l_strcpy(dest,src,len) memcpy(dest, src, (len) * sizeof(char))
+#define l_strcpy(d,s,l) aloE_void(memcpy(d, s, (l) * sizeof(char)))
+#define l_strchr(s,c,l) aloE_cast(const char*, memchr(s, c, (l) * sizeof(char)))
 
 /**
  ** reverse string.
@@ -996,10 +997,116 @@ static int str_matcher(astate T) {
 	return 1;
 }
 
+static const char* findaux(const char* sh, size_t lh, const char* st, size_t lt) {
+	const char* se1 = sh + lh - lt;
+	const char* se2 = st + lt;
+	const char* sx;
+	int ch = st[0];
+	failed:
+	while (sh <= se1) {
+		if (*sh == ch) {
+			const char* su = st + 1;
+			const char* sv = sh + 1;
+			while (su < se2) {
+				if (*sv == ch) {
+					sx = sv;
+					goto marked;
+				}
+				if (*su != *sv) {
+					sh = sv;
+					goto failed;
+				}
+				su++;
+				sv++;
+			}
+			return sh;
+
+			marked:
+			while (su < se2) {
+				if (*su != *sv) {
+					sh = sx;
+					goto failed;
+				}
+				su++;
+				sv++;
+			}
+			return sh;
+		}
+		else {
+			sh++;
+		}
+	}
+	return NULL;
+}
+
+/**
+ ** replace all target to replacement.
+ ** use matcher to replace string if regex is true, which is false in default.
+ ** prototyoe: string.replace(self, target, replacement, [regex])
+ */
+static int str_replace(astate T) {
+	aloL_checkstring(T, 0);
+	if (aloL_getoptbool(T, 3, false)) { /* replace in regex mode. */
+		alo_settop(T, 3);
+		int flag = aloL_callselfmeta(T, 1, "matcher"); /* stack[3] = target->matcher */
+		if (!flag) {
+			aloL_error(T, 2, "failed to call function 'string.matcher'");
+		}
+		if (alo_getmeta(T, 3, "replace", false) != ALO_TFUNCTION) {
+			aloL_error(T, 2, "failed to call function 'matcher.replace'");
+		}
+		alo_push(T, 3);
+		alo_push(T, 0);
+		alo_push(T, 2);
+		alo_call(T, 3, 1); /* stack[4] = stack[3]->replace(self,to) */
+		return 1;
+	}
+	else {
+		aloL_checkstring(T, 1);
+		aloL_checkstring(T, 2);
+		const char *s1, *s2, *s3, *st;
+		size_t l1, l2, l3;
+		s1 = alo_tolstring(T, 0, &l1);
+		if (l1 == 0) {
+			aloL_error(T, 2, "replace target cannot be empty.");
+		}
+		s2 = alo_tolstring(T, 1, &l2);
+		if (l1 < l2) {
+			goto norep;
+		}
+		st = findaux(s1, l1, s2, l2);
+		if (st == NULL) {
+			goto norep;
+		}
+
+		s3 = alo_tolstring(T, 2, &l3);
+		aloL_usebuf(T, buf) {
+			do
+			{
+				aloL_bputls(T, &buf, s1, st - s1);
+				aloL_bputls(T, &buf, s3, l3);
+				l1 -= (st - s1) + l2;
+				s1 = st + l2;
+			}
+			while ((st = findaux(s1, l1, s2, l2)));
+			if (l1 > 0) {
+				aloL_bputls(T, &buf, s1, l1);
+			}
+			aloL_bpushstring(T, &buf);
+		}
+		return 1;
+
+		norep:
+		alo_settop(T, 1);
+		return 1;
+	}
+}
+
 static const acreg_t mod_funcs[] = {
 	{ "match", str_match },
 	{ "matcher", str_matcher },
 	{ "repeat", str_repeat },
+	{ "replace", str_replace },
 	{ "reverse", str_reverse },
 	{ "trim", str_trim },
 	{ NULL, NULL }
@@ -1007,6 +1114,7 @@ static const acreg_t mod_funcs[] = {
 
 int aloopen_strlib(astate T) {
 	alo_bind(T, "string.repeat", str_repeat);
+	alo_bind(T, "string.replace", str_replace);
 	alo_bind(T, "string.reverse", str_reverse);
 	alo_bind(T, "string.trim", str_trim);
 	alo_bind(T, "string.match", str_match);
