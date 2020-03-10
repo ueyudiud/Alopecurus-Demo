@@ -945,6 +945,15 @@ static int matcher_replace(astate T) {
 	return 1;
 }
 
+static int mmatch(amstat_t* M, amnode_t* nodes, const char* begin, const char* end) {
+	for (const char* s = begin; s <= end; ++s) {
+		if (match(M, nodes, s, false)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 static int matcher_split(astate T) {
 	Matcher* matcher = self(T);
 	size_t len;
@@ -952,19 +961,23 @@ static int matcher_split(astate T) {
 	amstat_t M;
 	amgroup_t groups[matcher->ngroup];
 	minit(&M, T, src, len, groups);
-	const char* s = src;
 	size_t n = 0;
 	alo_settop(T, 2);
 	alo_newlist(T, 0);
-	while (match(&M, matcher->node, s, false)) {
-		size_t off = groups[0].end - s;
-		alo_pushlstring(T, s, groups[0].begin - s);
-		alo_rawseti(T, 3, n++);
-		M.sbegin += off;
-		s = groups[0].end;
+	if (mmatch(&M, matcher->node, M.sbegin, M.send)) {
+		do
+		{
+			alo_pushlstring(T, M.sbegin, groups->begin - M.sbegin);
+			alo_rawseti(T, 2, n++);
+			M.sbegin = groups->end;
+		}
+		while (mmatch(&M, matcher->node, M.sbegin, M.send));
+		alo_pushlstring(T, M.sbegin, M.send - M.sbegin);
 	}
-	alo_pushlstring(T, s, M.send - s);
-	alo_rawseti(T, 3, n);
+	else {
+		alo_push(T, 1);
+	}
+	alo_rawseti(T, 2, n);
 	return 1;
 }
 
@@ -1021,31 +1034,29 @@ static int matcher_tostr(astate T) {
 }
 
 static int matcher_find(astate T) {
-	aloL_checkstring(T, 1);
+	const char* src;
+	size_t len;
+	src = aloL_checklstring(T, 1, &len);
 	Matcher* matcher = self(T);
 	amstat_t M;
 	amgroup_t groups[matcher->ngroup];
-	const char* src;
-	size_t len;
-	src = alo_tolstring(T, 1, &len);
-	size_t off = aloL_getoptinteger(T, 2, 0);
-	if (off > len) {
-		return 0;
+	aint off = aloL_getoptinteger(T, 2, 0);
+	if (off < 0) {
+		off += len;
+	}
+	if (off > len || off < 0) {
+		aloL_argerror(T, 2, "index out of bound.");
 	}
 	minit(&M, T, src, len, groups);
-	src += off;
-	while (src <= M.send) {
-		if (match(&M, matcher->node, src, false)) {
-			alo_pushinteger(T, groups[0].begin - M.sbegin);
-			alo_pushinteger(T, groups[0].end - M.sbegin);
-			return 2;
-		}
-		src++;
+	if (mmatch(&M, matcher->node, src + off, M.send)) {
+		alo_pushinteger(T, groups[0].begin - M.sbegin);
+		alo_pushinteger(T, groups[0].end - M.sbegin);
+		return 2;
 	}
 	return 0;
 }
 
-static int str_matcher(astate T) {
+static Matcher* preload(astate T) {
 	Matcher* matcher = alo_newobj(T, Matcher);
 	matcher->node = NULL;
 	matcher->ngroup = 0;
@@ -1063,8 +1074,13 @@ static int str_matcher(astate T) {
 		aloL_setfuns(T, -1, funcs);
 	}
 	alo_setmetatable(T, -2);
+	return matcher;
+}
+
+static int str_matcher(astate T) {
 	size_t len;
-	const char* src = alo_tolstring(T, 0, &len);
+	const char* src = aloL_checklstring(T, 0, &len);
+	Matcher* matcher = preload(T);
 	compile(matcher, T, src, len);
 	return 1;
 }
@@ -1120,8 +1136,7 @@ static int str_replace(astate T) {
 	aloL_checkstring(T, 0);
 	if (aloL_getoptbool(T, 3, false)) { /* replace in regex mode. */
 		alo_settop(T, 3);
-		int flag = aloL_callselfmeta(T, 1, "matcher"); /* stack[3] = target->matcher */
-		if (!flag) {
+		if (!aloL_callselfmeta(T, 1, "matcher")) { /* stack[3] = target->matcher */
 			aloL_error(T, 2, "failed to call function 'string.matcher'");
 		}
 		if (alo_getmeta(T, 3, "replace", false) != ALO_TFUNCTION) {
@@ -1184,14 +1199,13 @@ static int str_split(astate T) {
 	const char* s2 = aloL_checklstring(T, 1, &l2);
 	if (aloL_getoptbool(T, 2, false)) { /* replace in regex mode. */
 		alo_settop(T, 2);
-		int flag = aloL_callselfmeta(T, 1, "matcher"); /* stack[3] = target->matcher */
-		if (!flag) {
+		if (!aloL_callselfmeta(T, 1, "matcher")) { /* stack[3] = target->matcher */
 			aloL_error(T, 2, "failed to call function 'string.matcher'");
 		}
-		if (alo_getmeta(T, 3, "split", false) != ALO_TFUNCTION) {
+		if (alo_getmeta(T, 2, "split", false) != ALO_TFUNCTION) {
 			aloL_error(T, 2, "failed to call function 'matcher.split'");
 		}
-		alo_push(T, 3);
+		alo_push(T, 2);
 		alo_push(T, 0);
 		alo_call(T, 2, 1); /* stack[4] = stack[3]->replace(self,to) */
 	}
