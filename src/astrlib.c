@@ -90,7 +90,7 @@ static int str_repeat(astate T) {
 
 /**
  ** trim white space in the front and tail of string.
- ** prototyoe: string.trim(self)
+ ** prototype: string.trim(self)
  */
 static int str_trim(astate T) {
 	size_t len;
@@ -117,6 +117,55 @@ static int str_trim(astate T) {
 			aloL_bputls(T, &buf, src + i, len);
 			aloL_bpushstring(T, &buf);
 		}
+	}
+	return 1;
+}
+
+/**
+ ** transform character to byte value.
+ ** 0 is the default value for index.
+ ** prototype: string.byte(self, index)
+ */
+static int str_byte(astate T) {
+	size_t l;
+	const char* s = aloL_checklstring(T, 0, &l);
+	aint i = aloL_getoptinteger(T, 1, 0);
+	if (i >= 0) {
+		if (l < i) {
+			goto error;
+		}
+	}
+	else {
+		i += l;
+		if (i < 0) {
+			goto error;
+		}
+	}
+	alo_pushinteger(T, aloE_byte(s[i]));
+	return 1;
+
+	error:
+	aloL_error(T, 2, "index out of bound");
+	return 0;
+}
+
+/**
+ ** transform byte index into string.
+ ** prototype: string.char(chars...)
+ */
+static int str_char(astate T) {
+	int n = alo_gettop(T);
+	aloL_usebuf(T, buf) {
+		aloL_bcheck(T, &buf, n);
+		for (int i = 0; i < n; ++i) {
+			int ch = aloL_checkinteger(T, i);
+			if (ch != aloE_byte(ch)) {
+				aloL_argerror(T, i, "integer can not cast to character");
+			}
+			aloL_bsetc(&buf, i, ch);
+		}
+		aloL_bsetlen(&buf, n);
+		aloL_bpushstring(T, &buf);
 	}
 	return 1;
 }
@@ -855,7 +904,6 @@ static void aux_replacef(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 
 static int matcher_replace(astate T) {
 	Matcher* matcher = self(T);
-	aloL_checkstring(T, 1);
 	void (*transformer)(astate, Matcher*, amstat_t*, ambuf_t*);
 	if (alo_typeid(T, 2) == ALO_TSTRING) {
 		transformer = aux_replaces;
@@ -868,7 +916,7 @@ static int matcher_replace(astate T) {
 	amgroup_t groups[matcher->ngroup];
 	const char* src;
 	size_t len;
-	src = alo_tolstring(T, 1, &len);
+	src = aloL_checklstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
 	alo_settop(T, 3);
 	aloL_usebuf(T, buf) {
@@ -894,6 +942,29 @@ static int matcher_replace(astate T) {
 		}
 		aloL_bpushstring(T, &buf);
 	}
+	return 1;
+}
+
+static int matcher_split(astate T) {
+	Matcher* matcher = self(T);
+	size_t len;
+	const char* src = aloL_checklstring(T, 1, &len);
+	amstat_t M;
+	amgroup_t groups[matcher->ngroup];
+	minit(&M, T, src, len, groups);
+	const char* s = src;
+	size_t n = 0;
+	alo_settop(T, 2);
+	alo_newlist(T, 0);
+	while (match(&M, matcher->node, s, false)) {
+		size_t off = groups[0].end - s;
+		alo_pushlstring(T, s, groups[0].begin - s);
+		alo_rawseti(T, 3, n++);
+		M.sbegin += off;
+		s = groups[0].end;
+	}
+	alo_pushlstring(T, s, M.send - s);
+	alo_rawseti(T, 3, n);
 	return 1;
 }
 
@@ -986,6 +1057,7 @@ static int str_matcher(astate T) {
 				{ "match", matcher_match },
 				{ "find", matcher_find },
 				{ "replace", matcher_replace },
+				{ "split", matcher_split },
 				{ NULL, NULL }
 		};
 		aloL_setfuns(T, -1, funcs);
@@ -1042,7 +1114,7 @@ static const char* findaux(const char* sh, size_t lh, const char* st, size_t lt)
 /**
  ** replace all target to replacement.
  ** use matcher to replace string if regex is true, which is false in default.
- ** prototyoe: string.replace(self, target, replacement, [regex])
+ ** prototype: string.replace(self, target, replacement, [regex])
  */
 static int str_replace(astate T) {
 	aloL_checkstring(T, 0);
@@ -1062,7 +1134,6 @@ static int str_replace(astate T) {
 		return 1;
 	}
 	else {
-		aloL_checkstring(T, 1);
 		aloL_checkstring(T, 2);
 		const char *s1, *s2, *s3, *st;
 		size_t l1, l2, l3;
@@ -1070,7 +1141,7 @@ static int str_replace(astate T) {
 		if (l1 == 0) {
 			aloL_error(T, 2, "replace target cannot be empty.");
 		}
-		s2 = alo_tolstring(T, 1, &l2);
+		s2 = aloL_checklstring(T, 1, &l2);
 		if (l1 < l2) {
 			goto norep;
 		}
@@ -1102,20 +1173,66 @@ static int str_replace(astate T) {
 	}
 }
 
+/**
+ ** split string into list.
+ ** use matcher to split string if regex is true, which is false in default.
+ ** prototype: string.split(self,separator, [regex])
+ */
+static int str_split(astate T) {
+	size_t l1, l2;
+	const char* s1 = aloL_checklstring(T, 0, &l1);
+	const char* s2 = aloL_checklstring(T, 1, &l2);
+	if (aloL_getoptbool(T, 2, false)) { /* replace in regex mode. */
+		alo_settop(T, 2);
+		int flag = aloL_callselfmeta(T, 1, "matcher"); /* stack[3] = target->matcher */
+		if (!flag) {
+			aloL_error(T, 2, "failed to call function 'string.matcher'");
+		}
+		if (alo_getmeta(T, 3, "split", false) != ALO_TFUNCTION) {
+			aloL_error(T, 2, "failed to call function 'matcher.split'");
+		}
+		alo_push(T, 3);
+		alo_push(T, 0);
+		alo_call(T, 2, 1); /* stack[4] = stack[3]->replace(self,to) */
+	}
+	else {
+		alo_settop(T, 2);
+		alo_newlist(T, 0);
+		size_t n = 0;
+		const char* st;
+		while ((st = findaux(s1, l1, s2, l2))) {
+			alo_pushlstring(T, s1, st - s1);
+			alo_rawseti(T, 2, n++);
+			size_t off = st - s1 + l2;
+			s1 += off;
+			l1 -= off;
+		}
+		alo_pushlstring(T, s1, l1);
+		alo_rawseti(T, 2, n);
+	}
+	return 1;
+}
+
 static const acreg_t mod_funcs[] = {
+	{ "byte", str_byte },
+	{ "char", str_char },
 	{ "match", str_match },
 	{ "matcher", str_matcher },
 	{ "repeat", str_repeat },
 	{ "replace", str_replace },
 	{ "reverse", str_reverse },
+	{ "split", str_split },
 	{ "trim", str_trim },
 	{ NULL, NULL }
 };
 
 int aloopen_strlib(astate T) {
+	alo_bind(T, "string.byte", str_byte);
+	alo_bind(T, "string.char", str_char);
 	alo_bind(T, "string.repeat", str_repeat);
 	alo_bind(T, "string.replace", str_replace);
 	alo_bind(T, "string.reverse", str_reverse);
+	alo_bind(T, "string.split", str_split);
 	alo_bind(T, "string.trim", str_trim);
 	alo_bind(T, "string.match", str_match);
 	alo_bind(T, "string.matcher", str_matcher);
