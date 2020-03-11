@@ -412,33 +412,26 @@ static void converge_weak(aglobal_t* G) {
 }
 
 static void clean_weakkey(aglobal_t* G, agct list) {
-	agct c, n = list;
-	while ((c = n)) {
-		n = c->gclist;
-		switch (ttpnv(n)) {
-		case ALO_TTABLE: {
-			atable_t* v = g2m(c);
-			aentry_t* e;
-			for (e = v->lastfree - 1; e >= v->array; --e) { /* tailed iterate all elements for last free */
-				if (checkmark(G, amkey(e))) {
-					delentry(e);
-					v->lastfree = e;
-					v->length--;
-				}
+	agct c = list;
+	while (c) {
+		aloE_xassert(ttistab(c));
+		atable_t* v = g2m(c);
+		aentry_t* e;
+		for (e = v->lastfree - 1; e >= v->array; --e) { /* tailed iterate all elements for last free */
+			if (checkmark(G, amkey(e))) {
+				delentry(e);
+				v->lastfree = e;
+				v->length--;
 			}
-			aentry_t* const end = v->array + v->capacity;
-			for (e = v->lastfree; e < end; ++e) {
-				if (checkmark(G, amkey(e))) {
-					delentry(e);
-					v->length--;
-				}
+		}
+		aentry_t* const end = v->array + v->capacity;
+		for (e = v->lastfree; e < end; ++e) {
+			if (checkmark(G, amkey(e))) {
+				delentry(e);
+				v->length--;
 			}
-			break;
 		}
-		default:
-			aloE_xassert(0);
-			break;
-		}
+		c = c->gclist;
 	}
 }
 
@@ -446,7 +439,7 @@ static void clean_weakvalue(aglobal_t* G, agct list, agct end) {
 	agct c, n = list;
 	while ((c = n) != end) {
 		n = c->gclist;
-		switch (ttpnv(n)) {
+		switch (ttpnv(c)) {
 		case ALO_TLIST: {
 			alist_t* v = g2l(c);
 			size_t i, j = 0;
