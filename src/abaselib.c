@@ -59,6 +59,28 @@ static int base_tostring(astate T) {
 	return 1;
 }
 
+static int base_toint(astate T) {
+	aloL_checkany(T, 0);
+	int flag;
+	aint value = alo_tointegerx(T, 0, &flag);
+	if (!flag) {
+		aloL_error(T, 2, "can not cast object to integer.");
+	}
+	alo_pushinteger(T, value);
+	return 1;
+}
+
+static int base_tonumber(astate T) {
+	aloL_checkany(T, 0);
+	int flag;
+	afloat value = alo_tonumberx(T, 0, &flag);
+	if (!flag) {
+		aloL_error(T, 2, "can not cast object to number.");
+	}
+	alo_pushnumber(T, value);
+	return 1;
+}
+
 /**
  ** box arguments to a tuple
  ** prototype: boxarg({arg})
@@ -277,6 +299,8 @@ static const acreg_t mod_funcs[] = {
 	{ "rawrem", base_rawrem },
 	{ "rawset", base_rawset },
 	{ "setmeta", base_setmeta },
+	{ "toint", base_toint },
+	{ "tonumber", base_tonumber },
 	{ "tostring", base_tostring },
 	{ "throw", base_throw },
 	{ "try", base_try },
@@ -298,6 +322,8 @@ int aloopen_baselib(astate T) {
 	alo_bind(T, "base.rawset", base_rawset);
 	alo_bind(T, "base.rawrem", base_rawrem);
 	alo_bind(T, "base.setmeta", base_setmeta);
+	alo_bind(T, "base.toint", base_toint);
+	alo_bind(T, "base.tonumber", base_tonumber);
 	alo_bind(T, "base.tostring", base_tostring);
 	alo_bind(T, "base.try", base_try);
 	alo_bind(T, "base.throw", base_throw);
