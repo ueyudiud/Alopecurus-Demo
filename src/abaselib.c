@@ -59,6 +59,11 @@ static int base_tostring(astate T) {
 	return 1;
 }
 
+/**
+ ** transform object to integer.
+ ** if the object cannot cast to integer, an error will be thrown.
+ ** prototype: toint(arg)
+ */
 static int base_toint(astate T) {
 	aloL_checkany(T, 0);
 	int flag;
@@ -70,6 +75,11 @@ static int base_toint(astate T) {
 	return 1;
 }
 
+/**
+ ** transform object to number.
+ ** if the object cannot cast to number, an error will be thrown.
+ ** prototype: tonumber(arg)
+ */
 static int base_tonumber(astate T) {
 	aloL_checkany(T, 0);
 	int flag;
