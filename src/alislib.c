@@ -453,19 +453,19 @@ static int list_mkstr(astate T) {
 	l_mkstr_checkarg(T);
 	aloL_usebuf(T, buf) {
 		size_t n = alo_rawlen(T, 0);
-		aloL_bwrite(T, &buf, 2);
+		aloL_bwrite(T, buf, 2);
 		for (size_t i = 0; i < n; ++i) {
 			if (i != 0) {
-				aloL_bwrite(T, &buf, 1);
+				aloL_bwrite(T, buf, 1);
 			}
 			alo_push(T, 4); /* push tostring function */
 			alo_rawgeti(T, 0, i);
 			alo_call(T, 1, 1);
-			aloL_bwrite(T, &buf, -1);
+			aloL_bwrite(T, buf, -1);
 			alo_drop(T);
 		}
-		aloL_bwrite(T, &buf, 3);
-		aloL_bpushstring(T, &buf);
+		aloL_bwrite(T, buf, 3);
+		aloL_bpushstring(T, buf);
 	}
 	return 1;
 }

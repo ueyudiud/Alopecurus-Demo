@@ -40,6 +40,7 @@ typedef void (*apfun)(astate, void*);
 ALO_IFUN void aloD_setdebt(aglobal_t*, ssize_t);
 ALO_IFUN void aloD_growstack(astate, size_t);
 ALO_IFUN void aloD_reallocstack(astate, size_t);
+ALO_IFUN void aloD_shrinkstack(astate);
 ALO_IFUN int aloD_prun(astate, apfun, void*);
 ALO_IFUN anoret aloD_throw(astate, int);
 ALO_IFUN void aloD_hook(astate, int, int);

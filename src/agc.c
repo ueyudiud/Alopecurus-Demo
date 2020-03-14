@@ -250,7 +250,10 @@ static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 			trsetval(i++, aloO_nil);
 		}
 	}
-	return sizeof(athread_t) + v->nframe * sizeof(aframe_t) + v->stacksize * sizeof(atval_t);
+	else if (G->gckind == GCKindNormal) {
+		aloD_shrinkstack(v);
+	}
+	return sizeof(athread_t) + v->nframe * sizeof(aframe_t) + v->stacksize * sizeof(atval_t) + v->memstk.cap;
 }
 
 static size_t propagate_closure(aglobal_t* G, aclosure_t* v) {

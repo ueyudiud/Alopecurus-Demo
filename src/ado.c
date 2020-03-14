@@ -74,16 +74,70 @@ void aloD_reallocstack(astate T, size_t newsize) {
 	correct_stack(T, T->stack - stack);
 }
 
+static size_t usedstackcount(astate T) {
+	aframe_t* frame = T->frame;
+	askid_t lim = T->top;
+	while (frame) {
+		if (lim < frame->top) {
+			lim = frame->top;
+		}
+		frame = frame->prev;
+	}
+	return lim - T->stack;
+}
+
+void aloD_shrinkstack(astate T) {
+	if (T->memstk.cap >= (ALO_MBUF_SHTLEN * 16 * 2) && T->memstk.len <= T->memstk.cap / 4) { /* memory buffer too big? */
+		size_t newcap = T->memstk.cap / 2;
+		void* newmem = aloM_realloc(T, T->memstk.buf, T->memstk.cap, newcap);
+		aloE_xassert(newmem == T->memstk.buf);
+		aloE_void(newmem);
+	}
+	size_t inuse = usedstackcount(T);
+	size_t estimate = inuse + (inuse / 8) + 1 + 2 * EXTRA_STACK;
+	if (estimate > ALO_MAXSTACKSIZE) {
+		estimate = ALO_MAXSTACKSIZE; /* respect stack limit */
+	}
+	if (T->stacksize > ALO_MAXSTACKSIZE) { /* had been handling stack overflow? */
+		/* delete all frame above */
+		aframe_t* frame = T->frame->next;
+		T->frame->next = NULL;
+		while (frame) {
+			aframe_t* next = frame->next;
+			aloM_delo(T, frame);
+			frame = next;
+		}
+	}
+	else {
+		/* shrink to half of frame */
+		aframe_t* frame = T->frame->next;
+		while (frame->next && frame->next->next) { /* has two extra frame? */
+			aframe_t* next = frame->next->next->next;
+			aloM_delo(T, frame->next);
+			frame->next = next;
+			if (next == NULL)
+				break;
+			next->prev = frame;
+			frame = next;
+		}
+	}
+	if (inuse <= (ALO_MAXSTACKSIZE - EXTRA_STACK) && estimate < T->stacksize) {
+		aloD_reallocstack(T, estimate);
+	}
+	else {
+		adjuststack(T, estimate);
+	}
+}
+
 /**
  ** run function in protection.
  */
 int aloD_prun(astate T, apfun fun, void* ctx) {
 	uint16_t nccall = T->nccall, nxyield = T->nxyield;
-	ambuf_t* memstk = T->memstk; /* store memory stack */
+	ambuf_t* mbuf = T->memstk.top; /* store memory buffer */
 	ajmp_t label;
 	label.prev = T->label;
 	label.status = ThreadStateRun;
-	T->memstk = NULL;
 	T->label = &label;
 	if (setjmp(label.buf) == 0) {
 		fun(T, ctx);
@@ -91,7 +145,7 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
 	T->label = label.prev;
 	T->nccall = nccall;
 	T->nxyield = nxyield;
-	T->memstk = memstk; /* revert memory stack */
+	T->memstk.top = mbuf; /* revert memory buffer */
 	return label.status;
 }
 
@@ -100,9 +154,6 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
  */
 anoret aloD_throw(astate T, int status) {
 	aloE_assert(status >= ThreadStateErrRuntime, "can only throw error status by this function.");
-	while (T->memstk) {
-		aloB_bcloseaux(T, T->memstk); /* free all memory stack in current label */
-	}
 	if (T->label) {
 		T->label->status = status;
 		longjmp(T->label->buf, 1);

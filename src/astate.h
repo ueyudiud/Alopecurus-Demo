@@ -35,6 +35,17 @@ typedef struct {
 } actable_t;
 
 /**
+ ** memory stack to allocate and free memory buffer.
+ */
+typedef struct {
+	ambuf_t* top;
+	ALO_MEMBUF_INFO; /* mark as the base of memory stack and give the information of whole stack */
+} amstack_t;
+
+/* get base memory buffer */
+#define basembuf(T) aloE_cast(ambuf_t*, &(T)->memstk.cap)
+
+/**
  ** global state, shared by each thread.
  */
 typedef struct alo_Global {
@@ -146,7 +157,7 @@ struct alo_Thread {
 	askid_t top; /* top of stack */
 	size_t stacksize; /* current stack size */
 	ajmp_t* label;
-	ambuf_t* memstk; /* memory stack */
+	amstack_t memstk; /* memory stack */
 	ahfun hook;
 	aframe_t base_frame;
 	int berrno; /* buffer error */

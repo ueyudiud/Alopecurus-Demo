@@ -117,10 +117,10 @@ static int table_mkstr(astate T) {
 	aloL_usebuf(T, buf) {
 		ptrdiff_t i = ALO_ITERATE_BEGIN;
 		int first = true;
-		aloL_bwrite(T, &buf, 2);
+		aloL_bwrite(T, buf, 2);
 		while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
 			if (!first) {
-				aloL_bwrite(T, &buf, 1);
+				aloL_bwrite(T, buf, 1);
 			}
 			else {
 				first = false;
@@ -128,17 +128,17 @@ static int table_mkstr(astate T) {
 			alo_push(T, 5); /* push tostring function */
 			alo_push(T, -3);
 			alo_call(T, 1, 1);
-			aloL_bwrite(T, &buf, -1);
+			aloL_bwrite(T, buf, -1);
 			alo_drop(T);
-			aloL_bwrite(T, &buf, 4);
+			aloL_bwrite(T, buf, 4);
 			alo_push(T, 5); /* push tostring function */
 			alo_push(T, -2);
 			alo_call(T, 1, 1);
-			aloL_bwrite(T, &buf, -1);
+			aloL_bwrite(T, buf, -1);
 			alo_settop(T, -3);
 		}
-		aloL_bwrite(T, &buf, 3);
-		aloL_bpushstring(T, &buf);
+		aloL_bwrite(T, buf, 3);
+		aloL_bpushstring(T, buf);
 	}
 	return 1;
 }

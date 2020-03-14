@@ -67,7 +67,7 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 		l_lockstream(file);
 		while (buf->len < buf->cap) {
 			if ((ch = fgetc(file->stream)) != EOF && ch != '\n') {
-				buf->buf[buf->len++] = aloE_byte(ch);
+				aloL_bsetc(buf, buf->len++, ch);
 			}
 			else {
 				l_unlockstream(file);
@@ -85,7 +85,7 @@ static int f_line(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	aloL_usebuf(T, buf) {
-		l_getline(T, file, &buf);
+		l_getline(T, file, buf);
 	}
 	return 1;
 }
@@ -173,11 +173,11 @@ static int f_lines(astate T) {
 		if (alo_gettop(T) >= 2) {
 			aloL_checkcall(T, 1); /* check function */
 			while (!feof(file->stream)) {
-				l_getline(T, file, &buf);
+				l_getline(T, file, buf);
 				alo_push(T, 1); /* push function */
 				alo_push(T, -2); /* push string */
 				alo_call(T, 1, 0);
-				aloL_bsetlen(&buf, 0); /* rewind buffer */
+				aloL_blen(buf) = 0; /* rewind buffer */
 			}
 			n = 0;
 		}
@@ -185,9 +185,9 @@ static int f_lines(astate T) {
 			alo_newlist(T, 0); /* create new line list */
 			int index = 0;
 			while (!feof(file->stream)) {
-				l_getline(T, file, &buf);
+				l_getline(T, file, buf);
 				alo_rawseti(T, 1, index++); /* add string to list */
-				aloL_bsetlen(&buf, 0); /* rewind buffer */
+				aloL_blen(buf) = 0; /* rewind buffer */
 			}
 			alo_push(T, 1);
 			n = 1;

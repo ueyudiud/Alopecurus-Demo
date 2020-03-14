@@ -220,7 +220,7 @@ ALO_API void alo_delbuf(astate, ambuf_t*);
 ALO_API int alo_format(astate, awriter, void*, astr, ...);
 ALO_API int alo_vformat(astate, awriter, void*, astr, va_list);
 
-#define alo_newbuf(name) ambuf_t name = ((ambuf_t) { ALO_MBUF_SHTLEN, 0, name.instk, NULL, {} })
+#define alo_newbuf(name) ambuf_t name = ((ambuf_t) { { ALO_MBUF_SHTLEN, 0, name.instk }, NULL, {} })
 
 /**
  ** debugger

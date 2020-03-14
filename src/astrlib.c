@@ -38,12 +38,12 @@ static int str_reverse(astate T) {
 	}
 	else { /* or use memory buffer instead */
 		aloL_usebuf(T, buf) {
-			aloL_bcheck(T, &buf, len * sizeof(char));
+			aloL_bcheck(T, buf, len * sizeof(char));
 			for (size_t i = 0; i < len; ++i) {
-				aloL_bsetc(&buf, i, src[len - 1 - i]);
+				aloL_bsetc(buf, i, src[len - 1 - i]);
 			}
-			aloL_bsetlen(&buf, len * sizeof(char));
-			aloL_bpushstring(T, &buf);
+			aloL_blen(buf) = len * sizeof(char);
+			aloL_bpushstring(T, buf);
 		}
 	}
 	return 1;
@@ -75,14 +75,14 @@ static int str_repeat(astate T) {
 	}
 	else { /* for long string, use buffer on heap */
 		aloL_usebuf(T, buf) {
-			aloL_bcheck(T, &buf, nlen * sizeof(char));
-			abyte* p = buf.buf;
+			aloL_bcheck(T, buf, nlen * sizeof(char));
+			abyte* p = aloL_braw(buf);
 			for (size_t i = 0; i < time; ++i) {
 				memcpy(p, src, len);
 				p += len * sizeof(char);
 			}
-			buf.len = nlen * sizeof(char);
-			aloL_bpushstring(T, &buf);
+			aloL_blen(buf) = nlen * sizeof(char);
+			aloL_bpushstring(T, buf);
 		}
 	}
 	return 1;
@@ -113,9 +113,9 @@ static int str_trim(astate T) {
 			alo_pushlstring(T, buf, len);
 		}
 		else aloL_usebuf(T, buf) {
-			aloL_bcheck(T, &buf, len * sizeof(char));
-			aloL_bputls(T, &buf, src + i, len);
-			aloL_bpushstring(T, &buf);
+			aloL_bcheck(T, buf, len * sizeof(char));
+			aloL_bputls(T, buf, src + i, len);
+			aloL_bpushstring(T, buf);
 		}
 	}
 	return 1;
@@ -156,16 +156,16 @@ static int str_byte(astate T) {
 static int str_char(astate T) {
 	int n = alo_gettop(T);
 	aloL_usebuf(T, buf) {
-		aloL_bcheck(T, &buf, n);
+		aloL_bcheck(T, buf, n);
 		for (int i = 0; i < n; ++i) {
 			int ch = aloL_checkinteger(T, i);
 			if (ch != aloE_byte(ch)) {
 				aloL_argerror(T, i, "integer can not cast to character");
 			}
-			aloL_bsetc(&buf, i, ch);
+			aloL_bsetc(buf, i, ch);
 		}
-		aloL_bsetlen(&buf, n);
-		aloL_bpushstring(T, &buf);
+		aloL_blen(buf) = n;
+		aloL_bpushstring(T, buf);
 	}
 	return 1;
 }
@@ -925,9 +925,9 @@ static int matcher_replace(astate T) {
 		while (s1 <= M.send) {
 			if (match(&M, matcher->node, s1, false)) {
 				if (s1 != s0) {
-					aloL_bputls(T, &buf, s0, s1 - s0);
+					aloL_bputls(T, buf, s0, s1 - s0);
 				}
-				(*transformer)(T, matcher, &M, &buf);
+				(*transformer)(T, matcher, &M, buf);
 				s1 = s0 = M.groups[0].end;
 			}
 			else {
@@ -938,9 +938,9 @@ static int matcher_replace(astate T) {
 			s1 = M.send;
 		}
 		if (s1 != s0) {
-			aloL_bputls(T, &buf, s0, s1 - s0);
+			aloL_bputls(T, buf, s0, s1 - s0);
 		}
-		aloL_bpushstring(T, &buf);
+		aloL_bpushstring(T, buf);
 	}
 	return 1;
 }
@@ -1027,8 +1027,8 @@ static void addnodeinfo(astate T, amnode_t* node, ambuf_t* buf) {
 static int matcher_tostr(astate T) {
 	Matcher* matcher = self(T);
 	aloL_usebuf(T, buf) {
-		addnodeinfo(T, matcher->node, &buf);
-		alo_pushfstring(T, "__matcher: { ngroup: %d, expr: %q }", (int) matcher->ngroup, buf.buf, buf.len);
+		addnodeinfo(T, matcher->node, buf);
+		alo_pushfstring(T, "__matcher: { ngroup: %d, expr: %q }", (int) matcher->ngroup, buf->buf, buf->len);
 	}
 	return 1;
 }
@@ -1169,16 +1169,16 @@ static int str_replace(astate T) {
 		aloL_usebuf(T, buf) {
 			do
 			{
-				aloL_bputls(T, &buf, s1, st - s1);
-				aloL_bputls(T, &buf, s3, l3);
+				aloL_bputls(T, buf, s1, st - s1);
+				aloL_bputls(T, buf, s3, l3);
 				l1 -= (st - s1) + l2;
 				s1 = st + l2;
 			}
 			while ((st = findaux(s1, l1, s2, l2)));
 			if (l1 > 0) {
-				aloL_bputls(T, &buf, s1, l1);
+				aloL_bputls(T, buf, s1, l1);
 			}
-			aloL_bpushstring(T, &buf);
+			aloL_bpushstring(T, buf);
 		}
 		return 1;
 

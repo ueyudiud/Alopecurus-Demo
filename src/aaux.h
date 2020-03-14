@@ -92,11 +92,15 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 /** the minimum heaped memory buffer capacity */
 #define ALOL_MBUFSIZE (256 * __SIZEOF_POINTER__)
 
-#define aloL_usebuf(T,name) for (alo_newbuf(name); name.buf; alo_delbuf(T, &name))
+#define aloL_usebuf(T,name) \
+	for (ambuf_t name##$data = { ALO_MBUF_SHTLEN, 0, name##$data.instk, NULL, { } }, *name = &name##$data; \
+		name##$data.buf; \
+		alo_delbuf(T, name))
 #define aloL_bputc(T,b,ch) (aloE_cast(void, (b)->len < (b)->cap || (aloL_bcheck(T, b, 1), true)), (b)->buf[(b)->len++] = aloE_byte(ch))
 #define aloL_bputls(T,b,s,l) aloL_bputm(T, b, s, (l) * sizeof(char))
 #define aloL_bsetc(b,i,ch) ((b)->buf[i] = aloE_byte(ch))
-#define aloL_bsetlen(b,l) ((b)->len = (l))
+#define aloL_blen(b) ((b)->len) /* readable and writable */
+#define aloL_braw(b) aloE_cast(abyte*, (b)->buf) /* read-only */
 
 ALO_API void aloL_bcheck(astate, ambuf_t*, size_t);
 ALO_API void aloL_bputm(astate, ambuf_t*, const void*, size_t);

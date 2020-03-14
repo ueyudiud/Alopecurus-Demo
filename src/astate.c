@@ -22,7 +22,7 @@
 const aver_t aloR_version = { ALO_VERSION_NUM };
 
 typedef struct {
-	char extra[ALO_THREAD_EXTRASPACE];
+	abyte extra[ALO_THREAD_EXTRASPACE];
 	athread_t state;
 } TX;
 
@@ -90,6 +90,10 @@ static void preinit(astate T, aglobal_t* G) {
 	T->hook = NULL;
 	T->hookmask = 0;
 	T->fallowhook = true;
+	T->memstk.top = basembuf(T);
+	T->memstk.cap = 0;
+	T->memstk.len = 0;
+	T->memstk.buf = NULL;
 }
 
 astate alo_newstate(aalloc alloc, void* ctx) {
@@ -130,7 +134,6 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	T->tt = ALO_TTHREAD;
 	T->mark = aloG_white1;
 	preinit(T, G);
-
 	/* run initializer with memory allocation, if failed, delete thread directly */
 	if (aloD_prun(T, initialize, NULL) != ThreadStateRun) {
 		alo_deletestate(T);
@@ -183,6 +186,7 @@ static void destory_thread(astate T, athread_t* v, int close) {
 		}
 	}
 	aloM_delb(T, v->stack, v->stacksize); /* clear stack */
+	aloM_free(T, T->memstk.buf, T->memstk.cap);
 }
 
 void alo_deletestate(astate rawT) {

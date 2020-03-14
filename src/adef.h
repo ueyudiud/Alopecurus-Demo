@@ -37,10 +37,14 @@ typedef struct alo_MemBuf ambuf_t;
 /* minimum capacity of memory buffer, the memory will be allocated on stack */
 #define ALO_MBUF_SHTLEN 32
 
+/* memory buffer information, at head of each memory buffer */
+#define ALO_MEMBUF_INFO \
+	size_t cap; /* the capacity of buffer */ 		\
+	size_t len; /* the length filled in buffer */	\
+	abyte* buf /* the start pointer of buffer */
+
 struct alo_MemBuf {
-	size_t cap; /* the capacity of buffer */
-	size_t len; /* the length filled in buffer */
-	abyte* buf; /* the start pointer of buffer */
+	ALO_MEMBUF_INFO;
 	ambuf_t* prev; /* the previous memory buffer in linked list */
 	abyte instk[ALO_MBUF_SHTLEN]; /* fast buffer in stack */
 };

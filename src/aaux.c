@@ -210,12 +210,12 @@ astr aloL_sreplace(astate T, astr s, astr t, astr m) {
 		const char* s1 = s;
 		const char* s2;
 		while ((s2 = strstr(s1, t))) {
-			aloL_bputls(T, &buf, s1, s2 - s1);
-			aloL_bputls(T, &buf, m, l2);
+			aloL_bputls(T, buf, s1, s2 - s1);
+			aloL_bputls(T, buf, m, l2);
 			s1 = s2 + l1;
 		}
-		aloL_bputs(T, &buf, s1);
-		result = aloL_bpushstring(T, &buf);
+		aloL_bputs(T, buf, s1);
+		result = aloL_bpushstring(T, buf);
 	}
 	return result;
 }

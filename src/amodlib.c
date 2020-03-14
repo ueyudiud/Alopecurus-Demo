@@ -332,21 +332,21 @@ static void l_createsp(astate T, astr search) {
 				s4 = path;
 				while ((s5 = strchr(s4, ';'))) {
 					aloL_usebuf(T, buf) {
-						aloL_bputls(T, &buf, s1, s3 - s1);
-						aloL_bputls(T, &buf, s4, s5 - s4);
+						aloL_bputls(T, buf, s1, s3 - s1);
+						aloL_bputls(T, buf, s4, s5 - s4);
 						s3 += 1;
-						aloL_bputls(T, &buf, s3, s2 - s3);
+						aloL_bputls(T, buf, s3, s2 - s3);
 						s5 = s4 + 1;
-						aloL_bpushstring(T, &buf);
+						aloL_bpushstring(T, buf);
 					}
 					alo_rawseti(T, -2, l++);
 				}
 				aloL_usebuf(T, buf) {
-					aloL_bputls(T, &buf, s1, s3 - s1);
-					aloL_bputs(T, &buf, s4);
+					aloL_bputls(T, buf, s1, s3 - s1);
+					aloL_bputs(T, buf, s4);
 					s3 += 1;
-					aloL_bputls(T, &buf, s3, s2 - s3);
-					aloL_bpushstring(T, &buf);
+					aloL_bputls(T, buf, s3, s2 - s3);
+					aloL_bpushstring(T, buf);
 				}
 				alo_rawseti(T, -2, l++);
 			}
