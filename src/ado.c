@@ -110,7 +110,7 @@ void aloD_shrinkstack(astate T) {
 	}
 	else {
 		/* shrink to half of frame */
-		aframe_t* frame = T->frame->next;
+		aframe_t* frame = T->frame;
 		while (frame->next && frame->next->next) { /* has two extra frame? */
 			aframe_t* next = frame->next->next->next;
 			aloM_delo(T, frame->next);
