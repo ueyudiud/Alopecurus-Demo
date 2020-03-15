@@ -34,7 +34,7 @@ ahash_t aloO_flthash(afloat f) {
 
 static int str2int(astr in, aint* out) {
 	char* s;
-	aint v = strtoll(in + 2, &s, 0);
+	aint v = strtoll(in, &s, 0);
 	if (!errno && s && s != in && *s == '\0') {
 		*out = v;
 		return true;
