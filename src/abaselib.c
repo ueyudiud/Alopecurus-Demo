@@ -78,9 +78,9 @@ static int base_toint(astate T) {
 /**
  ** transform object to number.
  ** if the object cannot cast to number, an error will be thrown.
- ** prototype: tonumber(arg)
+ ** prototype: tonum(arg)
  */
-static int base_tonumber(astate T) {
+static int base_tonum(astate T) {
 	aloL_checkany(T, 0);
 	int flag;
 	afloat value = alo_tonumberx(T, 0, &flag);
@@ -310,7 +310,7 @@ static const acreg_t mod_funcs[] = {
 	{ "rawset", base_rawset },
 	{ "setmeta", base_setmeta },
 	{ "toint", base_toint },
-	{ "tonumber", base_tonumber },
+	{ "tonumber", base_tonum },
 	{ "tostring", base_tostring },
 	{ "throw", base_throw },
 	{ "try", base_try },
@@ -333,7 +333,7 @@ int aloopen_baselib(astate T) {
 	alo_bind(T, "base.rawrem", base_rawrem);
 	alo_bind(T, "base.setmeta", base_setmeta);
 	alo_bind(T, "base.toint", base_toint);
-	alo_bind(T, "base.tonumber", base_tonumber);
+	alo_bind(T, "base.tonumber", base_tonum);
 	alo_bind(T, "base.tostring", base_tostring);
 	alo_bind(T, "base.try", base_try);
 	alo_bind(T, "base.throw", base_throw);
