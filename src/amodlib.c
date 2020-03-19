@@ -196,6 +196,7 @@ static int is_readable(astr path) {
 
 /**
  ** load dynamic library from files.
+ ** prototype: [imported] mod.loaddl(path, [load])
  */
 static int mod_loaddl(astate T) {
 	aloL_checkstring(T, 0);
