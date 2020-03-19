@@ -136,7 +136,7 @@ typedef struct {
 	void* library;
 } adlbox_t;
 
-#define self(T) aloE_cast(adlbox_t*, alo_torawdata(T, 0))
+#define self(T) alo_toobject(T, 0, adlbox_t*)
 
 static int dlbox_del(astate T) {
 	adlbox_t* box = self(T);
@@ -161,7 +161,7 @@ static int dlbox_index(astate T) {
 }
 
 static adlbox_t* l_preload(astate T) {
-	adlbox_t* box = alo_newobj(T, adlbox_t);
+	adlbox_t* box = alo_newobject(T, adlbox_t);
 	box->library = NULL;
 	if (aloL_getsimpleclass(T, "__file")) {
 		static const acreg_t funs[] = {

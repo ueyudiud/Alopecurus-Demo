@@ -101,6 +101,7 @@ ALO_API astate alo_tothread(astate, aindex_t);
 #define alo_tointeger(T,index) alo_tointegerx(T, index, NULL)
 #define alo_tonumber(T,index) alo_tonumberx(T, index, NULL)
 #define alo_tostring(T,index) alo_tolstring(T, index, NULL)
+#define alo_toobject(T,index,type) aloE_cast(type, alo_torawdata(T, index))
 
 ALO_API void* alo_rawptr(astate, aindex_t);
 ALO_API size_t alo_rawlen(astate, aindex_t);
@@ -158,7 +159,7 @@ ALO_API void alo_newlist(astate, size_t);
 ALO_API void alo_newtable(astate, size_t);
 ALO_API astate alo_newthread(astate);
 
-#define alo_newobj(T,type) aloE_cast(typeof(type)*, alo_newdata(T, sizeof(type)))
+#define alo_newobject(T,type) aloE_cast(typeof(type)*, alo_newdata(T, sizeof(type)))
 
 /**
  ** set functions (stack -> Alopecurus)

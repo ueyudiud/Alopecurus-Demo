@@ -31,7 +31,7 @@ typedef struct {
 static const acreg_t cls_funcs[];
 
 static afile* l_preopen(astate T) {
-	afile* file = alo_newobj(T, afile);
+	afile* file = alo_newobject(T, afile);
 	file->stream = NULL;
 	file->closer = NULL;
 	if (aloL_getsimpleclass(T, "__file")) {
@@ -47,7 +47,7 @@ static void l_checkopen(astate T, afile* file) {
 	}
 }
 
-#define self(T) aloE_cast(afile*, alo_torawdata(T, 0))
+#define self(T) alo_toobject(T, 0, afile*)
 
 static int f_getc(astate T) {
 	afile* file = self(T);

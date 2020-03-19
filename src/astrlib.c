@@ -1057,7 +1057,7 @@ static int matcher_find(astate T) {
 }
 
 static Matcher* preload(astate T) {
-	Matcher* matcher = alo_newobj(T, Matcher);
+	Matcher* matcher = alo_newobject(T, Matcher);
 	matcher->node = NULL;
 	matcher->ngroup = 0;
 	if (aloL_getsimpleclass(T, "__matcher")) {
