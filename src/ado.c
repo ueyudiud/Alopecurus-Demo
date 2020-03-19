@@ -86,18 +86,7 @@ static size_t usedstackcount(astate T) {
 	return lim - T->stack;
 }
 
-void aloD_shrinkstack(astate T) {
-	if (T->memstk.cap >= (ALO_MBUF_SHTLEN * 16 * 2) && T->memstk.len <= T->memstk.cap / 4) { /* memory buffer too big? */
-		size_t newcap = T->memstk.cap / 2;
-		void* newmem = aloM_realloc(T, T->memstk.buf, T->memstk.cap, newcap);
-		aloE_xassert(newmem == T->memstk.buf);
-		aloE_void(newmem);
-	}
-	size_t inuse = usedstackcount(T);
-	size_t estimate = inuse + (inuse / 8) + 1 + 2 * EXTRA_STACK;
-	if (estimate > ALO_MAXSTACKSIZE) {
-		estimate = ALO_MAXSTACKSIZE; /* respect stack limit */
-	}
+static void shrinkframe(astate T) {
 	if (T->stacksize > ALO_MAXSTACKSIZE) { /* had been handling stack overflow? */
 		/* delete all frame above */
 		aframe_t* frame = T->frame->next;
@@ -120,6 +109,21 @@ void aloD_shrinkstack(astate T) {
 			next->prev = frame;
 			frame = next;
 		}
+	}
+}
+
+void aloD_shrinkstack(astate T) {
+	if (T->memstk.cap >= (ALO_MBUF_SHTLEN * 16 * 2) && T->memstk.len <= T->memstk.cap / 4) { /* memory buffer too big? */
+		size_t newcap = T->memstk.cap / 2;
+		void* newmem = aloM_realloc(T, T->memstk.buf, T->memstk.cap, newcap);
+		aloE_xassert(newmem == T->memstk.buf);
+		aloE_void(newmem);
+	}
+	shrinkframe(T);
+	size_t inuse = usedstackcount(T);
+	size_t estimate = inuse + (inuse / 8) + 1 + 2 * EXTRA_STACK;
+	if (estimate > ALO_MAXSTACKSIZE) {
+		estimate = ALO_MAXSTACKSIZE; /* respect stack limit */
 	}
 	if (inuse <= (ALO_MAXSTACKSIZE - EXTRA_STACK) && estimate < T->stacksize) {
 		aloD_reallocstack(T, estimate);
