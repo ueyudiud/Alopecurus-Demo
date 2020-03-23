@@ -39,10 +39,7 @@ static inline int lgetc(alexer_t* lex) {
 }
 
 static void lstore(alexer_t* lex, int ch) {
-	if (lex->buf.len == lex->buf.cap) { /* check buffer capacity */
-		aloM_adjb(lex->T, lex->buf.ptr, lex->buf.cap, aloM_growsize(lex->T, lex->buf.cap, ALO_MBUF_LIMIT));
-	}
-	lex->buf.ptr[lex->buf.len++] = aloE_byte(ch);
+	aloB_putc(lex->T, &lex->buf, ch);
 }
 
 static inline void lrewind(alexer_t* lex) {
@@ -50,14 +47,14 @@ static inline void lrewind(alexer_t* lex) {
 }
 
 static inline astring_t* lload(alexer_t* lex) {
-	astring_t* s = aloX_getstr(lex, lex->buf.ptr, lex->buf.len);
+	astring_t* s = aloX_getstr(lex, aloE_cast(char*, lex->buf.buf), lex->buf.len);
 	lrewind(lex);
 	return s;
 }
 
 static inline astr lmake(alexer_t* lex) {
 	lstore(lex, '\0'); /* make a zero terminated string */
-	return lex->buf.ptr;
+	return aloE_cast(astr, lex->buf.buf);
 }
 
 /**
@@ -78,7 +75,7 @@ void aloX_init(astate T) {
 void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
 	lex->T = T;
 	lex->in = in;
-	aloM_newb(T, lex->buf.ptr, lex->buf.cap, ALO_MBUF_SHTLEN);
+	aloB_open(T, lex->buf);
 	lex->buf.len = 0;
 	lex->ch = aloB_ifill_(T, lex->in); /* get fist character */
 	lex->ct = lex->nt = undef;
@@ -98,7 +95,7 @@ void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
  ** close lexer.
  */
 void aloX_close(alexer_t* lex) {
-	aloM_delb(lex->T, lex->buf.ptr, lex->buf.cap);
+	aloB_close(lex->T, lex->buf);
 }
 
 /**

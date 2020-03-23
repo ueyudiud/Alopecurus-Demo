@@ -205,7 +205,7 @@ const char* aloL_tostring(astate T, aindex_t index, size_t* psize) {
 astr aloL_sreplace(astate T, astr s, astr t, astr m) {
 	size_t l1 = strlen(t);
 	size_t l2 = strlen(m);
-	astr result;
+	astr result = NULL;
 	aloL_usebuf(T, buf) {
 		const char* s1 = s;
 		const char* s2;
@@ -507,15 +507,6 @@ void aloL_newclass_(astate T, astr name, ...) {
 		c++;
 	}
 	alo_call(T, c, 1);
-}
-
-void aloL_bcheck(astate T, ambuf_t* buf, size_t sz) {
-	size_t req = buf->len + sz;
-	if (req > buf->cap) {
-		if (!alo_growbuf(T, buf, req)) {
-			aloL_error(T, 2, "no enough memory for buffer.");
-		}
-	}
 }
 
 void aloL_bputm(astate T, ambuf_t* buf, const void* src, size_t len) {

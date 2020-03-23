@@ -187,7 +187,7 @@ anoret aloU_mnotfound(astate T, const atval_t* owner, astr fun) {
 }
 
 static astring_t* aloU_pushvmsg(astate T, astr fmt, va_list varg) {
-	aloB_decl(buf);
+	aloB_decl(T, buf);
 	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
 	write_stacktrace(T, &buf, WRITE_ERROR_LEVEL);
 	astring_t* value = aloB_tostr(T, buf);

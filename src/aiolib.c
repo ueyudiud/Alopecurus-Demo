@@ -145,6 +145,8 @@ static int f_isclosed(astate T) {
 	return 1;
 }
 
+#define IOBUF_SIZE 32
+
 /**
  ** set stream buffering mode.
  ** prototype: file.setbut(file, [mode, [size]])
@@ -154,7 +156,7 @@ static int f_setbuf(astate T) {
 	static const int masks[] = { _IONBF, _IOLBF, _IOFBF };
 	afile* file = self(T);
 	int id = aloL_checkenum(T, 1, NULL, mode);
-	size_t size = aloL_getoptinteger(T, 2, ALO_MBUF_SHTLEN);
+	size_t size = aloL_getoptinteger(T, 2, IOBUF_SIZE);
 	l_lockstream(file);
 	setvbuf(file->stream, NULL, masks[id], size);
 	l_unlockstream(file);
@@ -168,9 +170,9 @@ static int f_setbuf(astate T) {
 static int f_lines(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	int n;
+	int n = alo_gettop(T) < 2;
 	aloL_usebuf(T, buf) {
-		if (alo_gettop(T) >= 2) {
+		if (!n) {
 			aloL_checkcall(T, 1); /* check function */
 			while (!feof(file->stream)) {
 				l_getline(T, file, buf);
@@ -179,7 +181,6 @@ static int f_lines(astate T) {
 				alo_call(T, 1, 0);
 				aloL_blen(buf) = 0; /* rewind buffer */
 			}
-			n = 0;
 		}
 		else {
 			alo_newlist(T, 0); /* create new line list */
@@ -190,7 +191,6 @@ static int f_lines(astate T) {
 				aloL_blen(buf) = 0; /* rewind buffer */
 			}
 			alo_push(T, 1);
-			n = 1;
 		}
 	}
 	return n;

@@ -38,7 +38,7 @@ astr aloV_pushfstring(astate T, astr fmt, ...) {
  */
 astr aloV_pushvfstring(astate T, astr fmt, va_list varg) {
 	api_checkslots(T, 1);
-	aloB_decl(buf);
+	aloB_decl(T, buf);
 	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
 	astring_t* value = aloB_tostr(T, buf);
 	aloB_close(T, buf);
@@ -142,7 +142,7 @@ ahash_t aloV_hashof(astate T, const atval_t* o) {
  ** concatenate string.
  */
 astring_t* aloV_rawcat(astate T, size_t len) {
-	aloB_decl(buf);
+	aloB_decl(T, buf);
 	for (size_t i = len; i > 0; i--) {
 		aloO_tostring(T, aloB_bwrite, &buf, T->top - i);
 	}

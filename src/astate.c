@@ -91,9 +91,10 @@ static void preinit(astate T, aglobal_t* G) {
 	T->hookmask = 0;
 	T->fallowhook = true;
 	T->memstk.top = basembuf(T);
-	T->memstk.cap = 0;
-	T->memstk.len = 0;
-	T->memstk.buf = NULL;
+	T->memstk.base.buf = NULL;
+	T->memstk.base.cap = 0;
+	T->memstk.base.len = 0;
+	T->memstk.base.prev = NULL;
 }
 
 astate alo_newstate(aalloc alloc, void* ctx) {
@@ -186,7 +187,7 @@ static void destory_thread(astate T, athread_t* v, int close) {
 		}
 	}
 	aloM_delb(T, v->stack, v->stacksize); /* clear stack */
-	aloM_free(T, T->memstk.buf, T->memstk.cap);
+	aloM_free(T, T->memstk.base.buf, T->memstk.base.cap);
 }
 
 void alo_deletestate(astate rawT) {

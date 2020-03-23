@@ -113,10 +113,11 @@ static void shrinkframe(astate T) {
 }
 
 void aloD_shrinkstack(astate T) {
-	if (T->memstk.cap >= (ALO_MBUF_SHTLEN * 16 * 2) && T->memstk.len <= T->memstk.cap / 4) { /* memory buffer too big? */
-		size_t newcap = T->memstk.cap / 2;
-		void* newmem = aloM_realloc(T, T->memstk.buf, T->memstk.cap, newcap);
-		aloE_xassert(newmem == T->memstk.buf);
+	ambuf_t* buf = basembuf(T);
+	if (buf->cap >= (sizeof(char) * 256 * 2) && T->memstk.top->buf + T->memstk.top->len <= basembuf(T)->buf + buf->cap / 4) { /* memory buffer too big? */
+		size_t newcap = buf->cap / 2;
+		void* newmem = aloM_realloc(T, buf->buf, buf->cap, newcap);
+		aloE_xassert(newmem == buf->buf);
 		aloE_void(newmem);
 	}
 	shrinkframe(T);

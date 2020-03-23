@@ -38,12 +38,13 @@ typedef struct {
  ** memory stack to allocate and free memory buffer.
  */
 typedef struct {
-	ambuf_t* top;
-	ALO_MEMBUF_INFO; /* mark as the base of memory stack and give the information of whole stack */
+	ambuf_t* top; /* top of buffer stack */
+	ambuf_t base; /* the head of buffer stack,
+	                 which stores the memory stack size and base pointer. */
 } amstack_t;
 
 /* get base memory buffer */
-#define basembuf(T) aloE_cast(ambuf_t*, &(T)->memstk.cap)
+#define basembuf(T) (&(T)->memstk.base)
 
 /**
  ** global state, shared by each thread.

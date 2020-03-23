@@ -833,7 +833,7 @@ void aloV_invoke(astate T, int dofinish) {
 				goto finish;
 			}
 			else if (ttisstr(s)) {
-				aloB_decl(buf);
+				aloB_decl(T, buf);
 				astring_t* str = tgetstr(s);
 				aloB_bwrite(T, &buf, str->array, aloS_len(str));
 				aloO_tostring(T, aloB_bwrite, &buf, tb);
