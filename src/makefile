@@ -105,7 +105,7 @@ $(ALO_A): $(BASE_O)
 	$(AR) $(@) $(BASE_O)
 
 $(ALO_SO): $(BASE_O)
-	$(CC) -shared -fPIC -o $(@) $(BASE_O)
+	$(CC) -shared -o $(@) $(BASE_O)
 	$(STRIP) $(@)
 
 $(ALO_T): $(ALO_O) $(ALO_SO)
