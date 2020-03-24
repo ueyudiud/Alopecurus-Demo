@@ -3,7 +3,7 @@
 # Users configuration.
 CC= gcc -std=gnu99
 RM= rm -f
-AR= ar -rcu
+AR= ar rcu
 RANLIB= ranlib
 STRIP= strip --strip-unneeded
 
