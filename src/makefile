@@ -4,6 +4,7 @@
 CC= gcc -std=gnu99
 RM= rm -f
 AR= ar -rcu
+RANLIB= ranlib
 STRIP= strip --strip-unneeded
 
 LIBS= -lm $(SYSLIBS) $(USRLIBS)
@@ -29,14 +30,14 @@ ALO_T= alo
 ALOC_O= aloc.o
 ALOC_T= aloc
 
-ALO_A= libalo.a
+ALO_DLL= alo.dll
 
-ALO_SO= libalo.so
+ALO_A= libalo.a
 
 ALL_O= $(BASE_O) $(ALO_O) $(ALOC_O)
 ALL_T= $(ALO_T) $(ALOC_T)
 ALL_A= $(ALO_A)
-ALL_SO= $(ALO_SO)
+ALL_DLL= $(ALO_DLL)
 
 # OS detection
 ifndef (TARGET_OS)
@@ -60,11 +61,14 @@ SYSLIBS=
 SYSCFLAGS=
 SYSLDFLAGS=
 
+ALO_DEPEND= $(ALO_A)
+ALOC_DEPEND= $(ALO_A)
+
 ifeq ($(PLAT),WIN)
 	RM:= del /f
 	ALO_T:= alo.exe
 	ALOC_T:= aloc.exe
-	ALO_SO:= alo.dll
+	ALO_DEPEND:= $(ALO_DLL)
 	SYSCFLAGS+= -D ALO_BUILD_TO_DLL
 else
 	ifeq ($(PLAT),LINUX)
@@ -79,14 +83,14 @@ endif
 # Make targets
 default: all
 
-all: $(ALL_A) $(ALL_SO) $(ALL_T)
+all: $(ALL_A) $(ALL_T)
 
 o: $(ALL_O)
 
 a: $(ALL_A)
 
 clean:
-	$(RM) $(ALL_O) $(ALL_T) $(ALL_A) $(ALL_SO)
+	$(RM) $(ALL_O) $(ALL_T) $(ALL_A) $(ALL_DLL)
 
 echo:
 	@echo "PLAT= $(PLAT)"
@@ -103,14 +107,14 @@ echo:
 
 $(ALO_A): $(BASE_O)
 	$(AR) $(@) $(BASE_O)
+	$(RANLIB) $(@)
 
-$(ALO_SO): $(BASE_O)
+$(ALO_DLL): $(BASE_O)
 	$(CC) -shared -o $(@) $(BASE_O)
 	$(STRIP) $(@)
 
-$(ALO_T): $(ALO_O) $(ALO_SO)
-	$(CC) -o $(@) $(LDFLAGS) $(ALO_O) $(ALO_SO) $(LIBS)
+$(ALO_T): $(ALO_O) $(ALO_DEPEND)
+	$(CC) -o $(@) $(LDFLAGS) $(ALO_O) $(ALO_DEPEND) $(LIBS)
 
-$(ALOC_T): $(ALOC_O) $(ALO_A)
-	$(CC) -o $(@) $(LDFLAGS) $(ALOC_O) $(ALO_A) $(LIBS)
-
+$(ALOC_T): $(ALOC_O) $(ALOC_DEPEND)
+	$(CC) -o $(@) $(LDFLAGS) $(ALOC_O) $(ALOC_DEPEND) $(LIBS)
