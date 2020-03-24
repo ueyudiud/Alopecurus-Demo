@@ -54,7 +54,7 @@ static void getpath(astate T, char* buf, const char* src, size_t len) {
 #define aloE_fun(f) (__extension__ aloE_cast(acfun, f))
 
 static void* l_load(astate T, astr name, int seeglb) {
-	void* lib = dlopen(path, RTLD_NOW | (seeglb ? RTLD_GLOBAL : RTLD_LOCAL));
+	void* lib = dlopen(name, RTLD_NOW | (seeglb ? RTLD_GLOBAL : RTLD_LOCAL));
 	if (lib == NULL) {
 		alo_pushstring(T, dlerror());
 	}
