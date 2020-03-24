@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ADO_C_
+#define ALO_CORE
+
 #include "astr.h"
 #include "afun.h"
 #include "abuf.h"

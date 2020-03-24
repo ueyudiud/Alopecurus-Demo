@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ALIS_C_
+#define ALO_CORE
+
 #include "alis.h"
 #include "agc.h"
 #include "adebug.h"

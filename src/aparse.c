@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define APARSE_C_
+#define ALO_CORE
+
 #include "aop.h"
 #include "afun.h"
 #include "agc.h"
@@ -15,7 +18,6 @@
 #include "acode.h"
 #include "aload.h"
 
-#include <stdarg.h>
 #include <string.h>
 
 #define check(l,id) ((l)->ct.t == (id))

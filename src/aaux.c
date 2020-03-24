@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AAUX_C_
+#define ALO_CORE
+
 #include "aaux.h"
 #include "alibs.h"
 #include "achr.h"
@@ -468,7 +471,7 @@ void aloL_checkclassname(astate T, aindex_t index) {
 	if (strlen(src) != len)
 		goto error;
 	for (size_t i = 0; i < len; ++i) {
-		if (!aisident(src[i])) {
+		if (!isalnum(src[i]) && src[i] != '_') {
 			goto error;
 		}
 	}

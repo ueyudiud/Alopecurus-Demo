@@ -5,8 +5,11 @@
  *      Author: ueyudiud
  */
 
+#define AOP_C_
+#define ALO_CORE
+
 #include "aop.h"
 
 #define OP(id,name) name
 
-const char* const aloK_opname[OP_N] = { ALO_OPS };
+ALO_VDEF const char* const aloP_opname[OP_N] = { ALO_OPS };

@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AMETA_C_
+#define ALO_CORE
+
 #include "astr.h"
 #include "alis.h"
 #include "atab.h"

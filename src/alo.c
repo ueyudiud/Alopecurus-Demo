@@ -5,6 +5,8 @@
  *      Author: ueyudiud
  */
 
+#define ALO_C_
+
 #include "alo.h"
 #include "aaux.h"
 #include "alibs.h"

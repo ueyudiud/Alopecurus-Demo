@@ -177,7 +177,7 @@ enum { ALO_OPS, OP_N };
 
 #undef OP
 
-extern const char* const aloK_opname[OP_N];
+ALO_VDEC const char* const aloP_opname[OP_N];
 
 /**
  ** extra notes:

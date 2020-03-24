@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AEVAL_C_
+#define ALO_CORE
+
 #include "aop.h"
 #include "aobj.h"
 #include "astr.h"
@@ -1031,7 +1034,7 @@ void aloV_invoke(astate T, int dofinish) {
 	 ** called when meta call for opcode not found, throw an error.
 	 */
 	notfound:
-	aloU_mnotfound(T, R(A), aloK_opname[GET_i(I)]);
+	aloU_mnotfound(T, R(A), aloP_opname[GET_i(I)]);
 
 	/**
 	 ** finish block, used for call after 'yield'

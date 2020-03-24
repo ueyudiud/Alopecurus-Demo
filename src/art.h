@@ -37,11 +37,14 @@ extern void alo_log(astr, astr, int, ...);
 /**
  ** the ALO_IFUN marked for inner function which will not exported to outside module.
  */
-#if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302) && defined(__ELF__)
+#if ((__GNUC__ * 100 + __GNUC_MINOR__) >= 302) && defined(__ELF__)
 #define ALO_IFUN __attribute__((visibility("hidden"))) extern
 #else
 #define ALO_IFUN extern
 #endif
+
+#define ALO_VDEC ALO_IFUN
+#define ALO_VDEF
 
 /**
  ** basic header include.

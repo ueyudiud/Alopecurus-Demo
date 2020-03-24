@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ASTR_C_
+#define ALO_CORE
+
 #include "astr.h"
 #include "astate.h"
 #include "agc.h"

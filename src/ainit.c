@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AINIT_C_
+#define ALO_CORE
+
 #include "aaux.h"
 #include "alibs.h"
 

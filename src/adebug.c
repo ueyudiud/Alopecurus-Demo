@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ADEBUG_C_
+#define ALO_CORE
+
 #include "aop.h"
 #include "astr.h"
 #include "astate.h"

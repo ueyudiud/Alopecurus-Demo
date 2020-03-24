@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AIMPL_C_
+#define ALO_CORE
+
 #include "astr.h"
 #include "atup.h"
 #include "alis.h"

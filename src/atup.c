@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ATUP_C_
+#define ALO_CORE
+
 #include "atup.h"
 #include "agc.h"
 #include "adebug.h"

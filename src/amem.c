@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AMEM_C_
+#define ALO_CORE
+
 #include "astate.h"
 #include "adebug.h"
 #include "amem.h"

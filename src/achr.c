@@ -5,12 +5,15 @@
  *      Author: ueyudiud
  */
 
+#define ACHR_C_
+#define ALO_CORE
+
 #include "achr.h"
 
 /**
  ** character data.
  */
-const struct alo_CharType ALO_CHAR_TYPES[] = {
+ALO_VDEF const struct alo_CharType aloC_chtypes[] = {
 		{ false, false, false, false, 0 },
 		{ false, false, false, false, 0 },
 		{ false, false, false, false, 0 },

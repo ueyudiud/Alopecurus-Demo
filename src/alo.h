@@ -27,14 +27,18 @@
 /**
  ** the ALO_API marked for API functions.
  */
-#if defined(ALO_BUILD_TO_DL)
+#if defined(ALO_BUILD_TO_DLL)
+
 #if defined(ALO_CORE) || defined(ALO_LIB)
 #define ALO_API __declspec(dllexport)
 #else
 #define ALO_API __declspec(dllimport)
 #endif
+
 #else
+
 #define ALO_API extern
+
 #endif
 
 typedef ptrdiff_t aindex_t;

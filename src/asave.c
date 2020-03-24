@@ -7,6 +7,9 @@
  *      Author: ueyudiud
  */
 
+#define ASAVE_C_
+#define ALO_CORE
+
 #include "astr.h"
 #include "aload.h"
 #include "alo.h"

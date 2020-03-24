@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ACODE_C_
+#define ALO_CORE
+
 #include "astate.h"
 #include "agc.h"
 #include "avm.h"

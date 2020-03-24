@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ABUF_C_
+#define ALO_CORE
+
 #include "abuf.h"
 #include "astate.h"
 #include "amem.h"

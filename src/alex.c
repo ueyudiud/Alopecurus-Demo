@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define ALEX_C_
+#define ALO_CORE
+
 #include "achr.h"
 #include "astr.h"
 #include "atab.h"
@@ -16,7 +19,6 @@
 #include "ado.h"
 #include "alex.h"
 
-#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 

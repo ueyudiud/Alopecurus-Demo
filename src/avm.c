@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AVM_C_
+#define ALO_CORE
+
 #include "aop.h"
 #include "astr.h"
 #include "atup.h"
@@ -19,7 +22,6 @@
 #include "ado.h"
 #include "aeval.h"
 
-#include <stdarg.h>
 #include <math.h>
 
 /**

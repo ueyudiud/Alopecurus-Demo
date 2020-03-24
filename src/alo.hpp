@@ -16,7 +16,21 @@ extern "C" {
 #include "aaux.h"
 #include "alibs.h"
 
-struct alo_Iterator {
+#if defined(ALO_BUILD_TO_DLL)
+
+#if defined(ALO_CORE) || defined(ALO_LIB)
+#define ALO_CLASS struct __declspec(dllexport)
+#else
+#define ALO_CLASS struct __declspec(dllimport)
+#endif
+
+#else
+
+#define ALO_CLASS struct
+
+#endif
+
+ALO_CLASS alo_Iterator {
 	aindex_t _index;
 	ptrdiff_t _counter;
 
@@ -25,7 +39,7 @@ struct alo_Iterator {
 	alo_Iterator(const alo_Iterator&) = delete;
 };
 
-struct alo_VM {
+ALO_CLASS alo_VM {
 	astate _T;
 
 	alo_VM(astate T) noexcept : _T(T) { }
@@ -398,6 +412,18 @@ struct alo_VM {
 
 	int vformat(awriter writer, void* context, astr fmt, va_list varg) {
 		return alo_vformat(_T, writer, context, fmt, varg);
+	}
+
+	void pushbuf(ambuf_t& buf) {
+		alo_pushbuf(_T, &buf);
+	}
+
+	void growbuf(ambuf_t& buf, size_t size) {
+		alo_growbuf(_T, &buf, size);
+	}
+
+	void popbuf(ambuf_t& buf) {
+		alo_popbuf(_T, &buf);
 	}
 
 	void getframe(astr what, aframeinfo_t& info) {

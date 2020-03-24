@@ -399,12 +399,13 @@ struct alo_Proto {
  */
 
 /* nil value */
-extern const atval_t aloO_nil;
+ALO_VDEC const atval_t aloO_nil;
 
 #define aloO_tnil (&aloO_nil)
 
 #define aloO_boolhash(v) ((v) ? 0x41 : 0x31)
 #define aloO_inthash(v) aloE_cast(ahash_t, v)
+
 ALO_IFUN ahash_t aloO_flthash(afloat);
 ALO_IFUN int aloO_str2int(astr, atval_t*);
 ALO_IFUN int aloO_str2num(astr, atval_t*);

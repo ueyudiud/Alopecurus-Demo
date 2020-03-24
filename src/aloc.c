@@ -1,9 +1,12 @@
 /*
- * atest.c
+ * aloc.c
  *
  *  Created on: 2019年8月19日
  *      Author: ueyudiud
  */
+
+#define ALOC_C_
+#define ALO_CORE
 
 #include "acfg.h"
 
@@ -89,7 +92,7 @@ static void dump(astate T, aproto_t* p) {
 		}
 		ainsn_t code = p->code[i];
 		int insn = GET_i(code);
-		printf("\t%-5d %5s ", i + 1, aloK_opname[insn]);
+		printf("\t%-5d %5s ", i + 1, aloP_opname[insn]);
 		switch (insn) {
 		case OP_MOV:
 		case OP_PNM ... OP_BNOT: case OP_ITR:

@@ -5,6 +5,9 @@
  *      Author: ueyudiud
  */
 
+#define AOBJ_C_
+#define ALO_CORE
+
 #include "achr.h"
 #include "aobj.h"
 #include "astr.h"
@@ -23,7 +26,7 @@
 #include <errno.h>
 #include <math.h>
 
-const atval_t aloO_nil = tnewnil();
+ALO_VDEF const atval_t aloO_nil = tnewnil();
 
 #define ALOO_FLT_MASK 0x932280AB7E9DBE8A
 
