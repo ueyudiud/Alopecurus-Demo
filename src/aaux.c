@@ -17,7 +17,7 @@
 #include <string.h>
 #include <malloc.h>
 
-static amem aux_alloc(__attribute__((unused)) void* context, amem oldblock, size_t oldsize, size_t newsize) {
+static amem aux_alloc(__attribute__((unused)) void* context, amem oldblock, __attribute__((unused)) size_t oldsize, size_t newsize) {
 	if (newsize > 0) {
 		return realloc(oldblock, newsize);
 	}
@@ -45,7 +45,7 @@ void aloL_newstringlist_(astate T, size_t size, ...) {
 	alo_newlist(T, size);
 	va_list varg;
 	va_start(varg, size);
-	for (int i = 0; i < size; ++i) {
+	for (size_t i = 0; i < size; ++i) {
 		alo_pushstring(T, va_arg(varg, astr));
 		alo_rawseti(T, -2, i);
 	}
@@ -330,7 +330,7 @@ struct LS {
 	size_t len;
 };
 
-int LSReader(astate T, void* context, const char** pdest, size_t* psize) {
+int LSReader(__attribute__((unused)) astate T, void* context, const char** pdest, size_t* psize) {
 	struct LS* l = (struct LS*) context;
 	*psize = l->len;
 	*pdest = l->src;
@@ -344,7 +344,7 @@ struct FS {
 	char buf[256];
 };
 
-static int FSReader(astate T, void* context, const char** ps, size_t* pl) {
+static int FSReader(__attribute__((unused)) astate T, void* context, const char** ps, size_t* pl) {
 	struct FS* fs = aloE_cast(struct FS*, context);
 	size_t len = fread(fs->buf, sizeof(char), sizeof(fs->buf) / sizeof(char), fs->stream);
 	if (len > 0) {
@@ -358,7 +358,7 @@ static int FSReader(astate T, void* context, const char** ps, size_t* pl) {
 	return ferror(fs->stream);
 }
 
-static int FSWriter(astate T, void* context, const void* s, size_t l) {
+static int FSWriter(__attribute__((unused)) astate T, void* context, const void* s, size_t l) {
 	struct FS* fs = aloE_cast(struct FS*, context);
 	fwrite(s, 1, l, fs->stream);
 	return ferror(fs->stream);
@@ -398,7 +398,7 @@ int aloL_loadf(astate T, astr src) {
 	return result;
 }
 
-int aloL_savef(astate T, aindex_t index, astr dest, int debug) {
+int aloL_savef(astate T, astr dest, int debug) {
 	struct FS context;
 	context.stream = fopen(dest, "wb");
 	if (context.stream == NULL) {
@@ -443,7 +443,7 @@ static void printstacktrace(astate T, astr name, astr src, int line) {
  */
 void aloL_where(astate T, int level) {
 	aframeinfo_t info;
-	size_t n = 2;
+	int n = 2;
 	alo_getframe(T, "nsl", &info);
 	printstacktrace(T, info.name, info.src, info.line);
 	while (n <= level && alo_prevframe(T, "nsl", &info)) {

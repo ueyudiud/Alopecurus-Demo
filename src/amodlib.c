@@ -47,11 +47,11 @@ static void getpath(astate T, char* buf, const char* src, size_t len) {
 	*(buf++) = '\0';
 }
 
+#define aloE_modf(e) aloE_cast(acfun, __extension__ aloE_cast(void*, e))
+
 #if defined(ALO_USE_DLOPEN)
 
 #include <dlfcn.h>
-
-#define aloE_fun(f) (__extension__ aloE_cast(acfun, f))
 
 static void* l_load(astate T, astr name, int seeglb) {
 	void* lib = dlopen(name, RTLD_NOW | (seeglb ? RTLD_GLOBAL : RTLD_LOCAL));
@@ -61,12 +61,12 @@ static void* l_load(astate T, astr name, int seeglb) {
 	return lib;
 }
 
-static void l_unload(astate T, void* lib) {
+static void l_unload(void* lib) {
 	dlclose(lib);
 }
 
 static acfun l_get(astate T, void* lib, astr name) {
-	acfun fun = aloE_fun(dlsym(lib, name));
+	acfun fun = aloE_modf(dlsym(lib, name));
 	if (fun == NULL) {
 		alo_pushstring(T, dlerror());
 	}
@@ -103,12 +103,12 @@ static void* l_load(astate T, astr name, __attribute__((unused)) int seeglb) {
 	return library;
 }
 
-static void l_unload(astate T, void* lib) {
+static void l_unload(void* lib) {
 	FreeLibrary(aloE_mod(lib));
 }
 
 static acfun l_get(astate T, void* lib, astr name) {
-	acfun fun = aloE_cast(acfun, GetProcAddress(aloE_mod(lib), name));
+	acfun fun = aloE_modf(GetProcAddress(aloE_mod(lib), name));
 	if (fun == NULL) {
 		geterr(T);
 	}
@@ -124,7 +124,7 @@ static void* l_load(astate T, astr name, int seeglb) {
 	return NULL;
 }
 
-static void l_unload(astate T, __attribute__((unused)) void* lib) {
+static void l_unload(__attribute__((unused)) void* lib) {
 
 }
 
@@ -144,7 +144,7 @@ typedef struct {
 static int dlbox_del(astate T) {
 	adlbox_t* box = self(T);
 	if (box->library) {
-		l_unload(T, box->library);
+		l_unload(box->library);
 		box->library = NULL;
 	}
 	return 0;
@@ -179,7 +179,7 @@ static adlbox_t* l_preload(astate T) {
 
 }
 
-static int loaddl(astate T, astr name, astr location) {
+static int loaddl(astate T, __attribute__((unused)) astr name, astr location) {
 	adlbox_t* box = l_preload(T);
 	box->library = l_load(T, location, false);
 	if (box->library == NULL) {

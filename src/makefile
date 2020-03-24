@@ -8,7 +8,7 @@ RANLIB= ranlib
 STRIP= strip --strip-unneeded
 
 LIBS= -lm $(SYSLIBS) $(USRLIBS)
-CFLAGS= -O2 -Wall $(SYSCFLAGS) $(USRCFLAGS)
+CFLAGS= -O2 -Wall -Wextra $(SYSCFLAGS) $(USRCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(USRLDFLAGS)
 
 USRLIBS=

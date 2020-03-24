@@ -87,24 +87,24 @@ static aint vm_mod(astate T, aint a, aint b) {
 	return n && !samesg(n, b) ? n + b : n; /* a-floor(a/b)*b */
 }
 
-static afloat vm_modf(astate T, afloat a, afloat b) {
+static afloat vm_modf(__attribute__((unused)) astate T, afloat a, afloat b) {
 	afloat m = fmod(a, b);
 	return a * b >= 0 ? /* has same operator? */
 			m : m + b;
 }
 
-#define NBITS (sizeof(aint) * CHAR_BIT)
+#define NBITS aloE_int(sizeof(aint) * CHAR_BIT)
 
-static aint vm_shl(astate T, aint a, aint b) {
+static aint vm_shl(__attribute__((unused)) astate T, aint a, aint b) {
 	return b > 0 ?
-			b >=  NBITS ? 0 : aloE_int((uint64_t) a << (uint64_t) b) :
-			b <= -NBITS ? 0 : aloE_int((uint64_t) a >> (uint64_t)-b);
+			b >=  NBITS ? 0 : vm_ibin(T, <<, a, b) :
+			b <= -NBITS ? 0 : vm_ibin(T, >>, a,-b);
 }
 
-static aint vm_shr(astate T, aint a, aint b) {
+static aint vm_shr(__attribute__((unused)) astate T, aint a, aint b) {
 	return b > 0 ?
-			b >=  NBITS ? 0 : aloE_int((uint64_t) a >> (uint64_t) b) :
-			b <= -NBITS ? 0 : aloE_int((uint64_t) a << (uint64_t)-b);
+			b >=  NBITS ? 0 : vm_ibin(T, >>, a, b) :
+			b <= -NBITS ? 0 : vm_ibin(T, <<, a,-b);
 }
 
 #define vm_band(T,a,b) vm_ibin(T, &, a, b)
@@ -390,8 +390,9 @@ int (* const aloV_nbinary[])(astate, atval_t*, const atval_t*, const atval_t*) =
 };
 
 static int aloV_npnm(astate T, atval_t* A, const atval_t* B) {
+	aloE_void(T);
 	if (ttisnum(B)) {
-		tsetobj(NULL, A, B);
+		tsetobj(T, A, B);
 	}
 	else {
 		return false;
@@ -400,6 +401,7 @@ static int aloV_npnm(astate T, atval_t* A, const atval_t* B) {
 }
 
 static int aloV_nunm(astate T, atval_t* A, const atval_t* B) {
+	aloE_void(T);
 	if (ttisint(B)) {
 		tsetint(A, -tgetint(B));
 	}
@@ -413,10 +415,14 @@ static int aloV_nunm(astate T, atval_t* A, const atval_t* B) {
 }
 
 static int aloV_nlen(astate T, atval_t* A, const atval_t* B) {
+	aloE_void(T);
+	aloE_void(A);
+	aloE_void(B);
 	return false;
 }
 
 static int aloV_nbnot(astate T, atval_t* A, const atval_t* B) {
+	aloE_void(T);
 	aint i;
 	if (vm_toint(B, i)) {
 		tsetint(A, ~i);
@@ -434,12 +440,13 @@ int (* const aloV_nunary[])(astate, atval_t*, const atval_t*) = {
 	aloV_nbnot
 };
 
-int aloV_neq(astate T, int* A, const atval_t* B, const atval_t* C) {
+int aloV_neq(__attribute__((unused)) astate T, int* A, const atval_t* B, const atval_t* C) {
 	*A = aloV_equal(NULL, B, C); /* use 'aloV_equal' to compare */
 	return true;
 }
 
 int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
+	aloE_void(T);
 	if (ttisint(B) && ttisint(C)) {
 		*A = tgetint(B) < tgetint(C);
 	}
@@ -456,6 +463,7 @@ int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
 }
 
 int aloV_nle(astate T, int* A, const atval_t* B, const atval_t* C) {
+	aloE_void(T);
 	if (ttisint(B) && ttisint(C)) {
 		*A = tgetint(B) <= tgetint(C);
 	}
@@ -583,7 +591,7 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			askid_t dest = R(A);
 			askid_t src = frame->fun + 1 + proto->nargs;
-			for (size_t i = 0; i < nargs; ++i) {
+			for (int i = 0; i < nargs; ++i) {
 				tsetobj(T, dest + i, src + i);
 			}
 			if (flag) {
@@ -592,11 +600,13 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_SELV: {
-			aint id;
+			size_t id;
 			size_t n = base - (frame->fun + 1) - proto->nargs;
 			switch (GET_xB(I)) {
 			case 0: case 1: {
-				if (vm_toint(X(B), id)) {
+				aint i;
+				if (vm_toint(X(B), i)) {
+					id = i;
 					goto indexvar;
 				}
 				else {
@@ -623,16 +633,14 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_NEWA: {
 			askid_t s = R(B);
-			size_t n;
+			size_t n = GET_C(I);
 			if (GET_xC(I)) {
+				size_t m = n;
 				n = T->top - s;
-				if (GET_C(I) && GET_C(I) - 1 != n) {
+				if (m && m - 1 != n) {
 					break;
 				}
 				T->top = frame->top;
-			}
-			else {
-				n = GET_C(I);
 			}
 			tsettup(T, S(A), aloA_new(T, n, s));
 			checkGC(T, s);
@@ -817,7 +825,7 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_CAT: {
 			askid_t r = R(B);
-			size_t n = GET_C(I) - 1;
+			int n = GET_C(I) - 1;
 			if (n == ALO_MULTIRET) {
 				n = T->top - r;
 			}
@@ -948,7 +956,7 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 
 			/* move arguments */
-			for (size_t n = 0; n <= narg; ++n) {
+			for (int n = 0; n <= narg; ++n) {
 				tsetobj(T, f + n, r + n);
 			}
 			T->top = f + narg + 1;

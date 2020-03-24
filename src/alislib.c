@@ -123,7 +123,7 @@ static int list_fold(astate T) {
 		break;
 	default:
 		alo_rawgeti(T, 0, 0);
-		for (aint i = 1; i < len; ++i) {
+		for (size_t i = 1; i < len; ++i) {
 			alo_push(T, 1);
 			alo_push(T, 2);
 			alo_rawgeti(T, 0, i);
@@ -154,7 +154,7 @@ static int list_foldl(astate T) {
 		alo_call(T, 2, 1);
 		break;
 	default:
-		for (aint i = 0; i < len; ++i) {
+		for (size_t i = 0; i < len; ++i) {
 			alo_push(T, 2);
 			alo_push(T, 1);
 			alo_rawgeti(T, 0, i);

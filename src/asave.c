@@ -117,7 +117,7 @@ static void savefun(O*, const aproto_t*, astring_t*);
 
 static void savechildren(O* out, const aproto_t* p) {
 	saver(out, p->nchild);
-	for (size_t i = 0; i < p->nchild; ++i) {
+	for (int i = 0; i < p->nchild; ++i) {
 		savefun(out, p->children[i], p->src);
 	}
 }
@@ -125,16 +125,16 @@ static void savechildren(O* out, const aproto_t* p) {
 static void savedebug(O* out, const aproto_t* p) {
 	saver(out, p->linefdef);
 	saver(out, p->lineldef);
-	size_t n;
+	int n;
 	n = out->debug ? p->nlineinfo : 0;
 	saver(out, n);
-	for (size_t i = 0; i < n; ++i) {
+	for (int i = 0; i < n; ++i) {
 		saver(out, p->lineinfo[i].begin);
 		saver(out, p->lineinfo[i].line);
 	}
 	n = out->debug ? p->nlocvar : 0;
 	saver(out, n);
-	for (size_t i = 0; i < n; ++i) {
+	for (int i = 0; i < n; ++i) {
 		saves(out, p->locvars[i].name);
 		saver(out, p->locvars[i].start);
 		saver(out, p->locvars[i].end);
@@ -142,7 +142,7 @@ static void savedebug(O* out, const aproto_t* p) {
 	}
 	n = out->debug ? p->ncap : 0;
 	saver(out, n);
-	for (size_t i = 0; i < n; ++i) {
+	for (int i = 0; i < n; ++i) {
 		saves(out, p->captures[i].name);
 	}
 }

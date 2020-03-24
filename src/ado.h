@@ -28,7 +28,7 @@
  */
 #define aloD_checkstack(T,n) aloD_checkstackaux(T, n, aloE_void(0), aloE_void(0))
 #define aloD_checkstackaux(T,n,pre,post) \
-	({ if (((T)->top + (n)) - (T)->stack >= (T)->stacksize) { pre; aloD_growstack(T, n); post; } else { adjuststack(T, n); } })
+	({ if (aloE_cast(size_t, ((T)->top + (n)) - (T)->stack) >= (T)->stacksize) { pre; aloD_growstack(T, n); post; } else { adjuststack(T, n); } })
 
 #define aloB_pushobj(T,o) aloB_pushobj_(T, r2g(o))
 

@@ -23,7 +23,7 @@ aclosure_t* aloF_new(astate T, size_t size, aproto_t* proto) {
 	value->a.proto = proto;
 	/* clean delegate and captures */
 	tsetnil(&value->delegate);
-	for (int i = 0; i < size; tsetnil(value->array + i++));
+	for (size_t i = 0; i < size; tsetnil(value->array + i++));
 	return value;
 }
 

@@ -17,13 +17,13 @@
 
 #include "aall.h"
 
-static int fwriter(astate T, void* buf, const void* src, size_t len) {
+static int fwriter(__attribute__((unused)) astate T, void* buf, const void* src, size_t len) {
 	fwrite(src, 1, len, aloE_cast(FILE*, buf));
 	return 0;
 }
 
 static void prtkst(astate T, aproto_t* p, int index) {
-	if (index > p->nconst) {
+	if (index > (int) p->nconst) {
 		printf("<error>");
 		return;
 	}
@@ -41,18 +41,28 @@ static void prtkst(astate T, aproto_t* p, int index) {
 	}
 }
 
-static void prtreg(astate T, aproto_t* p, int index) {
+static void prtreg(__attribute__((unused)) astate T, aproto_t* p, int index) {
 	if (aloK_iscapture(index)) {
 		index = aloK_getcapture(index);
-		printf("#%d", index);
+		if (p->captures[index].name) {
+			printf("#%s", p->captures[index].name->array);
+		}
+		else {
+			printf("#%d", index);
+		}
 	}
 	else {
 		index = aloK_getstack(index);
-		printf("%%%d", index);
+		if (p->locvars[index].name) {
+			printf("%%%s", p->locvars[index].name->array);
+		}
+		else {
+			printf("%%%d", index);
+		}
 	}
 }
 
-static void prtrk(astate T, aproto_t* p, int index, abyte mode) {
+static void prtrk(__attribute__((unused)) astate T, aproto_t* p, size_t index, abyte mode) {
 	(mode ? prtkst : prtreg)(T, p, index);
 }
 
@@ -61,13 +71,13 @@ static int detail = false;
 #define nameof(name) (*(name)->array ? (name)->array : "<anonymous>")
 
 static void dump(astate T, aproto_t* p) {
-	printf("%s (%s:%d,%d) %"PRIu64" instructions at %p\n",
+	printf("%s (%s:%d,%d) %d instructions at %p\n",
 			nameof(p->name), p->src->array, p->linefdef, p->lineldef, p->ncode, p);
-	printf("%d%s params, %d stack, %d captures, %d local, %"PRIu64" constants, %"PRId64" functions\n",
+	printf("%d%s params, %d stack, %d captures, %d local, %d constants, %d functions\n",
 			p->nargs, p->fvararg ? "+" : "", p->nstack, p->ncap, p->nlocvar, p->nconst, p->nchild);
 	if (detail) {
-		printf("constants (%"PRId64") for %p:\n", p->nconst, p);
-		for (int i = 0; i < p->nconst; ++i) {
+		printf("constants (%d) for %p:\n", p->nconst, p);
+		for (int i = 0; i < (int) p->nconst; ++i) {
 			printf("\t[%d] ", i);
 			prtkst(T, p, i);
 			printf("\n");
@@ -230,7 +240,7 @@ static int tmain(astate T) {
 			dump(T, tgetclo(T->top - 1)->a.proto);
 		}
 		else {
-			if (aloL_savef(T, -1, dest, true) != ThreadStateRun) {
+			if (aloL_savef(T, dest, true) != ThreadStateRun) {
 				fprintf(stderr, "fail to save to file %s", dest);
 				return 0;
 			}
@@ -244,7 +254,7 @@ static int tmain(astate T) {
 
 #define checkmask(m,msg) if ((m) & mask) { fputs(msg"\n", stderr); return false; } mask |= (m)
 
-static int parsearg(astate T, int argc, const astr argv[]) {
+static int parsearg(int argc, const astr argv[]) {
 	for (int i = 1; i < argc; ++i) {
 		astr s = argv[i];
 		if (s[0] == '-') {
@@ -289,7 +299,7 @@ int main(int argc, astr argv[]) {
 		fputs("fail to initialize VM.\n", stderr);
 		return EXIT_FAILURE;
 	}
-	if (!parsearg(T, argc, argv)) {
+	if (!parsearg(argc, argv)) {
 		return EXIT_FAILURE;
 	}
 	alo_pushlightcfunction(T, tmain);

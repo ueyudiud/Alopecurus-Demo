@@ -30,7 +30,7 @@
 #define getnext(e) aloE_check(hasnext(e), "reach to end of nodes", (e) + (e)->next)
 #define getprev(e) aloE_check(hasprev(e), "reach to begin of nodes", (e) - (e)->prev)
 
-static void movety(astate T, aentry_t* dest, aentry_t* src) {
+static void movety(aentry_t* dest, aentry_t* src) {
 	aloE_assert(!ttisnil(src), "entry should not be empty.");
 	int diff = dest - src;
 	dest->key = src->key;
@@ -92,7 +92,7 @@ int aloH_ensure(astate T, atable_t* self, size_t size) {
 /**
  ** get entry that no key occupy it.
  */
-static aentry_t* newety(astate T, atable_t* self) {
+static aentry_t* newety(atable_t* self) {
 	while (self->lastfree >= self->array) {
 		if (ttisnil(self->lastfree)) {
 			return self->lastfree--;
@@ -105,8 +105,8 @@ static aentry_t* newety(astate T, atable_t* self) {
 /**
  ** add entry to table and link to previous node.
  */
-static aentry_t* addety(astate T, atable_t* self, aentry_t* prev) {
-	aentry_t* entry = newety(T, self);
+static aentry_t* addety(atable_t* self, aentry_t* prev) {
+	aentry_t* entry = newety(self);
 	int diff = entry - prev;
 	if (hasnext(prev)) {
 		getnext(prev)->prev -= diff;
@@ -120,14 +120,15 @@ static atval_t* putety(astate T, atable_t* self, const atval_t* key, ahash_t has
 	aentry_t* entry = headety(self, hash); /* first hashing */
 	if (!ttisnil(entry)) { /* blocked by other element */
 		if (!hasprev(entry)) { /* check element is head of hash list */
-			entry = addety(T, self, entry);
+			entry = addety(self, entry);
 		}
 		else {
-			movety(T, newety(T, self), entry);
+			movety(newety(self), entry);
 		}
 	}
 	aloE_assert(ttisnil(amkey(entry)) && ttisnil(amval(entry)), "uninitialized entry should be empty.");
 	tsetobj(T, amkey(entry), key);
+	aloE_void(T);
 	entry->hash = hash;
 	return amval(entry);
 }
@@ -182,7 +183,7 @@ const atval_t* aloH_geti(atable_t* self, aint key) {
 	return aloO_tnil;
 }
 
-static atval_t* finds(astate T, atable_t* self, astr ksrc, size_t klen, ahash_t hash) {
+static atval_t* finds(atable_t* self, astr ksrc, size_t klen, ahash_t hash) {
 	anyof(self, hash, ttisstr(_entry) && aloS_requal(tgetstr(_entry), ksrc, klen));
 	return NULL;
 }
@@ -191,7 +192,7 @@ static atval_t* finds(astate T, atable_t* self, astr ksrc, size_t klen, ahash_t 
  ** get value by raw string key.
  */
 const atval_t* aloH_gets(astate T, atable_t* self, astr src, size_t len) {
-	return finds(T, self, src, len, aloS_rhash(src, len, T->g->seed)) ?: aloO_tnil;
+	return finds(self, src, len, aloS_rhash(src, len, T->g->seed)) ?: aloO_tnil;
 }
 
 /**
@@ -203,7 +204,7 @@ const atval_t* aloH_getis(atable_t* self, astring_t* key) {
 	return aloO_tnil;
 }
 
-static const atval_t* aloH_geths(astate T, atable_t* self, astring_t* key) {
+static const atval_t* aloH_geths(__attribute__((unused)) astate T, atable_t* self, astring_t* key) {
 	aloE_assert(ttishstr(key), "key should be heaped string.");
 	anyof(self, key->hash, ttisstr(_entry) && aloS_hequal(tgetstr(_entry), key));
 	return aloO_tnil;
@@ -285,7 +286,7 @@ atval_t* aloH_find(astate T, atable_t* self, const atval_t* key) {
  */
 atval_t* aloH_findxset(astate T, atable_t* self, const char* ksrc, size_t klen) {
 	ahash_t hash = aloS_rhash(ksrc, klen, T->g->seed);
-	atval_t* slot = finds(T, self, ksrc, klen, hash);
+	atval_t* slot = finds(self, ksrc, klen, hash);
 	if (slot != NULL) {
 		return slot;
 	}
@@ -305,7 +306,7 @@ atval_t* aloH_findxset(astate T, atable_t* self, const char* ksrc, size_t klen) 
  */
 atval_t* aloH_finds(astate T, atable_t* self, astr src, size_t len) {
 	ahash_t hash = aloS_rhash(src, len, T->g->seed);
-	atval_t* slot = finds(T, self, src, len, hash);
+	atval_t* slot = finds(self, src, len, hash);
 	if (slot == NULL) {
 		aloH_ensure(T, self, 1);
 		astring_t* str = aloS_new(T, src, len);
@@ -338,7 +339,7 @@ static int remety(atable_t* self, aentry_t* entry) {
 		}
 	}
 	else if (hasnext(entry)) { /* if their are more than one entry */
-		movety(NULL, entry, getnext(entry)); /* move next entry to current slot for use hashing to get it */
+		movety(entry, getnext(entry)); /* move next entry to current slot for use hashing to get it */
 		return true;
 	}
 	delety(entry);
@@ -352,6 +353,7 @@ static int remety(atable_t* self, aentry_t* entry) {
  ** remove entry by entry index.
  */
 void aloH_rawrem(astate T, atable_t* self, ptrdiff_t* pindex, atval_t* out) {
+	aloE_void(T);
 	size_t index = *pindex;
 	aloE_assert(0 <= index && index < self->capacity, "table index out of bound.");
 	aentry_t* entry = self->array + index;
@@ -405,7 +407,7 @@ int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
  */
 const aentry_t* aloH_next(atable_t* self, ptrdiff_t* poff) {
 	aloE_assert(*poff >= -1, "illegal offset.");
-	ptrdiff_t off = *poff + 1;
+	size_t off = *poff + 1;
 	if (off >= self->capacity) { /* iterating already ended */
 		 return NULL;
 	}

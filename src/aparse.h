@@ -104,7 +104,7 @@ typedef struct alo_ExprStat {
 		aint i; /* integer value */
 		afloat f; /* float value */
 		astring_t* s; /* string value */
-		size_t g; /* generic use */
+		int g; /* generic use */
 		struct { /* index data */
 			uint16_t o; /* owner index */
 			uint16_t k; /* key index */
@@ -142,11 +142,11 @@ struct alo_FuncState {
 	afstat_t* e; /* enclosing function */
 	apdata_t* d; /* protected data */
 	ablock_t* b; /* current block */
-	size_t ncode;
-	size_t nconst;
-	size_t nchild;
-	size_t firstlocal; /* first local variable offset */
-	size_t nline; /* number of line number */
+	int ncode;
+	int nconst;
+	int nchild;
+	int firstlocal; /* first local variable offset */
+	int nline; /* number of line number */
 	int cjump; /* current label for jump */
 	int lastline; /* line number for last instruction */
 	uint16_t ncap;

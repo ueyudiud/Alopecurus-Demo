@@ -49,7 +49,7 @@ const atval_t* aloI_geti(alist_t* self, aint index) {
 	if (index < 0) {
 		index += self->length;
 	}
-	if (index < 0 || index >= self->length)
+	if (index < 0 || index >= aloE_int(self->length))
 		return aloO_tnil;
 	return self->array + index;
 }
@@ -92,10 +92,10 @@ atval_t* aloI_findi(astate T, alist_t* self, aint index) {
 	if (index < 0) {
 		index += self->length;
 	}
-	if (index < 0 || index > self->length) {
+	if (index < 0 || index > aloE_int(self->length)) {
 		aloU_outofrange(T, index, self->length);
 	}
-	if (index == self->length) {
+	if (index == aloE_int(self->length)) {
 		ensure(T, self);
 		return self->array + self->length++;
 	}
@@ -110,7 +110,7 @@ atval_t* aloI_find(astate T, alist_t* self, const atval_t* index) {
 	return aloI_findi(T, self, v);
 }
 
-void aloI_removei(astate T, alist_t* self, aint index, atval_t* out) {
+void aloI_removei(__attribute__((unused)) astate T, alist_t* self, aint index, atval_t* out) {
 	aloE_assert(0 <= index && index < self->length, "list index out of bound.");
 	if (out) {
 		tsetobj(T, out, self->array + index);
@@ -129,7 +129,7 @@ int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
 	if (i < 0) {
 		i += self->length;
 	}
-	if (i < 0 || i > self->length) { /* index out of bound? */
+	if (i < 0 || i > aloE_int(self->length)) { /* index out of bound? */
 		return false;
 	}
 	else {
@@ -144,7 +144,7 @@ int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
 const atval_t* aloI_next(alist_t* self, ptrdiff_t* poff) {
 	aloE_assert(*poff >= -1, "illegal offset.");
 	ptrdiff_t off = ++(*poff);
-	if (off >= self->length) { /* iterating already ended */
+	if (off >= aloE_int(self->length)) { /* iterating already ended */
 		*poff = self->length;
 		return NULL;
 	}

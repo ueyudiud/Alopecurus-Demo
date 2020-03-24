@@ -134,7 +134,7 @@ static int str_byte(astate T) {
 	const char* s = aloL_checklstring(T, 0, &l);
 	aint i = aloL_getoptinteger(T, 1, 0);
 	if (i >= 0) {
-		if (l < i) {
+		if (aloE_cast(aint, l) < i) {
 			goto error;
 		}
 	}
@@ -301,11 +301,11 @@ static int match_class(int ch, int cl) {
 
 static const amfun_t handles[];
 
-static astr m_bol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
+static astr m_bol(amstat_t* M, __attribute__((unused)) amnode_t* node, astr s, amcon_t con) {
 	return (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') ? callc(M, con, s) : NULL;
 }
 
-static astr m_eol(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
+static astr m_eol(amstat_t* M, __attribute__((unused)) amnode_t* node, astr s, amcon_t con) {
 	return (s == M->send || s[1] == '\r' || s[1] == '\n') ? callc(M, con, s) : NULL;
 }
 
@@ -381,7 +381,7 @@ static astr m_sub(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	astr e;
 	amgroup_t* group = &M->groups[node->extra];
 	group->begin = NULL;
-	for (size_t i = 0; i < node->data; ++i) {
+	for (int i = 0; i < node->data; ++i) {
 		if ((e = matchs(M, node->arr[i], s, node->extra > 0 ? &con1 : con))) {
 			group->begin = group->begin ?: s;
 			return e;
@@ -393,10 +393,10 @@ static astr m_sub(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 struct context_seq {
 	amnode_t* node;
 	amcon_t con;
-	size_t index;
+	int index;
 };
 
-static astr seqcheck(amstat_t*, amnode_t*, astr, amcon_t, size_t);
+static astr seqcheck(amstat_t*, amnode_t*, astr, amcon_t, int);
 
 static astr seqcon(amstat_t* M, astr s, struct context_seq* context) {
 	if (M->depth-- == 0) {
@@ -405,7 +405,7 @@ static astr seqcon(amstat_t* M, astr s, struct context_seq* context) {
 	return seqcheck(M, context->node, s, context->con, context->index + 1);
 }
 
-static astr seqcheck(amstat_t* M, amnode_t* node, astr s, amcon_t con, size_t index) {
+static astr seqcheck(amstat_t* M, amnode_t* node, astr s, amcon_t con, int index) {
 	makec(con1, seqcon, struct context_seq, node, con, index);
 	return matchs(M, node->arr[index], s, index + 1 == node->data ? con : &con1);
 }
@@ -475,7 +475,7 @@ struct context_full {
 	astr end;
 };
 
-static astr fullcon(amstat_t* M, astr s, struct context_full* context) {
+static astr fullcon(__attribute__((unused)) amstat_t* M, astr s, struct context_full* context) {
 	return s == context->end ? s : NULL;
 }
 
@@ -832,7 +832,7 @@ static int matcher_match(astate T) {
 		return 0;
 	}
 	alo_ensure(T, matcher->ngroup);
-	for (int i = 0; i < matcher->ngroup; ++i) {
+	for (size_t i = 0; i < matcher->ngroup; ++i) {
 		amgroup_t* group = &groups[i];
 		if (group->begin != NULL) {
 			alo_pushlstring(T, group->begin, group->end - group->begin);
@@ -854,7 +854,7 @@ static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 			if (s1 != s0) {
 				aloL_bputls(T, buf, s0, s1 - s0); /* put normal sub sequence before */
 			}
-			int index;
+			size_t index;
 			s1 ++;
 			int ch = *(s1++);
 			switch (ch) {
@@ -895,7 +895,7 @@ static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 	}
 }
 
-static void aux_replacef(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) {
+static void aux_replacef(astate T, __attribute__((unused)) Matcher* matcher, amstat_t* M, ambuf_t* buf) {
 	int index = alo_gettop(T);
 	alo_push(T, 2); /* push transformer */
 	alo_pushlstring(T, M->groups[0].begin, M->groups[0].end - M->groups[0].begin);
@@ -1047,7 +1047,7 @@ static int matcher_find(astate T) {
 	if (off < 0) {
 		off += len;
 	}
-	if (off > len || off < 0) {
+	if (off > aloE_cast(aint, len) || off < 0) {
 		aloL_argerror(T, 2, "index out of bound.");
 	}
 	minit(&M, T, src, len, groups);

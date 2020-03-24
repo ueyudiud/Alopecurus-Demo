@@ -35,7 +35,7 @@ const atval_t* aloA_geti(atuple_t* self, aint index) {
 	return self->array + index;
 }
 
-const atval_t* aloA_get(astate T, atuple_t* self, const atval_t* index) {
+const atval_t* aloA_get(__attribute__((unused)) astate T, atuple_t* self, const atval_t* index) {
 	aint v;
 	if (aloV_toint(index, v)) {
 		if (v < 0) {

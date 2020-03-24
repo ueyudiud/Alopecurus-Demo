@@ -20,7 +20,7 @@
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
 #define l_err(fmt,args...) fprintf(stderr, fmt, ##args)
 
-static int readf(astate T, void* context, const char** ps, size_t* pl) {
+static int readf(__attribute__((unused)) astate T, void* context, const char** ps, size_t* pl) {
 	static char ch;
 	FILE* file = aloE_cast(FILE*, context);
 	int c = fgetc(file);
@@ -74,7 +74,7 @@ static int incomplete(astate T, int status) {
  ** return false if statement is incomplete and throw an error otherwise.
  */
 static int compilec(astate T, astr name, int strict) {
-	int status = aloL_compiles(T, -1, "main", "<stdin>");
+	int status = aloL_compiles(T, -1, name, "<stdin>");
 	if (status == ThreadStateRun) {
 		return true;
 	}

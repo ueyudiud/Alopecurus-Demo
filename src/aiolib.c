@@ -214,7 +214,7 @@ static int io_open(astate T) {
 	return 0;
 }
 
-static int l_emptyclose(fstream stream) {
+static int l_emptyclose(__attribute__((unused)) fstream stream) {
 	return 0;
 }
 

@@ -38,7 +38,7 @@ void aloZ_delete(astate T, aproto_t* p) {
 	if (p == NULL) {
 		return;
 	}
-	for (size_t i = 0; i < p->nchild; ++i) {
+	for (int i = 0; i < p->nchild; ++i) {
 		aloZ_delete(T, p->children[i]);
 	}
 	aloF_deletep(T, p);

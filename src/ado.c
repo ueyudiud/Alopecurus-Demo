@@ -400,7 +400,7 @@ static void postpcc(astate T, int status) {
 	aloE_assert(frame->fypc || status != ThreadStateYield, "error can only be caught by protector.");
 
 	aloD_adjustresult(T, frame->nresult);
-	int n = (*frame->c.kfun)(T, ThreadStateYield, frame->c.ctx);
+	int n = (*frame->c.kfun)(T, status, frame->c.ctx);
 	api_checkelems(T, n);
 	aloD_postcall(T, T->top - n, n);
 }
@@ -440,7 +440,7 @@ static aframe_t* rewind_protector(astate T) {
 /**
  * attempt to recover the function in error by protector.
  */
-static int recover(astate T, int status) {
+static int recover(astate T) {
 	/* find yieldable protector */
 	aframe_t* frame = rewind_protector(T);
 	if (frame == NULL)
@@ -514,7 +514,7 @@ int alo_resume(astate T, astate from, int narg) {
 		T->status = ThreadStateYield; /* yield coroutine */
 	}
 	else if (status != ThreadStateYield) { /* error occurred? */
-		while (iserrorstate(status) && recover(T, status)) { /* try to recover the error by yieldable error protector */
+		while (iserrorstate(status) && recover(T)) { /* try to recover the error by yieldable error protector */
 			status = aloD_prun(T, unroll_unsafe, &status);
 		}
 		if (iserrorstate(status)) { /* is error unrecoverable? */

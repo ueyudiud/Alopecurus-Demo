@@ -357,7 +357,7 @@ typedef struct alo_CaptureInfo {
 } acapinfo_t;
 
 typedef struct alo_LineInfo {
-	size_t begin;
+	int begin;
 	int line;
 } alineinfo_t;
 
@@ -373,10 +373,10 @@ struct alo_Proto {
 			abyte flags;
 		}
 	);
-	size_t ncode; /* code size */
-	size_t nconst; /* constant size */
-	size_t nlineinfo; /* line information size */
-	size_t nchild; /* children prototype count */
+	int ncode; /* code size */
+	int nconst; /* constant size */
+	int nlineinfo; /* line information size */
+	int nchild; /* children prototype count */
 	astring_t* name;
 	uint16_t nargs; /* fixed parameters count */
 	uint16_t nstack; /* max stack size */

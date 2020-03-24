@@ -62,7 +62,7 @@ void aloU_init(astate T) {
 	table->length = 0;
 }
 
-static int putcreg(astate T, actable_t* table, acfun handle, astr name) {
+static int putcreg(actable_t* table, acfun handle, astr name) {
 	size_t hash = aloE_addr(handle) % table->capacity; /* first hash */
 	size_t hash0 = hash;
 	int i = 1;
@@ -107,7 +107,7 @@ static void growbuf(astate T, actable_t* table) {
 		table->array[i].handle = NULL;
 	}
 	for (size_t i = 0; i < oldcap; ++i) {
-		if (putcreg(T, table, oldarray[i].handle, oldarray[i].name)) {
+		if (putcreg(table, oldarray[i].handle, oldarray[i].name)) {
 			aloU_rterror(T, "failed to put entry into buffer.");
 		}
 	}
@@ -121,9 +121,9 @@ void aloU_bind(astate T, acfun handle, astring_t* name) {
 	if (table->length >= table->capacity * ALO_CTABLE_LOAD_FACTOR) { /* needs to grow size? */
 		growbuf(T, table);
 	}
-	if (putcreg(T, table, handle, name->array)) { /* place new entry failed? */
+	if (putcreg(table, handle, name->array)) { /* place new entry failed? */
 		growbuf(T, table); /* grow buffer size again */
-		if (putcreg(T, table, handle, name->array)) { /* failed again? */
+		if (putcreg(table, handle, name->array)) { /* failed again? */
 			aloU_rterror(T, "cannot put C function '%s'", name->array);
 		}
 	}
@@ -283,7 +283,7 @@ int alo_prevframe(__attribute__((unused)) astate T, astr what, aframeinfo_t* inf
 	return true;
 }
 
-void alo_sethook(astate T, ahfun fun, int mask, int count) {
+void alo_sethook(astate T, ahfun fun, int mask, __attribute__((unused)) int count) {
 	if (fun == NULL || mask == 0) {
 		fun = NULL;
 		mask = 0;

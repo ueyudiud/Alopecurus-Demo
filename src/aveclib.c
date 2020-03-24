@@ -20,12 +20,12 @@ static void convx(astate T, int u, int v) {
 	if (p > 0 && q > 0) {
 		size_t r = p + q - 1;
 		alo_ensure(T, r + 2);
-		int i = 1;
+		size_t i = 1;
 		for (i = 0; i < p && i < q; ++i) {
 			alo_rawgeti(T, u, i);
 			alo_rawgeti(T, v, 0);
 			alo_arith(T, ALO_OPMUL);
-			for (int j = 1; j <= i; ++j) {
+			for (size_t j = 1; j <= i; ++j) {
 				alo_rawgeti(T, u, i - j);
 				alo_rawgeti(T, v, j);
 				alo_arith(T, ALO_OPMUL);
@@ -36,7 +36,7 @@ static void convx(astate T, int u, int v) {
 			alo_rawgeti(T, u, p - 1);
 			alo_rawgeti(T, v, i - p + 1);
 			alo_arith(T, ALO_OPMUL);
-			for (int j = 1; j < r - i; ++j) {
+			for (size_t j = 1; j < r - i; ++j) {
 				alo_rawgeti(T, u, p - 1 - j);
 				alo_rawgeti(T, v, i - p + 1 + j);
 				alo_arith(T, ALO_OPMUL);

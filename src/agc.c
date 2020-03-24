@@ -281,7 +281,7 @@ static size_t propagate_closure(aglobal_t* G, aclosure_t* v) {
 static size_t propagate_proto(aglobal_t* G, aproto_t* v) {
 	markng(G, v->name);
 	markng(G, v->src);
-	size_t i;
+	int i;
 	for (i = 0; i < v->nconst; ++i) { /* mark constants */
 		markt(G, &v->consts[i]);
 	}
@@ -645,7 +645,7 @@ static void sweepall(astate T, agct* list) {
  ** GC control functions.
  */
 
-static void gcbegin(astate T, aglobal_t* G) {
+static void gcbegin(aglobal_t* G) {
 	/* clear GC linked list */
 	G->gray = G->grayagain = NULL;
 	G->weaka = G->weakk = G->weakv = NULL;
@@ -776,7 +776,7 @@ static size_t gcstep(astate T, aglobal_t* G) {
 	switch (G->gcstep) {
 	case GCStepPause: {
 		G->mtraced = 0;
-		gcbegin(T, G);
+		gcbegin(G);
 		G->gcstep = GCStepPropagate;
 		return G->mtraced;
 	}

@@ -232,7 +232,7 @@ static void leaveblock(afstat_t* f) {
 	f->d->ss.l = b->fsymbol;
 	int njmp = b->fjump;
 	alabel* labels = f->d->jp.a;
-	for (int i = b->fjump; i < f->d->jp.l; ++i) {
+	for (size_t i = b->fjump; i < f->d->jp.l; ++i) {
 		if (GET_sBx(f->p->code[labels[i].pc]) == NO_JUMP) { /* not settled yet */
 			labels[i].nactvar = b->nactvar;
 			labels[njmp++] = labels[i];
@@ -1569,7 +1569,7 @@ static int stats(alexer_t* lex) {
 }
 
 static void registerproto(astate T, aproto_t* p) {
-	for (size_t i = 0; i < p->nchild; ++i) {
+	for (int i = 0; i < p->nchild; ++i) {
 		registerproto(T, p->children[i]);
 	}
 	aloG_register(T, p, ALO_TPROTO);

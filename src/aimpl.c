@@ -51,6 +51,7 @@ void alo_bind(astate T, astr name, acfun handle) {
 }
 
 #define isinstk(index) ((index) > ALO_GLOBAL_IDNEX)
+#define stackoff(top,base) (api_check(T, (top) >= (base), "illegal stack"), aloE_cast(size_t, (top) - (base)))
 
 aindex_t alo_absindex(astate T, aindex_t index) {
 	return index < 0 && isinstk(index) ?
@@ -64,8 +65,8 @@ static void growstack(astate T, void* context) {
 
 int alo_ensure(astate T, size_t size) {
 	aframe_t* const frame = T->frame;
-	if (frame->top - T->top < size) {
-		if ((T->stack + T->stacksize) - T->top < size) {
+	if (stackoff(frame->top, T->top) < size) {
+		if (stackoff(T->stack + T->stacksize, T->top) < size) {
 			size_t capacity = T->top - T->stack + EXTRA_STACK;
 			if (capacity + size > ALO_MAXSTACKSIZE) {
 				return false;
@@ -246,7 +247,7 @@ astr alo_typename(astate T, aindex_t index) {
 	return aloV_typename(T, o);
 }
 
-astr alo_tpidname(astate T, int id) {
+astr alo_tpidname(__attribute__((unused)) astate T, int id) {
 	aloE_assert(id >= ALO_TUNDEF && id < ALO_NUMTYPE, "illegal type id.");
 	return id == ALO_TUNDEF ? "none" : aloT_typenames[id];
 }

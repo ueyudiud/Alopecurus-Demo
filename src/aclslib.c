@@ -50,7 +50,7 @@ static int class_meta_new(astate T) {
 	alo_newlist(T, n);
 	alo_push(T, -1);
 	alo_rawsets(T, -3, "__parents");
-	for (int i = 0; i < n; ++i) {
+	for (size_t i = 0; i < n; ++i) {
 		alo_push(T, 2 + i);
 		alo_rawseti(T, -2, i);
 	}

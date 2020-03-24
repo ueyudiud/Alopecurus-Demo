@@ -165,7 +165,7 @@ athread_t* aloR_newthread(astate T) {
 /**
  ** close frame and free all references in the frame.
  */
-void aloR_closeframe(astate T, aframe_t* frame) {
+void aloR_closeframe(__attribute__((unused)) astate T, aframe_t* frame) {
 	frame->flags = 0; /* clear frame flags, the frame will regard as a C functions calling frame now. */
 	/* make old context unreachable */
 	frame->c.kfun = NULL;

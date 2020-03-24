@@ -23,7 +23,7 @@ static void fixjmp(afstat_t* f, size_t pc, size_t dest) {
 	SET_sBx(f->p->code[pc], getoffset(dest, pc));
 }
 
-static int nextjump(afstat_t* f, size_t pc) {
+static int nextjump(afstat_t* f, int pc) {
 	int i = GET_sBx(f->p->code[pc]);
 	return i != NO_JUMP ? pc + i + 1 : NO_JUMP;
 }
@@ -90,7 +90,7 @@ static ainsn_t* getctrl(afstat_t* f, int index) {
 #define loadbool(f,reg,value) aloK_iABx(f, OP_LDC, false, true, reg, value)
 
 static int aloK_kint(afstat_t* f, aint value) {
-	size_t i;
+	int i;
 	kfind(i, f->p->consts, f->nconst, value, ttisflt, tgetflt);
 	tsetint(newconst(f), value);
 	return i;
@@ -103,14 +103,14 @@ static int aloK_kflt(afstat_t* f, afloat value) {
 		return aloK_kint(f, t);
 	}
 #endif
-	size_t i;
+	int i;
 	kfind(i, f->p->consts, f->nconst, value, ttisflt, tgetflt);
 	tsetflt(newconst(f), value);
 	return i;
 }
 
 int aloK_kstr(afstat_t* f, astring_t* value) {
-	size_t i;
+	int i;
 	kfind(i, f->p->consts, f->nconst, value, ttisstr, tgetstr);
 	tsetstr(f->l->T, newconst(f), value);
 	return i;
@@ -507,6 +507,9 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 		}
 	}
 	if (f->p->fvararg) {
+		if (!base) {
+			aloX_error(f->l, "can not capture vararg.");
+		}
 		aloE_assert(ss[f->nlocvar].type == SYMBOL_VAR, "unexpected variable type.");
 		if (ss[f->nlocvar].name == name) {
 			e->t = E_VARARG;
