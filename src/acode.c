@@ -652,11 +652,16 @@ void aloK_singleret(afstat_t* f, aestat_t* e) {
 		e->t = E_ALLOC;
 		e->v.g = aloK_iABC(f, OP_SELV, 0, 2, false, 0, 0, 0);
 		break;
-	case E_CALL: case E_UNBOX: {
+	case E_CALL: {
 		ainsn_t* i = &getinsn(f, e);
 		SET_C(*i, 2);
 		e->t = E_FIXED;
 		e->v.g = GET_A(*i);
+		break;
+	}
+	case E_UNBOX: {
+		SET_C(getinsn(f, e), 2);
+		e->t = E_ALLOC;
 		break;
 	}
 	default:
