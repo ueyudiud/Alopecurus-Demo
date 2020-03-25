@@ -21,7 +21,7 @@
 
 static int ifill(astate T, aibuf_t* buf) {
 	aloE_assert(stack->len == 0, "not reached to end of buffer yet.");
-	return (T->berrno = buf->reader(T, buf->context, &buf->pos, &buf->len)) || buf->len == 0;
+	return buf->reader(T, buf->context, &buf->pos, &buf->len) || buf->len == 0;
 }
 
 int aloB_ifill_(astate T, aibuf_t* buf) {

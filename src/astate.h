@@ -161,7 +161,6 @@ struct alo_Thread {
 	amstack_t memstk; /* memory stack */
 	ahfun hook;
 	aframe_t base_frame;
-	int berrno; /* buffer error */
 	uint16_t nframe; /* frame depth */
 	uint16_t nxyield; /* nested non-yieldable depth */
 	uint16_t nccall; /* C caller depth */

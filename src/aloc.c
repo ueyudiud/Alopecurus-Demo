@@ -22,12 +22,14 @@ static int fwriter(__attribute__((unused)) astate T, void* buf, const void* src,
 	return 0;
 }
 
-static void prtkst(astate T, aproto_t* p, int index) {
-	if (index > (int) p->nconst) {
+static aproto_t* proto = NULL;
+
+static void prtkst(int index, __attribute__((unused)) int off) {
+	if (index > (int) proto->nconst) {
 		printf("<error>");
 		return;
 	}
-	const atval_t* o = p->consts + index;
+	const atval_t* o = proto->consts + index;
 	switch (ttpnv(o)) {
 	case ALO_TNIL  : printf("nil"); break;
 	case ALO_TBOOL : printf("%s", tgetbool(o) ? "true" : "false"); break;
@@ -35,42 +37,51 @@ static void prtkst(astate T, aproto_t* p, int index) {
 	case ALO_TFLOAT: printf(ALO_FLT_FORMAT, tgetflt(o)); break;
 	case ALO_TSTRING: {
 		astring_t* s = tgetstr(o);
-		alo_format(T, fwriter, stdout, "\"%\"\"", s->array, aloS_len(s));
+		alo_format(NULL, fwriter, stdout, "\"%\"\"", s->array, aloS_len(s));
 		break;
 	}
 	}
 }
 
-static void prtreg(__attribute__((unused)) astate T, aproto_t* p, int index) {
+static void prtreg(int index, int off) {
 	if (aloK_iscapture(index)) {
 		index = aloK_getcapture(index);
-		if (p->captures[index].name) {
-			printf("#%s", p->captures[index].name->array);
+		if (index == 0) {
+			printf("#0");
 		}
 		else {
-			printf("#%d", index);
+			if (index < proto->ncap && proto->captures[index - 1].name) {
+				printf("#%s", proto->captures[index - 1].name->array);
+			}
+			else {
+				printf("#%d", index);
+			}
 		}
 	}
 	else {
 		index = aloK_getstack(index);
-		if (p->locvars[index].name) {
-			printf("%%%s", p->locvars[index].name->array);
+		/* find register name */
+		off++;
+		for (int i = 0; i < proto->nlocvar; ++i) {
+			alocvar_t* var = &proto->locvars[i];
+			if (off >= var->start && off <= var->end && var->index == index) {
+				printf("%%%s", var->name->array);
+				return;
+			}
 		}
-		else {
-			printf("%%%d", index);
-		}
+		/* or use register index instead */
+		printf("%%%d", index);
 	}
 }
 
-static void prtrk(__attribute__((unused)) astate T, aproto_t* p, size_t index, abyte mode) {
-	(mode ? prtkst : prtreg)(T, p, index);
-}
+#define prtrk(index,off,mode) ((mode) ? prtkst : prtreg)(index, off)
 
 static int detail = false;
 
 #define nameof(name) (*(name)->array ? (name)->array : "<anonymous>")
 
 static void dump(astate T, aproto_t* p) {
+	proto = p;
 	printf("%s (%s:%d,%d) %d instructions at %p\n",
 			nameof(p->name), p->src->array, p->linefdef, p->lineldef, p->ncode, p);
 	printf("%d%s params, %d stack, %d captures, %d local, %d constants, %d functions\n",
@@ -79,7 +90,7 @@ static void dump(astate T, aproto_t* p) {
 		printf("constants (%d) for %p:\n", p->nconst, p);
 		for (int i = 0; i < (int) p->nconst; ++i) {
 			printf("\t[%d] ", i);
-			prtkst(T, p, i);
+			prtkst(i, 0);
 			printf("\n");
 		}
 		printf("captures (%d) for %p:\n", p->ncap, p);
@@ -107,13 +118,13 @@ static void dump(astate T, aproto_t* p) {
 		case OP_MOV:
 		case OP_PNM ... OP_BNOT: case OP_ITR:
 		case OP_AADD ... OP_AXOR: case OP_NEW:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			putchar(' ');
-			prtrk(T, p, GET_B(code), GET_xB(code));
+			prtrk(GET_B(code), i, GET_xB(code));
 			break;
 		case OP_JMP:
 			if (GET_xA(code)) {
-				prtreg(T, p, GET_A(code));
+				prtreg(GET_A(code), i);
 				printf(" %d", GET_sBx(code) + i + 2);
 			}
 			else {
@@ -121,20 +132,20 @@ static void dump(astate T, aproto_t* p) {
 			}
 			break;
 		case OP_JCZ:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %s %d", GET_xC(code) ? "true" : "false", GET_sBx(code) + i + 2);
 			break;
 		case OP_LDN:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %d", GET_B(code));
 			break;
 		case OP_LDC:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			putchar(' ');
-			prtkst(T, p, GET_Bx(code));
+			prtkst(GET_Bx(code), i);
 			break;
 		case OP_LDP:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			aproto_t* proto = p->children[GET_Bx(code)];
 			if (*proto->name->array) {
 				printf(" %s", proto->name->array);
@@ -146,70 +157,70 @@ static void dump(astate T, aproto_t* p) {
 		case OP_SELV:
 			switch (GET_xB(code)) {
 			case 0: case 1:
-				prtreg(T, p, GET_A(code));
+				prtreg(GET_A(code), i);
 				putchar(' ');
-				prtrk(T, p, GET_B(code), GET_xB(code));
+				prtrk(GET_B(code), i, GET_xB(code));
 				break;
 			case 2:
-				prtreg(T, p, GET_A(code));
+				prtreg(GET_A(code), i);
 				printf(" %d", GET_B(code));
 				break;
 			case 3:
-				prtreg(T, p, GET_A(code));
+				prtreg(GET_A(code), i);
 				printf(" #");
 				break;
 			}
 			break;
 		case OP_NEWA: case OP_CAT:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			putchar(' ');
-			prtrk(T, p, GET_B(code), GET_xB(code));
+			prtrk(GET_B(code), i, GET_xB(code));
 			printf(" %d", GET_C(code));
 			break;
 		case OP_NEWL: case OP_NEWM:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %d", GET_Bx(code));
 			break;
 		case OP_UNBOX:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			putchar(' ');
-			prtrk(T, p, GET_B(code), GET_xB(code));
+			prtrk(GET_B(code), i, GET_xB(code));
 			printf(" %d", GET_C(code) - 1);
 			break;
 		case OP_EQ: case OP_LT: case OP_LE:
-			prtrk(T, p, GET_A(code), GET_xA(code));
+			prtrk(GET_A(code), i, GET_xA(code));
 			putchar(' ');
-			prtrk(T, p, GET_B(code), GET_xB(code));
+			prtrk(GET_B(code), i, GET_xB(code));
 			printf(" %s", GET_xC(code) ? "true" : "false");
 			break;
 		case OP_GET: case OP_SET: case OP_REM: case OP_SELF:
-			prtrk(T, p, GET_A(code), GET_xA(code));
+			prtrk(GET_A(code), i, GET_xA(code));
 			putchar(' ');
-			prtrk(T, p, GET_B(code), GET_xB(code));
+			prtrk(GET_B(code), i, GET_xB(code));
 			putchar(' ');
-			prtrk(T, p, GET_C(code), GET_xC(code));
+			prtrk(GET_C(code), i, GET_xC(code));
 			break;
 		case OP_ADD ... OP_BXOR:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			putchar(' ');
-			prtrk(T, p, GET_B(code), GET_xB(code));
+			prtrk(GET_B(code), i, GET_xB(code));
 			putchar(' ');
-			prtrk(T, p, GET_C(code), GET_xC(code));
+			prtrk(GET_C(code), i, GET_xC(code));
 			break;
 		case OP_CALL:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %d %d", GET_B(code) - 1, GET_C(code) - 1);
 			break;
 		case OP_TCALL:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %d", GET_B(code) - 1);
 			break;
 		case OP_ICALL:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %d", GET_C(code) - 1);
 			break;
 		case OP_RET:
-			prtreg(T, p, GET_A(code));
+			prtreg(GET_A(code), i);
 			printf(" %d", GET_B(code) - 1);
 			break;
 		}

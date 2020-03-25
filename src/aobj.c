@@ -105,7 +105,7 @@ int alo_format(astate T, awriter writer, void* context, astr fmt, ...) {
 /**
  ** write string to writer with interrupt controlling.
  */
-#define write_checked(T,w,c,s,l) if (((T)->berrno = (w)(T, c, s, l))) return (T)->berrno
+#define write(T,w,c,s,l) { int $state; if ((($state) = (w)(T, c, s, l))) return $state; }
 
 #define UTF8BUFSIZE 8
 
@@ -113,60 +113,58 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 	char buf[ALO_SPRIBUFLEN];
 	astr p = fmt, q;
 	while ((q = strchr(p, '%'))) {
-		write_checked(T, writer, context, p, q - p);
+		write(T, writer, context, p, q - p);
 		switch (q[1]) {
 		case 's': { /* a string value */
 			astr s = va_arg(varg, astr);
-			write_checked(T, writer, context, s, strlen(s));
+			write(T, writer, context, s, strlen(s));
 			break;
 		}
 		case 'q': { /* a char sequence */
 			const char* s = va_arg(varg, char*);
 			size_t l = va_arg(varg, size_t);
-			write_checked(T, writer, context, s, l);
+			write(T, writer, context, s, l);
 			break;
 		}
 		case '"': { /* a escaped string */
 			const char* s = va_arg(varg, astr);
 			size_t l = va_arg(varg, size_t);
-			aloO_escape(T, writer, context, s, l);
-			if (T->berrno) {
-				return T->berrno;
-			}
+			int state = aloO_escape(T, writer, context, s, l);
+			if (state) return state;
 			break;
 		}
 		case 'c': { /* a character in integer */
 			char ch = aloE_cast(char, va_arg(varg, int));
-			write_checked(T, writer, context, &ch, 1);
+			write(T, writer, context, &ch, 1);
 			break;
 		}
 		case 'd': { /* an integer value */
 			int i = va_arg(varg, int);
 			int len = sprintf(buf, "%d", i);
-			write_checked(T, writer, context, buf, len);
+			write(T, writer, context, buf, len);
 			break;
 		}
 		case 'i': { /* an alo_Integer value */
 			aint i = va_arg(varg, aint);
 			int len = ALO_SPRIINT(buf, i);
-			write_checked(T, writer, context, buf, len);
+			write(T, writer, context, buf, len);
 			break;
 		}
 		case 'f': { /* an alo_Float value */
 			afloat i = va_arg(varg, afloat);
 			int len = ALO_SPRIFLT(buf, i);
-			write_checked(T, writer, context, buf, len);
+			write(T, writer, context, buf, len);
 			break;
 		}
 		case 'p': { /* a pointer value */
 			void* p = va_arg(varg, void*);
 			int len = sprintf(buf, "%p", p);
-			write_checked(T, writer, context, buf, len);
+			write(T, writer, context, buf, len);
 			break;
 		}
 		case '%': {
 			static const char ch = '%';
-			write_checked(T, writer, context, &ch, 1);
+			write(T, writer, context, &ch, 1);
 			break;
 		}
 		case 'u': {
@@ -186,7 +184,7 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 				while (ch > mfb);
 				*p = ch & mfb; /* get first byte */
 			}
-			write_checked(T, writer, context, p, buf + UTF8BUFSIZE - p);
+			write(T, writer, context, p, buf + UTF8BUFSIZE - p);
 			break;
 		}
 		default: {
@@ -196,39 +194,27 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 		p = q + 2;
 	}
 	if (*p) {
-		write_checked(T, writer, context, p, strlen(p));
+		write(T, writer, context, p, strlen(p));
 	}
 	return 0;
 }
 
 int aloO_tostring(astate T, awriter writer, void* context, const atval_t* o) {
 	switch (ttype(o)) {
-	case ALO_TBOOL: {
-		if (alo_format(T, writer, context, "%s", tgetbool(o) ? "true" : "false")) {
-			return T->berrno;
-		}
-		break;
-	}
-	case ALO_TINT: {
-		if (alo_format(T, writer, context, "%i", tgetint(o))) {
-			return T->berrno;
-		}
-		break;
-	}
-	case ALO_TFLOAT: {
-		if (alo_format(T, writer, context, "%f", tgetflt(o))) {
-			return T->berrno;
-		}
-		break;
-	}
+	case ALO_TBOOL:
+		return alo_format(T, writer, context, "%s", tgetbool(o) ? "true" : "false");
+	case ALO_TINT:
+		return alo_format(T, writer, context, "%i", tgetint(o));
+	case ALO_TFLOAT:
+		return alo_format(T, writer, context, "%f", tgetflt(o));
 	case ALO_TISTRING: {
 		astring_t* s = tgetstr(o);
-		write_checked(T, writer, context, s->array, s->shtlen);
+		write(T, writer, context, s->array, s->shtlen);
 		break;
 	}
 	case ALO_THSTRING: {
 		astring_t* s = tgetstr(o);
-		write_checked(T, writer, context, s->array, s->lnglen);
+		write(T, writer, context, s->array, s->lnglen);
 		break;
 	}
 	default: {
@@ -237,7 +223,7 @@ int aloO_tostring(astate T, awriter writer, void* context, const atval_t* o) {
 				aloU_rterror(T, "'__tostr' must return string value");
 			}
 			astring_t* s = tgetstr(T->top);
-			write_checked(T, writer, context, s->array, aloS_len(s));
+			write(T, writer, context, s->array, aloS_len(s));
 		}
 		else {
 			aloU_rterror(T, "fail to transform object to string.");
@@ -290,7 +276,7 @@ static size_t efill(char* out, int ch) {
 	return 1;
 }
 
-void aloO_escape(astate T, awriter writer, void* context, const char* src, size_t len) {
+int aloO_escape(astate T, awriter writer, void* context, const char* src, size_t len) {
 	const char* const end = src + len;
 	char buf[256];
 	char* const btp = buf + (256 - MAX_ESCAPE_LEN); /* buffer top limit */
@@ -302,8 +288,9 @@ void aloO_escape(astate T, awriter writer, void* context, const char* src, size_
 				break;
 			}
 		}
-		writer(T, context, buf, p - buf);
+		write(T, writer, context, buf, p - buf);
 	}
+	return 0;
 }
 
 const atval_t* aloO_get(astate T, const atval_t* o, const atval_t* k) {

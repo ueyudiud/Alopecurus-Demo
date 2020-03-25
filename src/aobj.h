@@ -345,8 +345,8 @@ typedef struct alo_Closure {
 
 typedef struct alo_LocalVariable {
 	astring_t* name;
-	size_t start;
-	size_t end;
+	int start;
+	int end;
 	uint16_t index;
 } alocvar_t;
 
@@ -411,7 +411,7 @@ ALO_IFUN int aloO_str2int(astr, atval_t*);
 ALO_IFUN int aloO_str2num(astr, atval_t*);
 ALO_IFUN int aloO_flt2int(afloat, aint*, int);
 ALO_IFUN int aloO_tostring(astate, awriter, void*, const atval_t*);
-ALO_IFUN void aloO_escape(astate, awriter, void*, const char*, size_t);
+ALO_IFUN int aloO_escape(astate, awriter, void*, const char*, size_t);
 ALO_IFUN const atval_t* aloO_get(astate, const atval_t*, const atval_t*);
 
 ALO_IFUN int alo_format(astate, awriter, void*, astr, ...);

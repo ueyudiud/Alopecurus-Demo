@@ -77,7 +77,6 @@ static void preinit(astate T, aglobal_t* G) {
 	T->caller = NULL;
 	T->g = G;
 	T->frame = &T->base_frame;
-	T->berrno = 0;
 	T->nccall = 0;
 	T->nframe = 1;
 	T->nxyield = 0;
