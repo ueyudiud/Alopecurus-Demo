@@ -64,7 +64,7 @@ static void initialize(astate T, __attribute__((unused)) void* context) {
 }
 
 static ahash_t newseed(astate T) {
-	size_t pool[4];
+	uintptr_t pool[4];
 	pool[0] = aloE_addr(T);
 	pool[1] = aloE_addr(pool);
 	pool[2] = aloE_addr(alo_newstate);
