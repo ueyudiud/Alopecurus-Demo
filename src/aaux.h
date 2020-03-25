@@ -98,6 +98,7 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 		alo_popbuf(T, name))
 #define aloL_bputc(T,b,ch) (aloE_cast(void, (b)->len < (b)->cap || (aloL_bcheck(T, b, 1), true)), (b)->buf[(b)->len++] = aloE_byte(ch))
 #define aloL_bputls(T,b,s,l) aloL_bputm(T, b, s, (l) * sizeof(char))
+#define aloL_bputxs(T,b,s) aloL_bputls(T, b, ""s, sizeof(s) / sizeof(char) - 1)
 #define aloL_bsetc(b,i,ch) ((b)->buf[i] = aloE_byte(ch))
 #define aloL_blen(b) ((b)->len) /* readable and writable */
 #define aloL_braw(b) aloE_cast(abyte*, (b)->buf) /* read-only */

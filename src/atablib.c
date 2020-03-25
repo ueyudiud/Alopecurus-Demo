@@ -85,62 +85,75 @@ static int table_map(astate T) {
 	return 1;
 }
 
-static void l_mkstr_checkarg(astate T) {
-	aloL_checktype(T, 0, ALO_TTABLE);
-	switch (alo_gettop(T)) {
-	case 1:
-		alo_pushstring(T, ", ");
-		goto left;
-	case 2:
-		aloL_checkstring(T, 1);
-		left:
-		alo_pushstring(T, "[");
-		goto right;
-	case 3:
-		aloL_checkstring(T, 2);
-		right:
-		alo_pushstring(T, "]");
-		goto sep;
-	case 4:
-		aloL_checkstring(T, 3);
-		sep:
-		alo_pushstring(T, ": ");
-		break;
-	case 5:
-		break;
-	default:
-		alo_settop(T, 5);
-		break;
-	}
-	alo_getreg(T, "tostring");
-}
+#define DEFAULT_SEP ", "
+#define DEFAULT_LEFT "["
+#define DEFAULT_RIGHT "]"
+#define DEFAULT_CAT ": "
+
+#define defaults(s,l,x) aloE_void((s) = ""x, (l) = (sizeof(x) / sizeof(char) - 1))
 
 static int table_mkstr(astate T) {
-	l_mkstr_checkarg(T);
+	aloL_checktype(T, 0, ALO_TTABLE);
+	size_t l1, l2, l3, l4, l5;
+	const char *s1, *s2, *s3, *s4, *s5;
+	switch (alo_gettop(T)) {
+	case 1:
+		defaults(s1, l1, DEFAULT_SEP);
+		goto lr;
+	case 2:
+		s1 = aloL_checklstring(T, 1, &l1);
+		lr:
+		defaults(s2, l2, DEFAULT_LEFT);
+		defaults(s3, l3, DEFAULT_RIGHT);
+		goto ct;
+	case 3:
+		aloL_error(T, 2, "illegal arguments: wrong argument count.");
+		break;
+	case 4:
+		s1 = aloL_checklstring(T, 2, &l1);
+		s2 = aloL_checklstring(T, 1, &l2);
+		s3 = aloL_checklstring(T, 3, &l3);
+		ct:
+		defaults(s4, l4, DEFAULT_CAT);
+		break;
+	default:
+		s1 = aloL_checklstring(T, 2, &l1);
+		s2 = aloL_checklstring(T, 1, &l2);
+		s3 = aloL_checklstring(T, 3, &l3);
+		s4 = aloL_checklstring(T, 4, &l4);
+		break;
+	}
+	size_t n = alo_rawlen(T, 0);
 	aloL_usebuf(T, buf) {
-		ptrdiff_t i = ALO_ITERATE_BEGIN;
-		int first = true;
-		aloL_bwrite(T, buf, 2);
-		while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
-			if (!first) {
-				aloL_bwrite(T, buf, 1);
-			}
-			else {
-				first = false;
-			}
-			alo_push(T, 5); /* push tostring function */
-			alo_push(T, -3);
-			alo_call(T, 1, 1);
-			aloL_bwrite(T, buf, -1);
-			alo_drop(T);
-			aloL_bwrite(T, buf, 4);
-			alo_push(T, 5); /* push tostring function */
-			alo_push(T, -2);
-			alo_call(T, 1, 1);
-			aloL_bwrite(T, buf, -1);
-			alo_settop(T, -3);
+		if (n == 0) {
+			aloL_bputls(T, buf, s2, l2);
+			aloL_bputls(T, buf, s3, l3);
 		}
-		aloL_bwrite(T, buf, 3);
+		else {
+			aloL_bputls(T, buf, s2, l2);
+			ptrdiff_t i = ALO_ITERATE_BEGIN;
+			/* append first element */
+			alo_inext(T, 0, &i);
+			s5 = aloL_tostring(T, -2, &l5);
+			aloL_bputls(T, buf, s5, l5);
+			alo_drop(T);
+			aloL_bputls(T, buf, s4, l4);
+			s5 = aloL_tostring(T, -1, &l5);
+			aloL_bputls(T, buf, s5, l5);
+			alo_settop(T, -3);
+			/* append forward elements */
+			while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
+				aloL_bputls(T, buf, s1, l1);
+				s5 = aloL_tostring(T, -2, &l5);
+				aloL_bputls(T, buf, s5, l5);
+				alo_drop(T);
+				aloL_bputls(T, buf, s4, l4);
+				s5 = aloL_tostring(T, -1, &l5);
+				aloL_bputls(T, buf, s5, l5);
+				alo_settop(T, -3);
+			}
+			aloL_bputls(T, buf, s3, l3);
+		}
 		aloL_bpushstring(T, buf);
 	}
 	return 1;

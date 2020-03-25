@@ -112,7 +112,6 @@ static void growbuf(astate T, actable_t* table) {
 		}
 	}
 	aloM_dela(T, oldarray, oldcap);
-
 }
 
 void aloU_bind(astate T, acfun handle, astring_t* name) {

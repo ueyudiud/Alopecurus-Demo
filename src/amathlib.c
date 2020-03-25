@@ -151,6 +151,26 @@ static int math_ceil(astate T) {
 	return 1;
 }
 
+static int math_erf(astate T) {
+	alo_pushnumber(T, erf(aloL_checknumber(T, 0)));
+	return 1;
+}
+
+static int math_erfc(astate T) {
+	alo_pushnumber(T, erfc(aloL_checknumber(T, 0)));
+	return 1;
+}
+
+static int math_tgamma(astate T) {
+	alo_pushnumber(T, tgamma(aloL_checknumber(T, 0)));
+	return 1;
+}
+
+static int math_lgamma(astate T) {
+	alo_pushnumber(T, lgamma(aloL_checknumber(T, 0)));
+	return 1;
+}
+
 static const acreg_t mod_funcs[] = {
 	{ "E", NULL },
 	{ "INTMAX", NULL },
@@ -165,8 +185,11 @@ static const acreg_t mod_funcs[] = {
 	{ "ceil", math_ceil },
 	{ "cos", math_cos },
 	{ "deg", math_deg },
+	{ "erf", math_erf },
+	{ "erfc", math_erfc },
 	{ "exp", math_exp },
 	{ "floor", math_floor },
+	{ "lgamma", math_lgamma },
 	{ "log", math_log },
 	{ "ln", math_ln },
 	{ "max", math_max },
@@ -175,6 +198,7 @@ static const acreg_t mod_funcs[] = {
 	{ "sin", math_sin },
 	{ "sqrt", math_sqrt },
 	{ "tan", math_tan },
+	{ "tgamma", math_tgamma },
 	{ NULL, NULL }
 };
 
@@ -187,8 +211,11 @@ int aloopen_mathlib(astate T) {
 	alo_bind(T, "math.ceil", math_ceil);
 	alo_bind(T, "math.cos", math_cos);
 	alo_bind(T, "math.deg", math_deg);
+	alo_bind(T, "math.erf", math_erf);
+	alo_bind(T, "math.erfc", math_erfc);
 	alo_bind(T, "math.exp", math_exp);
 	alo_bind(T, "math.floor", math_floor);
+	alo_bind(T, "math.lgamma", math_lgamma);
 	alo_bind(T, "math.log", math_log);
 	alo_bind(T, "math.ln", math_ln);
 	alo_bind(T, "math.min", math_min);
@@ -197,6 +224,7 @@ int aloopen_mathlib(astate T) {
 	alo_bind(T, "math.sin", math_sin);
 	alo_bind(T, "math.sqrt", math_sqrt);
 	alo_bind(T, "math.tan", math_tan);
+	alo_bind(T, "math.tgamma", math_tgamma);
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_pushnumber(T, NAN);

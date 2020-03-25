@@ -423,51 +423,62 @@ static int list_sort(astate T) {
 	return 1;
 }
 
-static void l_mkstr_checkarg(astate T) {
-	aloL_checktype(T, 0, ALO_TLIST);
-	switch (alo_gettop(T)) {
-	case 1:
-		alo_pushstring(T, ", ");
-		goto left;
-	case 2:
-		aloL_checkstring(T, 1);
-		left:
-		alo_pushstring(T, "[");
-		goto right;
-	case 3:
-		aloL_checkstring(T, 2);
-		right:
-		alo_pushstring(T, "]");
-		break;
-	case 4:
-		break;
-	default:
-		alo_settop(T, 4);
-		break;
-	}
-	alo_getreg(T, "tostring");
-}
+#define DEFAULT_SEP ", "
+#define DEFAULT_LEFT "["
+#define DEFAULT_RIGHT "]"
+
+#define defaults(s,l,x) aloE_void((s) = ""x, (l) = (sizeof(x) / sizeof(char) - 1))
 
 /**
  ** make list to string.
- ** prototype: list.mkstr(self,[sep,[left,[right]]])
+ ** prototype: list.mkstr(self,[sep]|[left,seq,right])
  */
 static int list_mkstr(astate T) {
-	l_mkstr_checkarg(T);
+	aloL_checktype(T, 0, ALO_TLIST);
+	size_t l1, l2, l3, l4;
+	const char *s1, *s2, *s3, *s4;
+	switch (alo_gettop(T)) {
+	case 1:
+		defaults(s1, l1, DEFAULT_SEP);
+		goto lr;
+	case 2:
+		s1 = aloL_checklstring(T, 1, &l1);
+		lr:
+		defaults(s2, l2, DEFAULT_LEFT);
+		defaults(s3, l3, DEFAULT_RIGHT);
+		break;
+	case 3:
+		aloL_error(T, 2, "illegal arguments: wrong argument count.");
+		break;
+	default:
+		s1 = aloL_checklstring(T, 2, &l1);
+		s2 = aloL_checklstring(T, 1, &l2);
+		s3 = aloL_checklstring(T, 3, &l3);
+		break;
+	}
+	size_t n = alo_rawlen(T, 0);
 	aloL_usebuf(T, buf) {
-		size_t n = alo_rawlen(T, 0);
-		aloL_bwrite(T, buf, 2);
-		for (size_t i = 0; i < n; ++i) {
-			if (i != 0) {
-				aloL_bwrite(T, buf, 1);
-			}
-			alo_push(T, 4); /* push tostring function */
-			alo_rawgeti(T, 0, i);
-			alo_call(T, 1, 1);
-			aloL_bwrite(T, buf, -1);
-			alo_drop(T);
+		if (n == 0) {
+			aloL_bputls(T, buf, s2, l2);
+			aloL_bputls(T, buf, s3, l3);
 		}
-		aloL_bwrite(T, buf, 3);
+		else {
+			aloL_bputls(T, buf, s2, l2);
+			/* append first element */
+			alo_rawgeti(T, 0, 0);
+			s4 = aloL_tostring(T, -1, &l4);
+			aloL_bputls(T, buf, s4, l4);
+			alo_settop(T, -2);
+			/* append forward elements */
+			for (size_t i = 1; i < n; ++i) {
+				aloL_bputls(T, buf, s1, l1);
+				alo_rawgeti(T, 0, i);
+				s4 = aloL_tostring(T, -1, &l4);
+				aloL_bputls(T, buf, s4, l4);
+				alo_settop(T, -2);
+			}
+			aloL_bputls(T, buf, s3, l3);
+		}
 		aloL_bpushstring(T, buf);
 	}
 	return 1;
