@@ -60,11 +60,15 @@ ALO_API int aloL_savef(astate, astr, int);
 
 ALO_API int aloL_getframe(astate, int, astr, aframeinfo_t*);
 ALO_API void aloL_where(astate, int);
+ALO_API int aloL_errresult_(astate, astr);
 ALO_API anoret aloL_error(astate, int, astr, ...);
 
 ALO_API anoret aloL_argerror(astate, aindex_t, astr, ...);
 ALO_API anoret aloL_typeerror(astate, aindex_t, astr);
 ALO_API anoret aloL_tagerror(astate, aindex_t, int);
+
+#define aloL_errresult(T,c,m) ((c) ? (alo_pushboolean(T, true), 1) : aloL_errresult_(T, m))
+
 
 /**
  ** base layer of messaging and logging.
@@ -96,10 +100,11 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 	for (ambuf_t name##$data, *name = (alo_pushbuf(T, &name##$data), &name##$data); \
 		name##$data.buf; \
 		alo_popbuf(T, name))
-#define aloL_bputc(T,b,ch) (aloE_cast(void, (b)->len < (b)->cap || (aloL_bcheck(T, b, 1), true)), (b)->buf[(b)->len++] = aloE_byte(ch))
+#define aloL_bputc(T,b,ch) (aloE_cast(void, (b)->len < (b)->cap || (aloL_bcheck(T, b, 1), true)), aloL_bputcx(b, ch))
 #define aloL_bputls(T,b,s,l) aloL_bputm(T, b, s, (l) * sizeof(char))
 #define aloL_bputxs(T,b,s) aloL_bputls(T, b, ""s, sizeof(s) / sizeof(char) - 1)
 #define aloL_bsetc(b,i,ch) ((b)->buf[i] = aloE_byte(ch))
+#define aloL_bputcx(b,ch) aloL_bsetc(b, (b)->len++, ch)
 #define aloL_blen(b) ((b)->len) /* readable and writable */
 #define aloL_braw(b) aloE_cast(abyte*, (b)->buf) /* read-only */
 #define aloL_bcheck(T,b,l) \

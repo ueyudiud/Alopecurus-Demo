@@ -454,6 +454,20 @@ void aloL_where(astate T, int level) {
 }
 
 /**
+ ** provide error message and give the return count.
+ */
+int aloL_errresult_(astate T, astr msg) {
+	int no = errno;
+	alo_pushnil(T);
+	if (msg)
+		alo_pushfstring(T, "%s: %s", msg, strerror(no));
+	else
+		alo_pushstring(T, strerror(no));
+	alo_pushinteger(T, no);
+	return 3;
+}
+
+/**
  ** throw a runtime error.
  */
 anoret aloL_error(astate T, int level, astr fmt, ...) {
