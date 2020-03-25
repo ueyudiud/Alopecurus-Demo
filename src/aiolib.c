@@ -18,8 +18,45 @@
 #include <stdio.h>
 #include <string.h>
 
-#define l_lockstream(f) aloE_void(0)
-#define l_unlockstream(f) aloE_void(0)
+/**
+ ** OS dependent functions.
+ **/
+
+#if !defined(l_lockstream)
+#if defined(ALO_USE_POSIX)
+
+#define l_lockstream flockfile
+#define l_unlockstream funlockfile
+
+#elif defined(ALOE_WINDOWS)
+
+#define l_lockstream _lock_file
+#define l_unlockstream _unlock_file
+
+#else
+
+#define l_lockstream aloE_void
+#define l_unlockstream aloE_void
+
+#endif
+
+#endif
+
+#if !defined(l_getc)
+#if defined(ALO_USE_POSIX)
+
+#define l_getc getc_unlocked
+
+#elif defined(ALOE_WINDOWS)
+
+#define l_getc _fgetc_nolock
+
+#else
+
+#define l_getc getc
+
+#endif
+#endif
 
 /**
  ** input stream type.
@@ -55,40 +92,43 @@ static void l_checkopen(astate T, afile* file) {
 static int f_getc(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	l_lockstream(file);
-	int ch = fgetc(file->stream);
-	l_unlockstream(file);
+	l_lockstream(file->stream);
+	int ch = l_getc(file->stream);
+	l_unlockstream(file->stream);
 	alo_pushinteger(T, ch != EOF ? ch : -1);
 	return 1;
 }
 
+#if !defined(SHTBUFSIZE)
 #define SHTBUFSIZE 256
+#endif
 
 static void l_getline(astate T, afile* file, ambuf_t* buf) {
 	int ch;
-	do {
-		l_lockstream(file);
+	while (true) {
 		while (buf->len < buf->cap) {
-			if ((ch = fgetc(file->stream)) != EOF && ch != '\n') {
-				aloL_bsetc(buf, buf->len++, ch);
-			}
-			else {
-				l_unlockstream(file);
-				aloL_bpushstring(T, buf);
+			ch = l_getc(file->stream);
+			if (ch == EOF || ch == '\n') /* end of line or file */
 				return;
-			}
+			aloL_bputcx(buf, ch);
 		}
-		l_unlockstream(file);
-		aloL_bcheck(T, buf, SHTBUFSIZE);
+		alo_growbuf(T, buf, buf->len + SHTBUFSIZE); /* grow buffer capacity */
 	}
-	while (true);
 }
 
 static int f_line(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	aloL_usebuf(T, buf) {
-		l_getline(T, file, buf);
+	if (!feof(file->stream)) {
+		aloL_usebuf(T, buf) {
+			l_lockstream(file->stream);
+			l_getline(T, file, buf);
+			l_unlockstream(file->stream);
+			aloL_bpushstring(T, buf);
+		}
+	}
+	else {
+		alo_pushnil(T); /* return nil read to end of file */
 	}
 	return 1;
 }
@@ -98,9 +138,7 @@ static int f_put(astate T) {
 	l_checkopen(T, file);
 	size_t l;
 	astr s = aloL_tostring(T, 1, &l);
-	l_lockstream(file);
 	fwrite(s, sizeof(char), l, file->stream);
-	l_unlockstream(file);
 	return 0;
 }
 
@@ -109,9 +147,20 @@ static int f_puts(astate T) {
 	l_checkopen(T, file);
 	size_t l;
 	astr s = aloL_checklstring(T, 1, &l);
-	l_lockstream(file);
 	fwrite(s, sizeof(char), l, file->stream);
-	l_unlockstream(file);
+	return 0;
+}
+
+static int f_concat(astate T) {
+	afile* file = self(T);
+	l_checkopen(T, file);
+	size_t n = alo_gettop(T);
+	size_t l;
+	const char* s;
+	for (size_t i = 1; i < n; ++i) {
+		s = aloL_tostring(T, i, &l);
+		fwrite(s, sizeof(char), l, file->stream);
+	}
 	return 0;
 }
 
@@ -130,12 +179,18 @@ static int f_err(astate T) {
 static int f_close(astate T) {
 	afile* file = self(T);
 	if (file->closer) {
-		l_lockstream(file);
+		l_lockstream(file->stream);
 		file->closer(file->stream);
 		file->closer = NULL;
-		l_unlockstream(file);
+		l_unlockstream(file->stream);
 	}
 	return 0;
+}
+
+static int f_flush(astate T) {
+	afile* file = self(T);
+	l_checkopen(T, file);
+	return aloL_errresult(T, fflush(file->stream) == 0, NULL);
 }
 
 /**
@@ -160,11 +215,7 @@ static int f_setbuf(astate T) {
 	afile* file = self(T);
 	int id = aloL_checkenum(T, 1, NULL, mode);
 	size_t size = aloL_getoptinteger(T, 2, IOBUF_SIZE);
-	l_lockstream(file);
-	setvbuf(file->stream, NULL, masks[id], size);
-	l_unlockstream(file);
-	alo_push(T, 0);
-	return 1;
+	return aloL_errresult(T, setvbuf(file->stream, NULL, masks[id], size) == 0, NULL);
 }
 
 /**
@@ -175,14 +226,16 @@ static int f_lines(astate T) {
 	l_checkopen(T, file);
 	int n = alo_gettop(T) < 2;
 	aloL_usebuf(T, buf) {
+		l_lockstream(file->stream);
 		if (!n) {
 			aloL_checkcall(T, 1); /* check function */
 			while (!feof(file->stream)) {
 				l_getline(T, file, buf);
+				aloL_bpushstring(T, buf);
+				aloL_blen(buf) = 0; /* rewind buffer */
 				alo_push(T, 1); /* push function */
 				alo_push(T, -2); /* push string */
 				alo_call(T, 1, 0);
-				aloL_blen(buf) = 0; /* rewind buffer */
 			}
 		}
 		else {
@@ -190,11 +243,13 @@ static int f_lines(astate T) {
 			int index = 0;
 			while (!feof(file->stream)) {
 				l_getline(T, file, buf);
+				aloL_bpushstring(T, buf);
 				alo_rawseti(T, 1, index++); /* add string to list */
 				aloL_blen(buf) = 0; /* rewind buffer */
 			}
 			alo_push(T, 1);
 		}
+		l_unlockstream(file->stream);
 	}
 	return n;
 }
@@ -252,10 +307,12 @@ static int io_index(astate T) {
 }
 
 static const acreg_t cls_funcs[] = {
+	{ "__acat", f_concat },
 	{ "__del", f_close },
 	{ "close", f_close },
 	{ "eof", f_eof },
 	{ "err", f_err },
+	{ "flush", f_flush },
 	{ "getc", f_getc },
 	{ "line", f_line },
 	{ "isclosed", f_isclosed },
@@ -279,6 +336,7 @@ static const acreg_t mod_funcs[] = {
 int aloopen_iolib(astate T) {
 	alo_bind(T, "io.open", io_open);
 	alo_bind(T, "io.meta.__idx", io_index);
+	alo_bind(T, "file.flush", f_flush);
 	alo_bind(T, "file.puts", f_puts);
 	alo_newtable(T, 16);
 	aloL_setfuns(T, -1, mod_funcs);

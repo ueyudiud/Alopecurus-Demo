@@ -157,10 +157,12 @@ enum {
 #endif
 
 #if defined(ALOE_LINUX)
+#define ALO_USE_POSIX
 #define ALO_USE_DLOPEN		/* needs an extra library: -ldl */
 #endif
 
 #if defined(ALOE_MACOSX)
+#define ALO_USE_POSIX
 #define ALO_USE_DLOPEN		/* MacOS does not need -ldl */
 #endif
 
