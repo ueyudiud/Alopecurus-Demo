@@ -244,9 +244,8 @@ ALO_API int alo_prevframe(astate, astr, aframeinfo_t*);
 #define ALO_HMASKCALL  (1 << 0)
 #define ALO_HMASKRET   (1 << 1)
 #define ALO_HMASKLINE  (1 << 2)
-#define ALO_HMASKCOUNT (1 << 2)
 
-ALO_API void alo_sethook(astate, ahfun, int, int);
+ALO_API void alo_sethook(astate, ahfun, int);
 ALO_API ahfun alo_gethook(astate);
 ALO_API int alo_gethookmask(astate);
 

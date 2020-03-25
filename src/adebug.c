@@ -283,7 +283,7 @@ int alo_prevframe(__attribute__((unused)) astate T, astr what, aframeinfo_t* inf
 	return true;
 }
 
-void alo_sethook(astate T, ahfun fun, int mask, __attribute__((unused)) int count) {
+void alo_sethook(astate T, ahfun fun, int mask) {
 	if (fun == NULL || mask == 0) {
 		fun = NULL;
 		mask = 0;
