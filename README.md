@@ -8,7 +8,8 @@ To build the project in Microsoft Windows, run the following command in `src` di
 ```
 make
 ```
-If you're not using Microsoft Windows, you may need to reconfigurate the makefile.
+The project should support to be built on Linux and MacOS by the same process, but it has been not examined yet.
+If you are not using these OS, you may need to reconfigurate the makefile.
 
 ### Running Interactive Interpreter
 The resulting excutive file of the compile process can be used as an interpreter. Running the folloing command will start a interactive interpreter session.
@@ -20,3 +21,4 @@ alo
 println 'Hello world'
 ```
 and see the result. Use `:q` to quit the shell.
+
