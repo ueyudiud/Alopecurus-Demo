@@ -380,11 +380,11 @@ static int peek(alexer_t* lex, union alo_TokenData* data) {
 			case '.':
 				lgetc(lex);
 				return TK_TDOT;
+			case '=':
+				lgetc(lex);
+				return TK_ABDOT;
 			}
 			return TK_BDOT;
-		case '=':
-			lgetc(lex);
-			return TK_ABDOT;
 		}
 		return '.';
 	case '+':

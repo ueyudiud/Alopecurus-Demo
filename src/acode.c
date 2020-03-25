@@ -1136,14 +1136,14 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		break;
 	}
 	case E_INDEXED: {
+		typeof(l->v.d) d = l->v.d;
 		/* get value by index function */
 		aestat_t e;
 		e.lf = e.lt = NO_JUMP;
 		e.t = E_ALLOC;
-		e.v.g = aloK_iABC(f, OP_GET, false, l->v.d.fo, l->v.d.fk, 0, l->v.d.o, l->v.d.k);
+		e.v.g = aloK_iABC(f, OP_GET, false, d.fo, d.fk, 0, d.o, d.k);
 		newR(f, &e);
 		aloK_anyRK(f, r);
-		typeof(l->v.d) d = l->v.d;
 		aloK_fixline(f, line);
 		/* take operation for value */
 		aloK_iABC(f, op, false, r->t == E_CONST, false, e.v.g, r->v.g, 0);

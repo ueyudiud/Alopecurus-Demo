@@ -852,6 +852,9 @@ void aloV_invoke(astate T, int dofinish) {
 				aloB_close(T, buf);
 				tsetstr(T, S(A), str);
 			}
+			else {
+				goto notfound;
+			}
 			break;
 		}
 		case OP_JMP: {

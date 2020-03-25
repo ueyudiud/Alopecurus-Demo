@@ -156,7 +156,7 @@
 	OP(AXOR , "axor" ), /*   A B       S(A) ~= X(B)                                */ \
 	                                                                                  \
 	OP(CAT  , "cat"  ), /*   A B C     S(A) := R(B) .. ... .. R(B+C)               */ \
-	OP(ACAT , "acat" ), /*   A Bx      S(A) ..= X(B)                               */ \
+	OP(ACAT , "acat" ), /*   A B       S(A) ..= X(B)                               */ \
 	OP(ITR  , "itr"  ), /*   A B       S(A) = newiterator(S(B))                    */ \
 	OP(JMP  , "jmp"  ), /*   A sBx     pc += sBx; if (xA) close captures >= R(A)   */ \
 	OP(JCZ  , "jcz"  ), /*   A sBx     if (S(A) as bool == xC) pc += sBx           */ \

@@ -1401,6 +1401,14 @@ static void normstat(alexer_t* lex) {
 		aloK_opassign(lex->f, &a.e, &e, type - TK_AADD + OP_AADD, line);
 		break;
 	}
+	case TK_ABDOT: {
+		int line = lex->cl;
+		poll(lex);
+		aestat_t e;
+		expr(lex, &e);
+		aloK_opassign(lex->f, &a.e, &e, OP_ACAT, line);
+		break;
+	}
 	default: { /* normstat -> apply */
 		if (a.e.t != E_CALL) {
 			lerror(lex, "call expression expected.");
