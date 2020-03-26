@@ -44,6 +44,7 @@ ALO_IFUN atval_t* aloH_findxset(astate, atable_t*, const char*, size_t);
 ALO_IFUN atval_t* aloH_finds(astate, atable_t*, astr, size_t);
 ALO_IFUN void aloH_rawrem(astate, atable_t*, ptrdiff_t*, atval_t*);
 ALO_IFUN int aloH_remove(astate, atable_t*, const atval_t*, atval_t*);
+ALO_IFUN void aloH_clear(astate, atable_t*);
 ALO_IFUN const aentry_t* aloH_next(atable_t*, ptrdiff_t*);
 
 #endif /* ATAB_H_ */

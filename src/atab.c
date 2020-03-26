@@ -403,6 +403,19 @@ int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
 }
 
 /**
+ ** clear all values in table.
+ */
+void aloH_clear(__attribute__((unused)) astate T, atable_t* self) {
+	aentry_t* const end = self->array + self->capacity;
+	for (aentry_t* e = self->array; e < end; ++e) {
+		delety(e);
+	}
+	self->length = 0;
+	self->lastfree = self->array + self->capacity - 1;
+	self->reserved = aloE_byte(~0);
+}
+
+/**
  ** iterate to next element in table.
  */
 const aentry_t* aloH_next(atable_t* self, ptrdiff_t* poff) {

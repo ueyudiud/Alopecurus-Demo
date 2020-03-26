@@ -175,6 +175,8 @@ ALO_API void alo_rawsetx(astate, aindex_t, int);
 ALO_API void alo_rawseti(astate, aindex_t, aint);
 ALO_API void alo_rawsets(astate, aindex_t, astr);
 ALO_API int alo_rawrem(astate, aindex_t);
+ALO_API void alo_rawclr(astate, aindex_t);
+ALO_API void alo_add(astate, aindex_t);
 ALO_API void alo_setx(astate, aindex_t, int);
 ALO_API int alo_remove(astate, aindex_t);
 ALO_API int alo_setmetatable(astate, aindex_t);

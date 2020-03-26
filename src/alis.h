@@ -15,6 +15,7 @@
 #define aloI_contains(T,self,key) (aloI_get(T, self, key) != aloO_tnil)
 #define aloI_seti(T,self,key,value) { tsetobj(T, aloI_findi(T, self, key), value); aloG_barrierbackt(T, self, value); }
 #define aloI_set(T,self,key,value) { tsetobj(T, aloI_find(T, self, key), value); aloG_barrierbackt(T, self, value); }
+#define aloI_clear(T,self) { aloE_void(T); (self)->length = 0; }
 
 ALO_IFUN alist_t* aloI_new(astate);
 ALO_IFUN void aloI_ensure(astate, alist_t*, size_t);

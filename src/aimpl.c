@@ -867,6 +867,32 @@ int alo_rawrem(astate T, aindex_t idown) {
 	return succ ? ttpnv(k) : ALO_TUNDEF; /* return removed value type or 'none' if nothing is removed */
 }
 
+void alo_rawclr(astate T, aindex_t idown) {
+	askid_t o = index2addr(T, idown);
+	switch (ttpnv(o)) {
+	case ALO_TLIST: {
+		aloI_clear(T, tgetlis(o));
+		break;
+	}
+	case ALO_TTABLE: {
+		aloH_clear(T, tgettab(o));
+		break;
+	}
+	default: {
+		api_check(T, false, "illegal owner for 'clear'");
+		break;
+	}
+	}
+}
+
+void alo_add(astate T, aindex_t idown) {
+	api_checkelems(T, 1);
+	askid_t o = index2addr(T, idown);
+	api_check(T, ttislis(o), "illegal owner for 'add'");
+	aloI_add(T, tgetlis(o), T->top - 1);
+	api_decrtop(T);
+}
+
 void alo_setx(astate T, aindex_t idown, int dodrop) {
 	api_checkelems(T, 2);
 	askid_t o = index2addr(T, idown);
@@ -947,6 +973,7 @@ int alo_setdelegate(astate T, aindex_t index) {
 		}
 		api_check(T, ttistab(t), "delegate should be table");
 		tsetobj(T, &closure->delegate, t);
+		aloG_barriert(T, closure, t);
 		return true;
 	}
 	return false;
