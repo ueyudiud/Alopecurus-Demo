@@ -99,7 +99,14 @@ int aloB_bwrite(astate T, void* context, const void* src, size_t len) {
 	aloB_lock(stack);
 	size_t nlen = buf->len + len;
 	if (nlen > buf->cap) { /* should expand buffer size? */
-		growbuf(T, buf, aloM_adjsize(T, buf->cap, nlen, ALO_MBUF_LIMIT));
+		ptrdiff_t off = src - aloE_cast(void*, basembuf(T)->buf);
+		if (off >= 0 && off < aloE_cast(ptrdiff_t, basembuf(T)->cap)) { /* if source is also in the memory buffer */
+			growbuf(T, buf, aloM_adjsize(T, buf->cap, nlen, ALO_MBUF_LIMIT));
+			src = basembuf(T)->buf + off; /* adjust source pointer */
+		}
+		else {
+			growbuf(T, buf, aloM_adjsize(T, buf->cap, nlen, ALO_MBUF_LIMIT));
+		}
 	}
 	memcpy(buf->buf + buf->len, src, len); /* writer data to buffer */
 	buf->len = nlen; /* increase length */
