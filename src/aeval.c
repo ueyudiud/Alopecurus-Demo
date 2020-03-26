@@ -149,7 +149,11 @@ static aclosure_t* aloV_nloadproto(astate T, aproto_t* p, aclosure_t* en, askid_
 			tsetcap(c->array + i, aloF_find(T, base + infos[i].index));
 		}
 		else {
-			tsetobj(T, c->array + i, en->array + infos[i].index); /* move enclosed capture */
+			atval_t* t = en->array + infos[i].index;
+			if (ttiscap(t)) {
+				tgetcap(t)->counter++; /* increase counter */
+			}
+			tsetobj(T, c->array + i, t); /* move enclosed capture */
 		}
 	}
 	return c;

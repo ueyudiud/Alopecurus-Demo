@@ -75,14 +75,15 @@ atval_t* aloF_get(aclosure_t* self, size_t index) {
 
 acap* aloF_find(astate T, askid_t id) {
 	acap** p = &T->captures;
-	while (*p && (*p)->p >= id) { /* try to find capture already created */
-		if ((*p)->p == id) { /* find capture? */
-			(*p)->counter++; /* increase reference count */
-			return *p;
+	acap* c;
+	while ((c = *p) && c->p >= id) { /* try to find capture already created */
+		if (c->p == id) { /* find capture? */
+			c->counter++; /* increase reference count */
+			return c;
 		}
-		p = &(*p)->prev; /* move to previous capture */
+		p = &c->prev; /* move to previous capture */
 	}
-	acap* c = aloM_newo(T, acap); /* capture not exist, create a new one */
+	c = aloM_newo(T, acap); /* capture not exist, create a new one */
 	c->counter = 1;
 	c->mark = 0; /* settle capture untouched yet. */
 	c->p = id;
