@@ -148,6 +148,12 @@ enum {
  ** detecting specific environment.
  */
 
+#if defined(_WIN32)
+#define ALOE_DIRSEP '\\'
+#else
+#define ALOE_DIRSEP '/'
+#endif
+
 #if defined(_WIN32) && !defined(_WIN32_WCE)
 #define ALOE_WINDOWS /* enable Windows features */
 #endif

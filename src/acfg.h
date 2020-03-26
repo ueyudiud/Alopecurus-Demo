@@ -26,6 +26,10 @@
  */
 
 /* library search path. */
+#if !defined(ALO_SEARCH_LPATH)
+
+#if defined(_WIN32)
+
 #define ALO_SEARCH_LPATH \
 	"~\\mod\\?.alo;" \
 	"~\\?\\mod.alo;" \
@@ -34,6 +38,20 @@
 #define ALO_SEARCH_CPATH \
 	"~\\lib\\?.dll;" \
 	".\\?.dll;"
+
+#else
+
+#define ALO_SEARCH_LPATH \
+	"~/mod/?.alo;" \
+	"~/?/mod.alo;" \
+	"./?.alo;" \
+	"./?/mod.alo;"
+#define ALO_SEARCH_CPATH \
+	"~/lib/?.dll;" \
+	"./?.dll;"
+
+#endif
+#endif
 
 /* max stack size of each thread */
 #define ALO_MAXSTACKSIZE 100000

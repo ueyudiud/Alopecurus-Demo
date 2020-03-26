@@ -76,7 +76,7 @@ ifeq ($(PLAT),LINUX)
 	SYSCFLAGS+= -D ALOE_LINUX
 endif
 ifeq ($(PLAT),OSX)
-	SYSCFLAGS+= -D ALOE_MACOS
+	SYSCFLAGS+= -D ALOE_MACOSX
 endif
 ifeq ($(PLAT),FREEBSD)
 	CC:= cc -std=gnu99

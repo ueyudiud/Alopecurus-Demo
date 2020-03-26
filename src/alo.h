@@ -182,7 +182,7 @@ ALO_API int alo_remove(astate, aindex_t);
 ALO_API int alo_setmetatable(astate, aindex_t);
 ALO_API int alo_setdelegate(astate, aindex_t);
 
-#define alo_rawset(T,index) alo_rawset(T, index, false)
+#define alo_rawset(T,index) alo_rawsetx(T, index, false)
 #define alo_set(T,index) alo_setx(T, index, false)
 
 /**

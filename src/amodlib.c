@@ -12,8 +12,6 @@
 #include "aaux.h"
 #include "alibs.h"
 
-#include "acfg.h"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -32,6 +30,7 @@
 #define ALO_LPATH_KEY "__lpath"
 #define ALO_CPATH_KEY "__cpath"
 #define ALO_MODLOADER_KEY "__loaders"
+#define ALO_LOADED_KEY "__loaded"
 
 #if !defined(MAX_PATH_LENGTH)
 #define MAX_PATH_LENGTH 1024
@@ -43,7 +42,7 @@ static void getpath(astate T, char* buf, const char* src, size_t len) {
 	for (size_t i = 0; i < len; ++i) {
 		if (src[i] == '.') {
 			if (i != 0) {
-				*(buf++) = '/';
+				*(buf++) = ALOE_DIRSEP;
 			}
 		}
 		else if (!isalnum(aloE_byte(src[i]))) {
@@ -129,7 +128,7 @@ static acfun l_get(astate T, void* lib, astr name) {
 #define DL_NOT_SUPPORT
 #define DL_NS_MSG	"dynamic libraries is not supported."
 
-static void* l_load(astate T, astr name, int seeglb) {
+static void* l_load(astate T, __attribute__((unused)) astr name, __attribute__((unused)) int seeglb) {
 	alo_pushcstring(T, DL_NS_MSG);
 	return NULL;
 }
@@ -138,7 +137,7 @@ static void l_unload(__attribute__((unused)) void* lib) {
 
 }
 
-static acfun l_get(astate T, void* lib, astr name) {
+static acfun l_get(astate T, __attribute__((unused)) void* lib, __attribute__((unused)) astr name) {
 	alo_pushcstring(T, DL_NS_MSG);
 	return NULL;
 }
@@ -239,32 +238,33 @@ static int mod_loaddl(astate T) {
 	alo_pushnil(T);
 	alo_push(T, -2); /* push error message */
 	return 2;
-
 }
 
 static int loader_b(astate T) {
 	astr name = aloL_checkstring(T, 0);
-	aloL_checktype(T, 1, ALO_TLIST);
-	alo_settop(T, 2);
+	aloL_checkstring(T, 1);
+	aloL_checktype(T, 2, ALO_TLIST);
+	alo_settop(T, 3);
 	alo_rawgets(T, ALO_CAPTURE_INDEX(0), ALO_BUILTIN_KEY);
-	if (alo_rawgets(T, 2, name) == ALO_TUNDEF) { /* stack[2] = mod.builtin */
+	if (alo_rawgets(T, 3, name) == ALO_TUNDEF) { /* find module in built-in table */
 		alo_pushfstring(T, "\n\tno field mod.builtin['%s']", name);
-		alo_add(T, 1);
+		alo_add(T, 2);
 		return 0;
 	}
 	return 1;
 }
 
 static int loader_l(astate T) {
-	astr name = aloL_checkstring(T, 0);
-	aloL_checktype(T, 1, ALO_TLIST);
-	alo_settop(T, 2);
+	aloL_checkstring(T, 0);
+	astr path = aloL_checkstring(T, 1);
+	aloL_checktype(T, 2, ALO_TLIST);
+	alo_settop(T, 3);
 	alo_gets(T, ALO_CAPTURE_INDEX(0), ALO_LPATH_KEY); /* stack[3] = mod.__lpath */
-	int n = alo_rawlen(T, 2);
+	int n = alo_rawlen(T, 3);
 	for (int i = n - 1; i >= 0; --i) {
-		alo_rawgeti(T, 2, i);
-		astr path = aloL_sreplace(T, alo_tostring(T, 3), "?", name);
-		switch (aloL_compilef(T, name, path)) {
+		alo_rawgeti(T, 3, i);
+		astr actual = aloL_sreplace(T, alo_tostring(T, 4), "?", path);
+		switch (aloL_compilef(T, path, actual)) {
 		case (-1): /* file not found */
 			alo_drop(T);
 			break;
@@ -275,9 +275,9 @@ static int loader_l(astate T) {
 		default: /* compiled failed */
 			alo_throw(T); /* throw error message */
 		}
-		alo_pushfstring(T, "\n\tno file '%s'", path);
-		alo_add(T, 1);
-		alo_settop(T, 3);
+		alo_pushfstring(T, "\n\tno file '%s'", actual);
+		alo_add(T, 2);
+		alo_settop(T, 4);
 	}
 	return 0;
 
@@ -287,8 +287,16 @@ static int loader_l(astate T) {
 	alo_push(T, ALO_REGISTRY_INDEX); /* push environment */
 	alo_rawsets(T, 3, "__idx"); /* meta.__idx = _G */
 	alo_push(T, 0);
-	alo_rawsets(T, 3, PACKAGE_KEY); /* put package name */
+	alo_rawsets(T, 3, PACKAGE_KEY); /* put package path */
 	alo_setmetatable(T, 2); /* setmeta(delegate, meta) */
+
+	/* put module table into loaded table */
+	alo_rawgets(T, ALO_CAPTURE_INDEX(0), ALO_LOADED_KEY);
+	alo_push(T, 0);
+	alo_push(T, 1);
+	alo_rawset(T, 2);
+	alo_drop(T);
+
 	alo_push(T, 2);
 	alo_setdelegate(T, 1); /* set module as delegate for initialize function */
 	alo_push(T, 1);
@@ -301,26 +309,27 @@ static int loader_l(astate T) {
 
 static int loader_c(astate T) {
 	/* the loader will only take effect when loading dynamic library is available */
-#ifndef DL_NOT_SUPPORT
-	astr name = aloL_checkstring(T, 0);
-	aloL_checktype(T, 1, ALO_TLIST);
-	alo_settop(T, 2);
+	aloL_checkstring(T, 0);
+	astr path = aloL_checkstring(T, 1);
+	aloL_checktype(T, 2, ALO_TLIST);
+	alo_settop(T, 3);
 	alo_gets(T, ALO_CAPTURE_INDEX(0), ALO_CPATH_KEY); /* stack[2] = mod.__cpath */
-	int n = alo_rawlen(T, 2);
+	int n = alo_rawlen(T, 3);
 	for (int i = n - 1; i >= 0; --i) {
-		alo_rawgeti(T, 2, i);
-		astr path = aloL_sreplace(T, alo_tostring(T, 3), "?", name);
-		if (is_readable(path)) {
-			if (!loaddl(T, path, false)) {
+		alo_rawgeti(T, 3, i);
+		astr actual = aloL_sreplace(T, alo_tostring(T, 4), "?", path);
+#ifndef DL_NOT_SUPPORT
+		if (is_readable(actual)) {
+			if (!loaddl(T, actual, false)) {
 				alo_throw(T); /* throw error message */
 			}
 			return 1;
 		}
-		alo_pushfstring(T, "\n\tno file '%s'", path);
-		alo_add(T, 1);
-		alo_settop(T, 3);
-	}
 #endif
+		alo_pushfstring(T, "\n\tno file '%s'", actual);
+		alo_add(T, 2);
+		alo_settop(T, 4);
+	}
 	return 0;
 }
 
@@ -355,9 +364,10 @@ static int mod_import(astate T) {
 	size_t n = alo_rawlen(T, 2);
 	for (size_t i = 0; i < n; ++i) {
 		alo_rawgeti(T, 2, i); /* get loader */
+		alo_push(T, 0); /* push name */
 		alo_push(T, 1); /* push path */
 		alo_push(T, 3); /* push fail back message list */
-		if (alo_pcall(T, 2, 1) != ThreadStateRun) {
+		if (alo_pcall(T, 3, 1) != ThreadStateRun) {
 			/* caught error */
 			astr msg = alo_tostring(T, -1);
 			alo_pushfstring(T, "module '%s' failed to load: %s", name, msg);
@@ -447,13 +457,14 @@ static int mod_setpath(astate T) {
 }
 
 static const acreg_t mod_funcs[] = {
-	{ ALO_MODLOADER_KEY, NULL },
 	{ ALO_BUILTIN_KEY, NULL },
 	{ "import", NULL },
 	{ "loaddl", NULL },
 	{ "setpath", NULL },
-	{ ALO_LPATH_KEY, NULL },
 	{ ALO_CPATH_KEY, NULL },
+	{ ALO_LPATH_KEY, NULL },
+	{ ALO_LOADED_KEY, NULL },
+	{ ALO_MODLOADER_KEY, NULL },
 	{ NULL, NULL }
 };
 
@@ -480,6 +491,8 @@ int aloopen_modlib(astate T) {
 	/* put import function */
 	alo_push(T, -1);
 	alo_newtable(T, 0);
+	alo_push(T, -1);
+	alo_rawsets(T, -3, ALO_LOADED_KEY);
 	alo_pushcclosure(T, mod_import, 2);
 	alo_push(T, -1);
 	alo_rawsets(T, ALO_GLOBAL_IDNEX, "import");
