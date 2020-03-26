@@ -217,56 +217,161 @@ static int movedir(astr f) {
 	return chdir(path);
 }
 
-static int initialize(astate T, int argc, const astr argv[]) {
-	alo_setpanic(T, panic); /* set error callback */
-	aloL_openlibs(T); /* open libraries */
-	alo_bind(T, "<run>", run); /* put main function name */
-	alo_bind(T, "<runc>", runc); /* put main function name */
+static astr prog;
+static astr srcpath;
+static astr rtpath;
 
-	astr filename = NULL; /* source name, use stdin if absent */
+static void prtusage() {
+	l_msg(
+			"usage: %s [options] [script]\n"
+			"option list:\n"
+			"  -h       show usage information\n"
+			"  -l name  import library 'name' into global scope\n"
+			"  -r dir   change working directory to 'dir'\n"
+			"  -v       show version information\n", prog);
+}
+
+#define has_err	0x0001 /* error */
+#define has_h	0x0002 /* -h */
+#define has_v	0x0004 /* -v */
+#define has_l	0x0008 /* -l exists */
+
+static int check_args(int argc, const astr argv[]) {
+	prog = argv[0];
+	srcpath = NULL;
+	rtpath = NULL;
+	int mask = 0;
 	for (int i = 1; i < argc; ++i) {
-		if (argv[i][0] == '-') { /* setting */
-			switch (argv[i][1]) {
-			case '-': {
-				l_err("illegal command '%s'.\n", &argv[i][2]);
-				return false;
-			}
-			default: {
-				l_err("illegal abbreviation of command '%s'.\n", &argv[i][1]);
-				return false;
-			}
-			}
+		if (argv[i][0] == '\0') {
+			l_err("empty string is invalid filename.\n");
+			return has_err;
 		}
-		else if (filename != NULL) {
-			l_err("file name already settled.\n");
-			return false;
+		if (argv[i][0] != '-') {
+			srcpath = argv[i];
+			return mask;
 		}
-		else {
-			filename = argv[i];
-			if (movedir(filename)) {
-				l_err("fail to move directory to target place.\n");
+		switch (argv[i][1]) {
+		case '\0':
+			l_err("missing option name");
+			return has_err;
+		case 'h':
+			if (argv[i][2] != '\0')
+				goto unknown;
+			mask |= has_h;
+			break;
+		case 'v':
+			if (argv[i][2] != '\0')
+				goto unknown;
+			mask |= has_v;
+			break;
+		case 'l':
+			if (argv[i][2] == '\0') {
+				if (++i == argc || argv[i][0] == '\0') {
+					l_err("library name expected.");
+					return has_err;
+				}
+			}
+			mask |= has_l;
+			break;
+		case 'r':
+			if (argv[i][2] != '\0')
+				goto unknown;
+			if (++i == argc || argv[i][0] == '\0') {
+				l_err("runtime path expected.");
+				return has_err;
+			}
+			rtpath = argv[i];
+			break;
+		default:
+			unknown:
+			l_err("unknown option '%s', insert '%s -h' to get more information.", argv[i], prog);
+			return has_err;
+		}
+	}
+	return mask;
+}
+
+static int openlib(astate T, astr name) {
+	alo_getreg(T, "import");
+	alo_pushstring(T, name);
+	if (alo_pcall(T, 1, 1) != ThreadStateRun)
+		return false;
+	alo_rawsets(T, ALO_REGISTRY_INDEX, name);
+	alo_settop(T, 0);
+	return true;
+}
+
+static int openlibs(astate T, int argc, const astr argv[]) {
+	for (int i = 1; i < argc; ++i) {
+		if (argv[i][0] == '-' && argv[i][1] == 'l') {
+			astr name = argv[i][2] ? argv[i] + 2 : argv[++i];
+			if (!openlib(T, name)) {
+				l_err("%s\n", alo_tostring(T, -1));
 				return false;
 			}
 		}
 	}
-
-	aloL_pushscopedcfunction(T, run);
-	alo_pushstring(T, filename);
-
 	return true;
+}
+
+/* the action after initialize */
+
+#define m_invoke 0
+#define m_skip   1
+#define m_error  2
+
+static int initialize(astate T, int argc, const astr argv[]) {
+	alo_setpanic(T, panic); /* set error callback */
+	alo_bind(T, "<run>", run); /* put main function name */
+	alo_bind(T, "<runc>", runc); /* put main function name */
+
+	int flags = check_args(argc, argv); /* check and collect arguments */
+	if (flags == has_err) /* error? */
+		return m_error;
+
+	if (flags & has_h)
+		prtusage();
+
+	if (flags & has_v)
+		l_msg(ALO_COPYRIGHT"\n");
+
+	/* move runtime directory to configurated path */
+	if (rtpath ? chdir(rtpath) : srcpath ? movedir(srcpath) : 0) {
+		l_err("fail to move directory to target place.\n");
+		return m_error;
+	}
+
+	if (srcpath || !(flags & (has_h | has_v))) {
+		aloL_openlibs(T); /* open libraries */
+
+		if (flags & has_l) { /* has custom libraries */
+			if (!openlibs(T, argc, argv)) { /* open custom libraries */
+				return m_error;
+			}
+		}
+
+		aloL_pushscopedcfunction(T, run);
+		alo_pushstring(T, srcpath);
+		return m_invoke;
+	}
+
+	return m_skip;
 }
 
 int main(int argc, astr argv[]) {
 	astate T = aloL_newstate();
 	if (T == NULL) {
-		l_err("fail to initialize VM.");
+		l_err("fail to initialize VM.\n");
 	}
-	if (!initialize(T, argc, argv)) {
+	switch (initialize(T, argc, argv)) {
+	case m_error: /* initialized failed */
 		alo_deletestate(T);
 		return EXIT_FAILURE;
-	}
-	if (alo_pcall(T, 1, 0)) {
-		fputs(alo_tostring(T, -1), stderr);
+	case m_invoke: /* invoke script */
+		if (alo_pcall(T, 1, 0)) {
+			fputs(alo_tostring(T, -1), stderr);
+		}
+		break;
 	}
 	alo_deletestate(T);
 	return EXIT_SUCCESS;
