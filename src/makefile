@@ -40,7 +40,7 @@ ALL_A= $(ALO_A)
 ALL_DLL= $(ALO_DLL)
 
 # OS detection
-ifndef (TARGET_OS)
+ifndef (PLAT)
 	ifeq ($(OS),Windows_NT)
 		PLAT= WIN
 	else
