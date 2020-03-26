@@ -13,9 +13,9 @@
 #include "achr.h"
 
 #include <stdarg.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <malloc.h>
 
 static amem aux_alloc(__attribute__((unused)) void* context, amem oldblock, __attribute__((unused)) size_t oldsize, size_t newsize) {
 	if (newsize > 0) {
