@@ -21,15 +21,15 @@
 #include <string.h>
 
 #define check(l,id) ((l)->ct.t == (id))
-#define test(l,id) if (!check(l, id)) error_expected(l, id)
-#define testenclose(l,f,t,ln) if (!check(l, t)) error_enclose(l, f, t, ln); else poll(l)
+#define test(l,id) { if (!check(l, id)) error_expected(l, id); }
+#define testenclose(l,f,t,ln) { if (!check(l, t)) error_enclose(l, f, t, ln); else poll(l); }
 #define checknext(l,id) (check(l, id) ? (poll(l), true) : false)
 #define testnext(l,id) { test(l, id); poll(l); }
 #define poll aloX_poll
 #define foward aloX_forward
 #define lerror aloX_error
 #define literal(l,s) aloX_getstr(l, ""s, (sizeof(s) / sizeof(char)) - 1)
-#define checklimit(l,n,lim,msg) if ((n) > (lim)) lerror(l, msg)
+#define checklimit(l,n,lim,msg) { if ((n) > (lim)) lerror(l, msg); }
 
 struct alo_Block {
 	ablock_t* prev; /* previous block */
@@ -458,7 +458,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		break;
 	}
 	default: {
-		lerror(lex, "illegal primary expression.");
+		lerrorf(lex, "illegal primary expression, got: %s", aloX_token2str(lex, &lex->ct));
 	}
 	}
 }
