@@ -378,7 +378,7 @@ int aloL_compiles(astate T, aindex_t index, astr name, astr src) {
  */
 int aloL_compilef(astate T, astr name, astr src) {
 	struct FS context;
-	context.stream = fopen(src, "rb");
+	context.stream = fopen(src, "r");
 	if (context.stream == NULL) {
 		return -1;
 	}

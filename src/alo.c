@@ -20,33 +20,16 @@
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
 #define l_err(fmt,args...) fprintf(stderr, fmt, ##args)
 
-static int readf(__attribute__((unused)) astate T, void* context, const char** ps, size_t* pl) {
-	static char ch;
-	FILE* file = aloE_cast(FILE*, context);
-	int c = fgetc(file);
-	if (c != EOF) {
-		ch = c;
-		*ps = &ch;
-		*pl = 1;
-	}
-	else {
-		*ps = NULL;
-		*pl = 0;
-	}
-	return ferror(file);
-}
-
 static int compilef(astate T, astr name) {
-	FILE* file = fopen(name, "r");
-	if (file) {
-		if (alo_compile(T, "run", name, readf, file) != ThreadStateRun) { /* compile prototype */
-			aloL_error(T, 2, alo_tostring(T, -1));
-			return false;
-		}
+	int status = aloL_compilef(T, name, name);
+	switch (status) {
+	case ThreadStateRun:
 		return true;
-	}
-	else {
+	case -1:
 		aloL_error(T, 1, "fail to open file '%s'", name);
+		return false;
+	default:
+		aloL_error(T, 2, alo_tostring(T, -1));
 		return false;
 	}
 }
