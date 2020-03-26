@@ -70,14 +70,20 @@ ifeq ($(PLAT),WIN)
 	ALOC_T:= aloc.exe
 	ALO_DEPEND:= $(ALO_DLL)
 	SYSCFLAGS+= -D ALO_BUILD_TO_DLL
-else
-	ifeq ($(PLAT),LINUX)
-		SYSLIBS+= -ldl
-		SYSCFLAGS+= -D ALOE_LINUX
-	endif
-	ifeq ($(PLAT),OSX)
-		SYSCFLAGS+= -D ALOE_MACOS
-	endif
+endif
+ifeq ($(PLAT),LINUX)
+	SYSLIBS+= -ldl
+	SYSCFLAGS+= -D ALOE_LINUX
+endif
+ifeq ($(PLAT),OSX)
+	SYSCFLAGS+= -D ALOE_MACOS
+endif
+ifeq ($(PLAT),FREEBSD)
+	CC:= cc -std=gnu99
+	SYSCFLAGS+= -D ALOE_LINUX
+endif
+ifeq ($(PLAT),BSD)
+	SYSCFLAGS+= -D ALO_USE_POSIX -D ALO_USE_DLOPEN
 endif
 
 # Make targets
