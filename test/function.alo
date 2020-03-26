@@ -12,10 +12,17 @@ assert(g(3) == 3)
 local h(a,b,c) -> c == nil
 assert(h(1, 2))
 
-local tail(x,y...) -> #y == 0 ? x : tail(y)
+local tail(x...) -> x[#x - 1]
 local head(x,y...) -> x
 assert(head(3, 4, 5) == 3)
 assert(tail(3, 4, 5) == 5)
+
+-- recursive function test
+
+local sum1(x,y...) -> #y == 0 ? x : x + sum1(y)
+local sum2(x,y,z...) -> { if (#z == 0) return x + y return sum2(x + y, z) }
+assert(sum1(2, 3, 4) == 9) -- normal recursive
+assert(sum2(2, 3, 4) == 9) -- tail recursive
 
 -- captures test
 
