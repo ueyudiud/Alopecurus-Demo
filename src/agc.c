@@ -577,16 +577,16 @@ static void sweepobj(astate T, agct g) {
 		if (v->a.proto && v->a.proto->cache == v) { /* if prototype cache is it self. */
 			v->a.proto->cache = NULL; /* remove prototype cache. */
 		}
-		goto closure;
-	case ALO_TCCL:
-		v = g2c(g);
-		closure:
 		for (int i = 0; i < v->length; ++i) {
 			atval_t* t = &v->array[i];
 			if (ttiscap(t)) {
 				decaprefcnt(T, t);
 			}
 		}
+		goto closure;
+	case ALO_TCCL:
+		v = g2c(g);
+		closure:
 		aloM_free(T, v, aclosize(v));
 		break;
 	}
