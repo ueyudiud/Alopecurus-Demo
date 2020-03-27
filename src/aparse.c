@@ -33,6 +33,7 @@
 
 struct alo_Block {
 	ablock_t* prev; /* previous block */
+	astr lname; /* label name */
 	size_t flabel; /* index of first label in this block */
 	size_t fjump; /* index of first jump in this block */
 	size_t fsymbol; /* first symbol index */
@@ -76,7 +77,7 @@ static int isending(alexer_t* lex) {
 	}
 }
 
-static astring_t* check_name(alexer_t* lex) {
+static astring_t* testident(alexer_t* lex) {
 	test(lex, TK_IDENT);
 	astring_t* s = lex->ct.d.s;
 	poll(lex);
@@ -205,8 +206,9 @@ static void closeproto(astate T, afstat_t* f) {
 	closelineinfo(T, f);
 }
 
-static void enterblock(afstat_t* f, ablock_t* b, int isloop) {
+static void enterblock(afstat_t* f, ablock_t* b, int isloop, astr label) {
 	*b = (ablock_t) {
+		.lname = label,
 		.loop = isloop,
 		.nactvar = f->nactvar,
 		.fsymbol = f->d->ss.l,
@@ -256,7 +258,7 @@ static void enterfunc(afstat_t* f, afstat_t* parent, ablock_t* b) {
 	};
 	initproto(f->l->T, f);
 	parent->l->f = f;
-	enterblock(f, b, false);
+	enterblock(f, b, false, NULL);
 }
 
 static void leavefunc(afstat_t* f) {
@@ -357,13 +359,13 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 	afstat_t* f = lex->f;
 	switch (lex->ct.t) {
 	case TK_IDENT: { /* primaryexpr -> IDENT */
-		aloK_field(f, e, check_name(lex));
+		aloK_field(f, e, testident(lex));
 		break;
 	}
 	case '@': { /* primaryexpr -> '@' [IDENT] */
 		aloK_fromreg(f, e, literal(lex, "@"));
 		if (poll(lex) == TK_IDENT) {
-			memberof(lex, e, check_name(lex));
+			memberof(lex, e, testident(lex));
 		}
 		break;
 	}
@@ -380,10 +382,10 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		f->freelocal += 1;
 		if (checknext(lex, '@')) {
 			aloK_fromreg(f, e, literal(lex, "@"));
-			memberof(lex, e, check_name(lex));
+			memberof(lex, e, testident(lex));
 		}
 		else {
-			aloK_field(f, e, check_name(lex));
+			aloK_field(f, e, testident(lex));
 		}
 		aloK_nextreg(f, e);
 		aestat_t e2 = *e;
@@ -540,7 +542,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		case '.': { /* suffix -> '.' ['?'] IDENT */
 			poll(lex); /* skip '.' */
 			initexp(&e2, E_STRING);
-			e2.v.s = check_name(lex);
+			e2.v.s = testident(lex);
 			aloK_member(f, e, &e2);
 			break;
 		}
@@ -558,7 +560,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		case TK_RARR: { /* suffix -> '->' IDENT [funargs] */
 			line = lex->cl;
 			poll(lex); /* skip '->' */
-			aloK_self(f, e, check_name(lex));
+			aloK_self(f, e, testident(lex));
 			switch (lex->ct.t) {
 			case '(': case '{': case TK_STRING:
 				n = funargs(lex, &e2);
@@ -853,10 +855,10 @@ static void patterns(alexer_t* lex) {
 			break;
 		}
 		case TK_IDENT: {
-			name = check_name(lex);
+			name = testident(lex);
 			switch (lex->ct.t) {
 			case '@':
-				handle = poll(lex) == TK_IDENT ? check_name(lex) : NULL;
+				handle = poll(lex) == TK_IDENT ? testident(lex) : NULL;
 				switch (lex->ct.t) {
 				case '(': /* pattern -> IDENT '@' {IDENT} '(' patterns ')' */
 					goto unbox;
@@ -1064,7 +1066,7 @@ static void partialfun(alexer_t* lex) {
 	aestat_t e1, e2;
 	ablock_t b;
 	do {
-		enterblock(f, &b, false);
+		enterblock(f, &b, false, NULL);
 		patterns(lex);
 		testnext(lex, TK_RARR);
 		initexp(&e1, E_VARARG);
@@ -1121,7 +1123,7 @@ static void funcarg(alexer_t* lex) {
 	int n = 0;
 	if (check(lex, TK_IDENT)) {
 		do {
-			name = check_name(lex);
+			name = testident(lex);
 			if (checknext(lex, TK_TDOT)) {
 				regsym(lex->f, SYMBOL_VAR, name, 0);
 				lex->f->p->fvararg = true;
@@ -1204,7 +1206,7 @@ static int ifstat(alexer_t* lex) {
 	testnext(lex, '(');
 	aestat_t e;
 	ablock_t b;
-	enterblock(lex->f, &b, false);
+	enterblock(lex->f, &b, false, NULL);
 	if (checknext(lex, TK_LOCAL)) { /* localexpr -> 'local' patterns '=' caseassign */
 		int n = lex->f->nactvar;
 		patterns(lex);
@@ -1235,13 +1237,19 @@ static int ifstat(alexer_t* lex) {
 }
 
 static void whilestat(alexer_t* lex) {
-	/* whilestat -> 'while' '(' expr ')' stat { 'else' stat } */
+	/* whilestat -> 'while' [label] '(' expr ')' stat { 'else' stat } */
+	astr lname = NULL;
 	int line = lex->cl;
+	if (checknext(lex, '[')) {
+		lname = testident(lex)->array;
+		testenclose(lex, '[', ']', line);
+		line = lex->cl;
+	}
 	testnext(lex, '(');
+	afstat_t* f = lex->f;
 	aestat_t e;
 	ablock_t b;
-	afstat_t* f = lex->f;
-	enterblock(f, &b, true);
+	enterblock(f, &b, true, lname);
 	expr(lex, &e);
 	aloK_gwt(f, &e);
 	testenclose(lex, '(', ')', line);
@@ -1257,12 +1265,18 @@ static void whilestat(alexer_t* lex) {
 }
 
 static void dowhilestat(alexer_t* lex) {
-	/* dowhilestat -> 'do' stat 'while' '(' expr ')' { 'else' stat }  */
+	/* dowhilestat -> 'do' [label] stat 'while' '(' expr ')' { 'else' stat }  */
+	astr lname = NULL;
+	int line = lex->cl;
+	if (checknext(lex, '[')) {
+		lname = testident(lex)->array;
+		testenclose(lex, '[', ']', line);
+	}
 	aestat_t e;
 	ablock_t b;
-	enterblock(lex->f, &b, true);
+	enterblock(lex->f, &b, true, lname);
 	stat(lex, false); /* DO block */
-	int line = lex->cl;
+	line = lex->cl;
 	testnext(lex, TK_WHILE);
 	testnext(lex, '(');
 	expr(lex, &e);
@@ -1279,47 +1293,61 @@ static void dowhilestat(alexer_t* lex) {
 static void jumpstat(alexer_t* lex, int type) {
 	/* breakstat -> 'break' [label] */
 	/* continuestat -> 'continue' [label] */
-	if (check(lex, '[')) {
+	ablock_t* block;
+	if (checknext(lex, '[')) {
 		int line = lex->cl;
-		test(lex, '[');
-		astring_t* label = check_name(lex);
+		astr lname = testident(lex)->array;
 		testenclose(lex, '[', ']', line);
-		//TODO
-		aloE_void(label); /* unused */
+		block = lex->f->b;
+		while (block) {
+			if (block->lname == lname)
+				goto find;
+			block = block->prev;
+		}
+		lerrorf(lex, "label '%s' not found.", lname);
 	}
 	else {
-		ablock_t* block = lex->f->b;
-		while (block && !block->loop) block = block->prev;
-		if (block == NULL) {
-			lerror(lex, "no loop statement can be jumped.");
+		block = lex->f->b;
+		while (block) {
+			if (block->loop)
+				goto find;
+			block = block->prev;
 		}
-		if (type == TK_BREAK) {
-			block->lout = aloK_jumpforward(lex->f, block->lout);
-		}
-		else {
-			block->lcon = aloK_jumpforward(lex->f, block->lcon);
-		}
+		lerror(lex, "no loop statement can be jumped.");
 	}
 
+	find:
+	if (type == TK_BREAK) {
+		block->lout = aloK_jumpforward(lex->f, block->lout);
+	}
+	else {
+		aloK_jumpbackward(lex->f, block->lcon);
+	}
 }
 
 static void forstat(alexer_t* lex) {
-	/* forstat -> 'for' '(' IDENT [',' IDENT] '<-' expr ')' stat ['else' stat] */
+	/* forstat -> 'for' [lname] '(' IDENT [',' IDENT] '<-' expr ')' stat ['else' stat] */
 	int line = lex->cl;
+	astr lname = NULL;
+	if (checknext(lex, '[')) {
+		lname = testident(lex)->array;
+		testenclose(lex, '[', ']', line);
+		line = lex->cl;
+	}
 	testnext(lex, '(');
 	ablock_t b;
 	afstat_t* f = lex->f;
 	int index = pushcv(f);
-	f->d->cv.a[index].name = check_name(lex);
+	f->d->cv.a[index].name = testident(lex);
 	while (checknext(lex, ',')) {
-		f->d->cv.a[pushcv(f)].name = check_name(lex);
+		f->d->cv.a[pushcv(f)].name = testident(lex);
 	}
 	testnext(lex, TK_LARR);
 	aestat_t e;
 	expr(lex, &e);
 	testnext(lex, ')');
 	aloK_newitr(f, &e);
-	enterblock(f, &b, true);
+	enterblock(f, &b, true, lname);
 	regloc(f, lex->T->g->sempty);
 	aloE_assert(f->nactvar == f->freelocal, "variable number mismatched");
 	int nvar =  f->d->cv.l - index;
@@ -1423,7 +1451,7 @@ static void defstat(alexer_t* lex) {
 	/* defstat -> 'def' IDENT { '(' funcarg ')' } '->' istat */
 	afstat_t* f = lex->f;
 	int line = lex->cl;
-	astring_t* name = check_name(lex);
+	astring_t* name = testident(lex);
 	afstat_t f2;
 	ablock_t b;
 	enterfunc(&f2, f, &b);
@@ -1449,7 +1477,7 @@ static void defstat(alexer_t* lex) {
 static void localstat(alexer_t* lex) {
 	afstat_t* f = lex->f;
 	int line = lex->cl;
-	astring_t* name = check_name(lex);
+	astring_t* name = testident(lex);
 	if (check(lex, '(') || check(lex, TK_RARR)) {
 		/* localstat -> 'local' IDENT { '(' funcarg ')' } '->' istat */
 		int index = regloc(f, name); /* add local name */
@@ -1478,7 +1506,7 @@ static void localstat(alexer_t* lex) {
 		f->d->cv.a[index].name = name;
 		while (checknext(lex, ',')) {
 			index = pushcv(f);
-			f->d->cv.a[index].name = check_name(lex);
+			f->d->cv.a[index].name = testident(lex);
 		}
 		int narg;
 		aestat_t e;
@@ -1597,7 +1625,7 @@ void pparse(astate T, void* raw) {
 	f.l = &ctx->lex;
 	poll(&ctx->lex);
 	initproto(T, &f);
-	enterblock(&f, &b, false);
+	enterblock(&f, &b, false, NULL);
 	rootstats(&ctx->lex);
 	test(&ctx->lex, TK_EOF); /* should compile to end of script */
 	leaveblock(&f);
