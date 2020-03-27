@@ -197,7 +197,19 @@ static int loaddl(astate T, astr path, int seeglb) {
 	return true;
 }
 
-static int is_readable(astr path) {
+#if defined(ALO_USE_POSIX)
+
+#include <unistd.h>
+#define l_readable(path) (access(path, R_OK) == 0)
+
+#elif defined(ALOE_WINDOWS)
+
+#include <io.h>
+#define l_readable(path) (_access(path, R_OK) == 0)
+
+#else
+
+static int l_readable(astr path) {
 	FILE* file = fopen(path, "r"); /* try to open file */
 	if (file == NULL) { /* cannot open */
 		return false;
@@ -205,6 +217,8 @@ static int is_readable(astr path) {
 	fclose(file);
 	return true;
 }
+
+#endif
 
 /**
  ** load dynamic library from files.
@@ -319,7 +333,7 @@ static int loader_c(astate T) {
 		alo_rawgeti(T, 3, i);
 		astr actual = aloL_sreplace(T, alo_tostring(T, 4), "?", path);
 #ifndef DL_NOT_SUPPORT
-		if (is_readable(actual)) {
+		if (l_readable(actual)) {
 			if (!loaddl(T, actual, false)) {
 				alo_throw(T); /* throw error message */
 			}
