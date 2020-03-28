@@ -146,8 +146,9 @@ static int f_puts(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t l;
-	astr s = aloL_checklstring(T, 1, &l);
+	const char* s = aloL_checklstring(T, 1, &l);
 	fwrite(s, sizeof(char), l, file->stream);
+	aloL_fputln(file->stream);
 	return 0;
 }
 

@@ -457,7 +457,6 @@ static int recover(astate T) {
 static void resume_unsafe(astate T, void* context) {
 	int narg = *aloE_cast(int*, context);
 	aframe_t* frame = T->frame;
-	T->status = ThreadStateRun;
 	if (T->frame == &T->base_frame) {
 		if (!aloD_precall(T, T->top - narg - 1, ALO_MULTIRET))
 			aloV_invoke(T, false);
@@ -508,7 +507,9 @@ int alo_resume(astate T, astate from, int narg) {
 	T->nxyield = 0;
 
 	T->caller = from;
+	T->status = ThreadStateRun;
 	G->trun = T;
+	aloi_resumethread(T, narg); /* call user's resume action */
 	int status = aloD_prun(T, resume_unsafe, &narg);
 	if (status == ThreadStateRun) { /* does function invoke to the end? */
 		T->status = ThreadStateYield; /* yield coroutine */
@@ -542,6 +543,7 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 				"attempt to yield from a outside coroutine.");
 	}
 	T->status = ThreadStateYield;
+	aloi_yieldthread(T, nres); /* call user's yield action */
 	if (frame->falo) { //TODO
 		aloU_rterror(T, "not implemented yet.");
 	}

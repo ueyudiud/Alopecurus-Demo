@@ -29,9 +29,9 @@ static int class_meta_new(astate T) {
 	}
 	alo_drop(T);
 
-	size_t n = alo_gettop(T) - 2;
+	ssize_t n = alo_gettop(T) - 2;
 
-	for (size_t i = 0; i < n; ++i) {
+	for (ssize_t i = 0; i < n; ++i) {
 		aloL_checktype(T, 2 + i, ALO_TTABLE);
 	}
 
@@ -50,7 +50,7 @@ static int class_meta_new(astate T) {
 	alo_newlist(T, n);
 	alo_push(T, -1);
 	alo_rawsets(T, -3, "__parents");
-	for (size_t i = 0; i < n; ++i) {
+	for (ssize_t i = 0; i < n; ++i) {
 		alo_push(T, 2 + i);
 		alo_rawseti(T, -2, i);
 	}
@@ -60,7 +60,7 @@ static int class_meta_new(astate T) {
 	alo_newlist(T, n);
 	alo_push(T, -1);
 	alo_rawsets(T, -3, "__lkup");
-	for (int i = n - 1; i >= 0; --i) {
+	for (ssize_t i = n - 1; i >= 0; --i) {
 		switch (alo_rawgets(T, 2 + i, "__lkup")) {
 		case ALO_TLIST: { /* MRO lookup */
 			size_t m = alo_rawlen(T, -1);

@@ -41,8 +41,6 @@
 
 #endif
 
-typedef ptrdiff_t aindex_t;
-
 #define ALO_GLOBAL_IDNEX (-ALO_MAXSTACKSIZE - 50000)
 #define ALO_REGISTRY_INDEX (-ALO_MAXSTACKSIZE - 100000)
 #define ALO_CAPTURE_INDEX(x) (-ALO_MAXSTACKSIZE - 150000 + (x))
@@ -63,15 +61,15 @@ ALO_API void alo_bind(astate, astr, acfun);
  ** basic stack manipulation
  */
 
-ALO_API aindex_t alo_absindex(astate, aindex_t);
+ALO_API ssize_t alo_absindex(astate, ssize_t);
 ALO_API int alo_ensure(astate, size_t);
-ALO_API aindex_t alo_gettop(astate);
-ALO_API void alo_settop(astate, aindex_t);
-ALO_API void alo_copy(astate, aindex_t, aindex_t);
-ALO_API void alo_push(astate, aindex_t);
-ALO_API void alo_pop(astate, aindex_t);
-ALO_API void alo_erase(astate, aindex_t);
-ALO_API void alo_insert(astate, aindex_t);
+ALO_API ssize_t alo_gettop(astate);
+ALO_API void alo_settop(astate, ssize_t);
+ALO_API void alo_copy(astate, ssize_t, ssize_t);
+ALO_API void alo_push(astate, ssize_t);
+ALO_API void alo_pop(astate, ssize_t);
+ALO_API void alo_erase(astate, ssize_t);
+ALO_API void alo_insert(astate, ssize_t);
 ALO_API void alo_xmove(astate, astate, size_t);
 
 #define alo_drop(T) alo_settop(T, -1)
@@ -80,10 +78,10 @@ ALO_API void alo_xmove(astate, astate, size_t);
  ** access functions (stack -> C)
  */
 
-ALO_API int alo_isinteger(astate, aindex_t);
-ALO_API int alo_isnumber(astate, aindex_t);
-ALO_API int alo_iscfunction(astate, aindex_t);
-ALO_API int alo_israwdata(astate, aindex_t);
+ALO_API int alo_isinteger(astate, ssize_t);
+ALO_API int alo_isnumber(astate, ssize_t);
+ALO_API int alo_iscfunction(astate, ssize_t);
+ALO_API int alo_israwdata(astate, ssize_t);
 
 #define alo_isboolean(T,index) (alo_typeid(T, index) == ALO_TBOOL)
 #define alo_isstring(T,index) (alo_typeid(T, index) == ALO_TSTRING)
@@ -91,27 +89,28 @@ ALO_API int alo_israwdata(astate, aindex_t);
 #define alo_isnone(T,index) (alo_typeid(T, index) == ALO_TUNDEF)
 #define alo_isnonnil(T,index) (alo_typeid(T, index) > ALO_TNIL)
 
-ALO_API int alo_typeid(astate, aindex_t);
-ALO_API astr alo_typename(astate, aindex_t);
+ALO_API int alo_typeid(astate, ssize_t);
+ALO_API astr alo_typename(astate, ssize_t);
 ALO_API astr alo_tpidname(astate, int);
-ALO_API int alo_toboolean(astate, aindex_t);
-ALO_API aint alo_tointegerx(astate, aindex_t, int*);
-ALO_API afloat alo_tonumberx(astate, aindex_t, int*);
-ALO_API astr alo_tolstring(astate, aindex_t, size_t*);
-ALO_API acfun alo_tocfunction(astate, aindex_t);
-ALO_API void* alo_torawdata(astate, aindex_t);
-ALO_API astate alo_tothread(astate, aindex_t);
+ALO_API int alo_toboolean(astate, ssize_t);
+ALO_API aint alo_tointegerx(astate, ssize_t, int*);
+ALO_API afloat alo_tonumberx(astate, ssize_t, int*);
+ALO_API astr alo_tolstring(astate, ssize_t, size_t*);
+ALO_API acfun alo_tocfunction(astate, ssize_t);
+ALO_API void* alo_torawdata(astate, ssize_t);
+ALO_API astate alo_tothread(astate, ssize_t);
 
 #define alo_tointeger(T,index) alo_tointegerx(T, index, NULL)
 #define alo_tonumber(T,index) alo_tonumberx(T, index, NULL)
 #define alo_tostring(T,index) alo_tolstring(T, index, NULL)
 #define alo_toobject(T,index,type) aloE_cast(type, alo_torawdata(T, index))
+#define alo_toiterator(T,index) ((aitr) { alo_tointeger(T, index) })
 
-ALO_API void* alo_rawptr(astate, aindex_t);
-ALO_API size_t alo_rawlen(astate, aindex_t);
-ALO_API int alo_equal(astate, aindex_t, aindex_t);
+ALO_API void* alo_rawptr(astate, ssize_t);
+ALO_API size_t alo_rawlen(astate, ssize_t);
+ALO_API int alo_equal(astate, ssize_t, ssize_t);
 ALO_API void alo_arith(astate, int);
-ALO_API int alo_compare(astate, aindex_t, aindex_t, int);
+ALO_API int alo_compare(astate, ssize_t, ssize_t, int);
 
 /**
  ** push functions (C -> stack)
@@ -131,6 +130,7 @@ ALO_API void alo_pushpointer(astate, void*);
 ALO_API int alo_pushthread(astate);
 
 #define alo_pushunit(T) alo_newtuple(T, 0)
+#define alo_pushiterator(T,i) alo_pushinteger(T, (i).offset)
 #define alo_pushcstring(T,s) alo_pushlstring(T, ""s, sizeof(s) / sizeof(char) - 1)
 
 /**
@@ -143,17 +143,17 @@ ALO_API void alo_rawcat(astate, size_t);
  ** get functions (Alopecurus -> stack)
  */
 
-ALO_API int alo_inext(astate, aindex_t, ptrdiff_t*);
-ALO_API void alo_iremove(astate, aindex_t, ptrdiff_t);
-ALO_API int alo_rawget(astate, aindex_t);
-ALO_API int alo_rawgeti(astate, aindex_t, aint);
-ALO_API int alo_rawgets(astate, aindex_t, astr);
-ALO_API int alo_get(astate, aindex_t);
-ALO_API int alo_gets(astate, aindex_t, astr);
-ALO_API int alo_put(astate, aindex_t);
-ALO_API int alo_getmetatable(astate, aindex_t);
-ALO_API int alo_getmeta(astate, aindex_t, astr, int);
-ALO_API int alo_getdelegate(astate, aindex_t);
+ALO_API int alo_inext(astate, ssize_t, aitr*);
+ALO_API void alo_iremove(astate, ssize_t, aitr*);
+ALO_API int alo_rawget(astate, ssize_t);
+ALO_API int alo_rawgeti(astate, ssize_t, aint);
+ALO_API int alo_rawgets(astate, ssize_t, astr);
+ALO_API int alo_get(astate, ssize_t);
+ALO_API int alo_gets(astate, ssize_t, astr);
+ALO_API int alo_put(astate, ssize_t);
+ALO_API int alo_getmetatable(astate, ssize_t);
+ALO_API int alo_getmeta(astate, ssize_t, astr, int);
+ALO_API int alo_getdelegate(astate, ssize_t);
 
 #define alo_getreg(T,key) alo_gets(T, ALO_REGISTRY_INDEX, key)
 
@@ -164,23 +164,24 @@ ALO_API void alo_newtable(astate, size_t);
 ALO_API astate alo_newthread(astate);
 
 #define alo_newobject(T,type) aloE_cast(typeof(type)*, alo_newdata(T, sizeof(type)))
+#define alo_ibegin(T,index) (aloE_void(T), aloE_void(index), (aitr) { ALO_ITERATE_BEGIN })
 
 /**
  ** set functions (stack -> Alopecurus)
  */
 
-ALO_API void alo_trim(astate, aindex_t);
-ALO_API void alo_triml(astate, aindex_t, size_t);
-ALO_API void alo_rawsetx(astate, aindex_t, int);
-ALO_API void alo_rawseti(astate, aindex_t, aint);
-ALO_API void alo_rawsets(astate, aindex_t, astr);
-ALO_API int alo_rawrem(astate, aindex_t);
-ALO_API void alo_rawclr(astate, aindex_t);
-ALO_API void alo_add(astate, aindex_t);
-ALO_API void alo_setx(astate, aindex_t, int);
-ALO_API int alo_remove(astate, aindex_t);
-ALO_API int alo_setmetatable(astate, aindex_t);
-ALO_API int alo_setdelegate(astate, aindex_t);
+ALO_API void alo_trim(astate, ssize_t);
+ALO_API void alo_triml(astate, ssize_t, size_t);
+ALO_API void alo_rawsetx(astate, ssize_t, int);
+ALO_API void alo_rawseti(astate, ssize_t, aint);
+ALO_API void alo_rawsets(astate, ssize_t, astr);
+ALO_API int alo_rawrem(astate, ssize_t);
+ALO_API void alo_rawclr(astate, ssize_t);
+ALO_API void alo_add(astate, ssize_t);
+ALO_API void alo_setx(astate, ssize_t, int);
+ALO_API int alo_remove(astate, ssize_t);
+ALO_API int alo_setmetatable(astate, ssize_t);
+ALO_API int alo_setdelegate(astate, ssize_t);
 
 #define alo_rawset(T,index) alo_rawsetx(T, index, false)
 #define alo_set(T,index) alo_setx(T, index, false)

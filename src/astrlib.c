@@ -157,11 +157,11 @@ static int str_byte(astate T) {
  ** prototype: string.char(chars...)
  */
 static int str_char(astate T) {
-	int n = alo_gettop(T);
+	ssize_t n = alo_gettop(T);
 	aloL_usebuf(T, buf) {
 		aloL_bcheck(T, buf, n);
-		for (int i = 0; i < n; ++i) {
-			int ch = aloL_checkinteger(T, i);
+		for (ssize_t i = 0; i < n; ++i) {
+			aint ch = aloL_checkinteger(T, i);
 			if (ch != aloE_byte(ch)) {
 				aloL_argerror(T, i, "integer can not cast to character");
 			}

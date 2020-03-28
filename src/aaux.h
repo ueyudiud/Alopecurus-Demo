@@ -20,36 +20,36 @@ ALO_API void aloL_newstringlist_(astate, size_t, ...);
 #define aloL_newstringlist(T,args...) aloL_newstringlist_(T, sizeof((astr[]) { args }) / sizeof(astr), ##args)
 
 ALO_API void aloL_ensure(astate, size_t);
-ALO_API void aloL_checkany(astate, aindex_t);
-ALO_API void aloL_checktype(astate, aindex_t, int);
-ALO_API int aloL_checkbool(astate, aindex_t);
-ALO_API int aloL_getoptbool(astate, aindex_t, int);
-ALO_API aint aloL_checkinteger(astate, aindex_t);
-ALO_API aint aloL_getoptinteger(astate, aindex_t, aint);
-ALO_API afloat aloL_checknumber(astate, aindex_t);
-ALO_API afloat aloL_getoptnumber(astate, aindex_t, afloat);
-ALO_API const char* aloL_checklstring(astate, aindex_t, size_t*);
-ALO_API const char* aloL_getoptlstring(astate, aindex_t, const char*, size_t, size_t*);
-ALO_API int aloL_checkenum(astate, aindex_t, astr, const astr[]);
+ALO_API void aloL_checkany(astate, ssize_t);
+ALO_API void aloL_checktype(astate, ssize_t, int);
+ALO_API int aloL_checkbool(astate, ssize_t);
+ALO_API int aloL_getoptbool(astate, ssize_t, int);
+ALO_API aint aloL_checkinteger(astate, ssize_t);
+ALO_API aint aloL_getoptinteger(astate, ssize_t, aint);
+ALO_API afloat aloL_checknumber(astate, ssize_t);
+ALO_API afloat aloL_getoptnumber(astate, ssize_t, afloat);
+ALO_API const char* aloL_checklstring(astate, ssize_t, size_t*);
+ALO_API const char* aloL_getoptlstring(astate, ssize_t, const char*, size_t, size_t*);
+ALO_API int aloL_checkenum(astate, ssize_t, astr, const astr[]);
 
 #define aloL_checkstring(T,index) aloL_checklstring(T, index, NULL)
 #define aloL_getoptstring(T,index,def) aloL_getoptlstring(T, index, def, 0, NULL)
 
-ALO_API void aloL_checkcall(astate, aindex_t);
-ALO_API const char* aloL_tostring(astate, aindex_t, size_t*);
+ALO_API void aloL_checkcall(astate, ssize_t);
+ALO_API const char* aloL_tostring(astate, ssize_t, size_t*);
 ALO_API astr aloL_sreplace(astate, astr, astr, astr);
 
-ALO_API void aloL_setfuns(astate, aindex_t, const acreg_t*);
+ALO_API void aloL_setfuns(astate, ssize_t, const acreg_t*);
 
 ALO_API int aloL_getmetatable(astate, astr);
-ALO_API int aloL_getsubtable(astate, aindex_t, astr);
-ALO_API int aloL_getsubfield(astate, aindex_t, astr, astr);
-ALO_API int aloL_callselfmeta(astate, aindex_t, astr);
+ALO_API int aloL_getsubtable(astate, ssize_t, astr);
+ALO_API int aloL_getsubfield(astate, ssize_t, astr, astr);
+ALO_API int aloL_callselfmeta(astate, ssize_t, astr);
 
 #define aloL_getmodfield(T,mod,key) aloL_getsubfield(T, ALO_REGISTRY_INDEX, mod, key)
 
 ALO_API void aloL_require(astate, astr, acfun, int);
-ALO_API int aloL_compiles(astate, aindex_t, astr, astr);
+ALO_API int aloL_compiles(astate, ssize_t, astr, astr);
 ALO_API int aloL_compilef(astate, astr, astr);
 ALO_API int aloL_loadf(astate, astr);
 ALO_API int aloL_savef(astate, astr, int);
@@ -63,9 +63,9 @@ ALO_API void aloL_where(astate, int);
 ALO_API int aloL_errresult_(astate, astr);
 ALO_API anoret aloL_error(astate, int, astr, ...);
 
-ALO_API anoret aloL_argerror(astate, aindex_t, astr, ...);
-ALO_API anoret aloL_typeerror(astate, aindex_t, astr);
-ALO_API anoret aloL_tagerror(astate, aindex_t, int);
+ALO_API anoret aloL_argerror(astate, ssize_t, astr, ...);
+ALO_API anoret aloL_typeerror(astate, ssize_t, astr);
+ALO_API anoret aloL_tagerror(astate, ssize_t, int);
 
 #define aloL_errresult(T,c,m) ((c) ? (alo_pushboolean(T, true), 1) : aloL_errresult_(T, m))
 
@@ -83,7 +83,7 @@ ALO_API anoret aloL_tagerror(astate, aindex_t, int);
  ** the contents below this line only takes effect with standard class library
  **============================================================================*/
 
-ALO_API void aloL_checkclassname(astate, aindex_t);
+ALO_API void aloL_checkclassname(astate, ssize_t);
 ALO_API int aloL_getsimpleclass(astate, astr);
 ALO_API void aloL_newclass_(astate, astr, ...);
 
@@ -118,7 +118,7 @@ ALO_API void aloL_bputm(astate, ambuf_t*, const void*, size_t);
 ALO_API void aloL_bputs(astate, ambuf_t*, astr);
 ALO_API void aloL_bputf(astate, ambuf_t*, astr, ...);
 ALO_API void aloL_bputvf(astate, ambuf_t*, astr, va_list);
-ALO_API void aloL_bwrite(astate, ambuf_t*, aindex_t);
+ALO_API void aloL_bwrite(astate, ambuf_t*, ssize_t);
 ALO_API astr aloL_bpushstring(astate, ambuf_t*);
 
 ALO_API int aloL_bwriter(astate, void*, const void*, size_t);

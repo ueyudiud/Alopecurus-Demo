@@ -23,7 +23,7 @@ static int table_filter(astate T) {
 		if (n == 0) {
 			return 1;
 		}
-		ptrdiff_t i = ALO_ITERATE_BEGIN;
+		aitr i = alo_ibegin(T, 0);
 		while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
 			alo_push(T, 1);
 			alo_push(T, 3);
@@ -41,11 +41,11 @@ static int table_filter(astate T) {
 	}
 	else { /* put in it self */
 		if (n > 0) {
-			ptrdiff_t i = ALO_ITERATE_BEGIN;
+			aitr i = alo_ibegin(T, 0);
 			while (alo_push(T, 1), alo_inext(T, 0, &i) != ALO_TUNDEF) {
 				alo_call(T, 2, 1);
 				if (!alo_toboolean(T, 2)) {
-					alo_iremove(T, 0, i);
+					alo_iremove(T, 0, &i);
 				}
 				alo_settop(T, 2);
 			}
@@ -72,7 +72,7 @@ static int table_map(astate T) {
 	if (n == 0) { /* no elements contained */
 		return 1; /* return empty table directly */
 	}
-	ptrdiff_t i = ALO_ITERATE_BEGIN;
+	aitr i = alo_ibegin(T, 0);
 	while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
 		alo_push(T, 1);
 		alo_push(T, 3);
@@ -131,7 +131,7 @@ static int table_mkstr(astate T) {
 		}
 		else {
 			aloL_bputls(T, buf, s2, l2);
-			ptrdiff_t i = ALO_ITERATE_BEGIN;
+			aitr i = alo_ibegin(T, 0);
 			/* append first element */
 			alo_inext(T, 0, &i);
 			s5 = aloL_tostring(T, -2, &l5);

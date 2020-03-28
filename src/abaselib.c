@@ -15,11 +15,11 @@
 #include <stdio.h>
 
 static void base_print_impl(astate T) {
-	size_t n = alo_gettop(T);
+	ssize_t n = alo_gettop(T);
 	const char* src;
 	size_t len;
 	alo_getreg(T, "tostring");
-	for (size_t i = 0; i < n; ++i) {
+	for (ssize_t i = 0; i < n; ++i) {
 		alo_push(T, -1);
 		alo_push(T, i);
 		alo_call(T, 1, 1);
@@ -206,12 +206,12 @@ static int base_try(astate T) {
  ** prototype: [list, idx] inext()
  */
 static int base_inext(astate T) {
-	ptrdiff_t off = alo_tointeger(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
-	if (alo_inext(T, ALO_CAPTURE_INDEX(0), &off) != ALO_TUNDEF) {
+	aitr itr = alo_toiterator(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
+	if (alo_inext(T, ALO_CAPTURE_INDEX(0), &itr) != ALO_TUNDEF) {
 		/* erase unused value */
 		alo_erase(T, -2);
 		/* update offset to capture */
-		alo_pushinteger(T, off);
+		alo_pushiterator(T, itr);
 		alo_pop(T, ALO_CAPTURE_INDEX(1));
 		return 1;
 	}
@@ -223,10 +223,10 @@ static int base_inext(astate T) {
  ** prototype: [list, idx] mnext()
  */
 static int base_mnext(astate T) {
-	ptrdiff_t off = alo_tointeger(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
-	if (alo_inext(T, ALO_CAPTURE_INDEX(0), &off) != ALO_TUNDEF) {
+	aitr itr = alo_toiterator(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
+	if (alo_inext(T, ALO_CAPTURE_INDEX(0), &itr) != ALO_TUNDEF) {
 		/* update offset to capture */
-		alo_pushinteger(T, off);
+		alo_pushiterator(T, itr);
 		alo_pop(T, ALO_CAPTURE_INDEX(1));
 		return 2;
 	}
@@ -243,7 +243,7 @@ static int base_newiterator(astate T) {
 		alo_call(T, 1, 1);
 	}
 	else {
-		alo_pushinteger(T, ALO_ITERATE_BEGIN); /* beginning of offset */
+		alo_pushiterator(T, alo_ibegin(T, 0)); /* beginning of offset */
 		switch (alo_typeid(T, 0)) {
 		case ALO_TTUPLE:
 		case ALO_TLIST:

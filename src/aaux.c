@@ -52,7 +52,7 @@ void aloL_newstringlist_(astate T, size_t size, ...) {
 	va_end(varg);
 }
 
-anoret aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
+anoret aloL_argerror(astate T, ssize_t i, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	astr s = alo_pushvfstring(T, fmt, varg);
@@ -60,11 +60,11 @@ anoret aloL_argerror(astate T, aindex_t i, astr fmt, ...) {
 	aloL_error(T, 2, "illegal argument #%d: %s", (int) i, s);
 }
 
-anoret aloL_typeerror(astate T, aindex_t i, astr t) {
+anoret aloL_typeerror(astate T, ssize_t i, astr t) {
 	aloL_argerror(T, i, "type mismatched, expected: %s, got: %s", t, alo_typename(T, i));
 }
 
-anoret aloL_tagerror(astate T, aindex_t i, int t) {
+anoret aloL_tagerror(astate T, ssize_t i, int t) {
 	aloL_typeerror(T, i, alo_tpidname(T, t));
 }
 
@@ -74,59 +74,59 @@ void aloL_ensure(astate T, size_t size) {
 	}
 }
 
-void aloL_checkany(astate T, aindex_t index) {
+void aloL_checkany(astate T, ssize_t index) {
 	if (alo_isnone(T, index)) {
 		aloL_typeerror(T, index, "any");
 	}
 }
 
-void aloL_checktype(astate T, aindex_t index, int type) {
+void aloL_checktype(astate T, ssize_t index, int type) {
 	if (alo_typeid(T, index) != type) {
 		aloL_tagerror(T, index, type);
 	}
 }
 
-int aloL_checkbool(astate T, aindex_t index) {
+int aloL_checkbool(astate T, ssize_t index) {
 	if (!alo_isboolean(T, index)) {
 		aloL_tagerror(T, index, ALO_TBOOL);
 	}
 	return alo_toboolean(T, index);
 }
 
-int aloL_getoptbool(astate T, aindex_t index, int def) {
+int aloL_getoptbool(astate T, ssize_t index, int def) {
 	return alo_isnothing(T, index) ? def : aloL_checkbool(T, index);
 }
 
-aint aloL_checkinteger(astate T, aindex_t index) {
+aint aloL_checkinteger(astate T, ssize_t index) {
 	if (!alo_isinteger(T, index)) {
 		aloL_tagerror(T, index, ALO_TINT);
 	}
 	return alo_tointeger(T, index);
 }
 
-aint aloL_getoptinteger(astate T, aindex_t index, aint def) {
+aint aloL_getoptinteger(astate T, ssize_t index, aint def) {
 	return alo_isnothing(T, index) ? def : aloL_checkinteger(T, index);
 }
 
-afloat aloL_checknumber(astate T, aindex_t index) {
+afloat aloL_checknumber(astate T, ssize_t index) {
 	if (!alo_isnumber(T, index)) {
 		aloL_typeerror(T, index, "number");
 	}
 	return alo_tonumber(T, index);
 }
 
-afloat aloL_getoptnumber(astate T, aindex_t index, afloat def) {
+afloat aloL_getoptnumber(astate T, ssize_t index, afloat def) {
 	return alo_isnothing(T, index) ? def : aloL_checknumber(T, index);
 }
 
-const char* aloL_checklstring(astate T, aindex_t index, size_t* psize) {
+const char* aloL_checklstring(astate T, ssize_t index, size_t* psize) {
 	if (!alo_isstring(T, index)) {
 		aloL_tagerror(T, index, ALO_TSTRING);
 	}
 	return alo_tolstring(T, index, psize);
 }
 
-const char* aloL_getoptlstring(astate T, aindex_t index, const char* def, size_t defsz, size_t* psize) {
+const char* aloL_getoptlstring(astate T, ssize_t index, const char* def, size_t defsz, size_t* psize) {
 	if (alo_isnothing(T, index)) {
 		if (psize) {
 			*psize = defsz;
@@ -136,7 +136,7 @@ const char* aloL_getoptlstring(astate T, aindex_t index, const char* def, size_t
 	return aloL_checklstring(T, index, psize);
 }
 
-int aloL_checkenum(astate T, aindex_t index, astr def, const astr list[]) {
+int aloL_checkenum(astate T, ssize_t index, astr def, const astr list[]) {
 	const char* src = def ? aloL_getoptstring(T, index, def) : aloL_checkstring(T, index);
 	for (int i = 0; list[i]; i++) {
 		if (strcmp(src, list[i]) == 0) {
@@ -147,7 +147,7 @@ int aloL_checkenum(astate T, aindex_t index, astr def, const astr list[]) {
 	return -1;
 }
 
-void aloL_checkcall(astate T, aindex_t index) {
+void aloL_checkcall(astate T, ssize_t index) {
 	int id = alo_typeid(T, index); /* get object id */
 	if (id != ALO_TFUNCTION) { /* not a function */
 		if (id != ALO_TUNDEF) {
@@ -159,7 +159,7 @@ void aloL_checkcall(astate T, aindex_t index) {
 	}
 }
 
-const char* aloL_tostring(astate T, aindex_t index, size_t* psize) {
+const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
 	int type = alo_getmeta(T, index, "__tostr", true);
 	if (type != ALO_TNIL) { /* find meta field? */
 		switch (type) {
@@ -226,7 +226,7 @@ astr aloL_sreplace(astate T, astr s, astr t, astr m) {
 /**
  ** put name-function entries into table, if function is NULL, put nil into table.
  */
-void aloL_setfuns(astate T, aindex_t index, const acreg_t* regs) {
+void aloL_setfuns(astate T, ssize_t index, const acreg_t* regs) {
 	index = alo_absindex(T, index); /* get absolute index */
 	while (regs->name) {
 		if (regs->handle) {
@@ -253,7 +253,7 @@ int aloL_getmetatable(astate T, astr name) {
  ** force to get sub table of table, create a new table value if entry is nil.
  ** return true if create a new table.
  */
-int aloL_getsubtable(astate T, aindex_t index, astr key) {
+int aloL_getsubtable(astate T, ssize_t index, astr key) {
 	index = alo_absindex(T, index);
 	if (alo_gets(T, index, key) == ALO_TTABLE) {
 		return false;
@@ -270,7 +270,7 @@ int aloL_getsubtable(astate T, aindex_t index, astr key) {
  ** get field of sub table, return type id, if it is present or 'none' if module
  ** are not exist or entry not exist.
  */
-int aloL_getsubfield(astate T, aindex_t index, astr mod, astr key) {
+int aloL_getsubfield(astate T, ssize_t index, astr mod, astr key) {
 	if (alo_gets(T, index, mod) != ALO_TTABLE) {
 		alo_erase(T, -1);
 		return ALO_TUNDEF;
@@ -290,7 +290,7 @@ int aloL_getsubfield(astate T, aindex_t index, astr mod, astr key) {
 /**
  ** call meta field with itself, return true if meta field exist and called it.
  */
-int aloL_callselfmeta(astate T, aindex_t index, astr name) {
+int aloL_callselfmeta(astate T, ssize_t index, astr name) {
 	index = alo_absindex(T, index);
 	if (alo_getmeta(T, index, name, true)) { /* find meta field */
 		alo_push(T, index);
@@ -367,7 +367,7 @@ static int FSWriter(__attribute__((unused)) astate T, void* context, const void*
 /**
  ** compile string as script in the stack, the string will not be removed.
  */
-int aloL_compiles(astate T, aindex_t index, astr name, astr src) {
+int aloL_compiles(astate T, ssize_t index, astr name, astr src) {
 	struct LS context;
 	context.src = alo_tolstring(T, index, &context.len);
 	return alo_compile(T, name, src, LSReader, &context);
@@ -431,10 +431,10 @@ int aloL_getframe(astate T, int level, astr what, aframeinfo_t* info) {
 
 static void printstacktrace(astate T, astr name, astr src, int line) {
 	if (line > 0) {
-		alo_pushfstring(T, "\nat %s (%s:%d)", name, src, line);
+		alo_pushfstring(T, "\n\tat %s (%s:%d)", name, src, line);
 	}
 	else {
-		alo_pushfstring(T, "\nat %s (%s)", name, src);
+		alo_pushfstring(T, "\n\tat %s (%s)", name, src);
 	}
 }
 
@@ -479,7 +479,7 @@ anoret aloL_error(astate T, int level, astr fmt, ...) {
 	alo_throw(T);
 }
 
-void aloL_checkclassname(astate T, aindex_t index) {
+void aloL_checkclassname(astate T, ssize_t index) {
 	size_t len;
 	const char* src = aloL_checklstring(T, index, &len);
 	if (strlen(src) != len)
@@ -510,7 +510,7 @@ int aloL_getsimpleclass(astate T, astr name) {
 }
 
 void aloL_newclass_(astate T, astr name, ...) {
-	aindex_t base = alo_gettop(T);
+	ssize_t base = alo_gettop(T);
 	alo_getreg(T, "@");
 	alo_pushstring(T, name);
 	va_list varg;
@@ -547,7 +547,7 @@ void aloL_bputvf(astate T, ambuf_t* buf, astr fmt, va_list varg) {
 	alo_vformat(T, aloL_bwriter, buf, fmt, varg);
 }
 
-void aloL_bwrite(astate T, ambuf_t* buf, aindex_t index) {
+void aloL_bwrite(astate T, ambuf_t* buf, ssize_t index) {
 	size_t len;
 	const char* src = alo_tolstring(T, index, &len);
 	aloL_bputls(T, buf, src, len);

@@ -24,12 +24,16 @@
 
 const aver_t aloR_version = { ALO_VERSION_NUM };
 
+/**
+ ** the real thread allocated for each thread.
+ */
 typedef struct {
-	abyte extra[ALO_THREAD_EXTRASPACE];
-	athread_t state;
+	abyte extra[ALO_THREAD_EXTRASPACE]; /* extra thread space for user uses */
+	athread_t state; /* the actual thread object */
 } TX;
 
-#define getraw(T) aloE_cast(TX*, aloE_cast(void*, T) - ALO_THREAD_EXTRASPACE)
+/* get raw thread pointer from thread object */
+#define getraw(T) aloE_cast(TX*, aloE_cast(abyte*, T) - offsetof(TX, state))
 
 typedef struct {
 	TX t;
@@ -39,7 +43,7 @@ typedef struct {
 static void init_stack(astate T, athread_t* thread) {
 	aloM_clsb(thread->stack, thread->stacksize);
 	aloM_newb(T, thread->stack, thread->stacksize, ALO_BASESTACKSIZE);
-	thread->top = thread->stack + 1;
+	thread->top = thread->stack + 1; /* reserve for function slot */
 	/* initialize base frame stack */
 	thread->base_frame.fun = thread->stack;
 	thread->base_frame.top = thread->top + ALO_MINSTACKSIZE;
@@ -49,7 +53,7 @@ static void init_stack(astate T, athread_t* thread) {
 static void init_registry(astate T) {
 	Gd(T);
 	atable_t* registry = aloH_new(T);
-	G->registry = tnewref(registry, ALO_TTABLE);
+	tsettab(T, &G->registry, registry);
 	aloH_ensure(T, registry, ALO_GLOBAL_INITIALIZESIZE);
 }
 
@@ -60,16 +64,19 @@ static void initialize(astate T, __attribute__((unused)) void* context) {
 	aloT_init(T);
 	aloX_init(T);
 	aloU_init(T);
-	aloE_openthread(T, NULL);
+	aloi_openthread(T, NULL);
 }
 
 static ahash_t newseed(astate T) {
-	uintptr_t pool[4];
-	pool[0] = aloE_addr(T);
-	pool[1] = aloE_addr(pool);
-	pool[2] = aloE_addr(alo_newstate);
-	pool[3] = aloE_addr(aloO_tnil);
-	return aloS_rhash(aloE_cast(const char*, pool), sizeof(pool), time(NULL));
+	/* first random sequence generate */
+	uintptr_t pool[4] = {
+		aloE_addr(T),
+		aloE_addr(pool),
+		aloE_addr(alo_newstate),
+		aloE_addr(aloO_tnil)
+	};
+	/* use time as raw seed to generate seed */
+	return aloS_rhash(aloE_cast(const char*, pool), sizeof(pool), time(NULL) ^ ALO_MASKSEED);
 }
 
 static void preinit(astate T, aglobal_t* G) {
@@ -157,7 +164,7 @@ athread_t* aloR_newthread(astate T) {
 	aloG_register(T, thread, ALO_TTHREAD);
 	preinit(thread, G);
 	init_stack(T, thread);
-	aloE_openthread(thread, T);
+	aloi_openthread(thread, T);
 	return thread;
 }
 
@@ -195,7 +202,7 @@ static void destory_thread(astate T, athread_t* v, int close) {
 void alo_deletestate(astate rawT) {
 	Gd(rawT);
 	astate T = G->tmain;
-	aloE_closethread(T);
+	aloi_closethread(T);
 	aloG_clear(T); /* clean all objects */
 	destory_thread(T, T, false);
 	aloE_assert(totalmem(G) == sizeof(TG), "memory leaked");
@@ -206,7 +213,7 @@ void alo_deletestate(astate rawT) {
  ** delete thread.
  */
 void aloR_deletethread(astate T, athread_t* v) {
-	aloE_closethread(T);
+	aloi_closethread(T);
 	destory_thread(T, v, true);
 	aloM_delo(T, getraw(T));
 }

@@ -53,7 +53,7 @@ void alo_bind(astate T, astr name, acfun handle) {
 #define isinstk(index) ((index) > ALO_GLOBAL_IDNEX)
 #define stackoff(top,base) (api_check(T, (top) >= (base), "illegal stack"), aloE_cast(size_t, (top) - (base)))
 
-aindex_t alo_absindex(astate T, aindex_t index) {
+ssize_t alo_absindex(astate T, ssize_t index) {
 	return index < 0 && isinstk(index) ?
 			(T->top - (T->frame->fun + 1)) + index : index;
 }
@@ -80,11 +80,11 @@ int alo_ensure(astate T, size_t size) {
 	return true;
 }
 
-aindex_t alo_gettop(astate T) {
+ssize_t alo_gettop(astate T) {
 	return T->top - (T->frame->fun + 1);
 }
 
-void alo_settop(astate T, aindex_t index) {
+void alo_settop(astate T, ssize_t index) {
 	if (index >= 0) { /* resize stack size */
 		api_check(T, index < T->frame->top - (T->frame->fun + 1), "stack overflow");
 		askid_t newtop = (T->frame->fun + 1) + index;
@@ -106,7 +106,7 @@ void alo_settop(astate T, aindex_t index) {
 #define iscapture(index) ((index) < ALO_REGISTRY_INDEX)
 #define isvalid(o) ((o) != aloO_tnil)
 
-static atval_t* index2addr(astate T, aindex_t index) {
+static atval_t* index2addr(astate T, ssize_t index) {
 	if (index >= 0) {
 		api_check(T, index <= (T->top - (T->frame->fun + 1)), "stack index out of bound.");
 		return T->frame->fun + 1 + index;
@@ -138,7 +138,7 @@ static atval_t* index2addr(astate T, aindex_t index) {
 	}
 }
 
-void alo_copy(astate T, aindex_t fromidx, aindex_t toidx) {
+void alo_copy(astate T, ssize_t fromidx, ssize_t toidx) {
 	atval_t* to = index2addr(T, toidx);
 	tsetobj(T, to, index2addr(T, fromidx));
 	if (iscapture(toidx)) { /* if it is capture */
@@ -149,7 +149,7 @@ void alo_copy(astate T, aindex_t fromidx, aindex_t toidx) {
 /**
  ** push value to top of stack.
  */
-void alo_push(astate T, aindex_t index) {
+void alo_push(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	tsetobj(T, api_incrtop(T), o);
 }
@@ -157,7 +157,7 @@ void alo_push(astate T, aindex_t index) {
 /**
  ** pop top value into stack.
  */
-void alo_pop(astate T, aindex_t index) {
+void alo_pop(astate T, ssize_t index) {
 	atval_t* o = index2addr(T, index);
 	tsetobj(T, o, api_decrtop(T));
 }
@@ -165,7 +165,7 @@ void alo_pop(astate T, aindex_t index) {
 /**
  ** erase one value in stack
  */
-void alo_erase(astate T, aindex_t index) {
+void alo_erase(astate T, ssize_t index) {
 	api_check(T, isinstk(index), "invalid stack index.");
 	askid_t i = index2addr(T, index);
 	while (++i < T->top) {
@@ -177,7 +177,7 @@ void alo_erase(astate T, aindex_t index) {
 /**
  ** insert value at the top of stack into specific index of stack
  */
-void alo_insert(astate T, aindex_t index) {
+void alo_insert(astate T, ssize_t index) {
 	api_checkslots(T, 1);
 	api_check(T, isinstk(index), "invalid stack index.");
 	askid_t bot = index2addr(T, index);
@@ -206,27 +206,27 @@ void alo_xmove(astate from, astate to, size_t n) {
 	}
 }
 
-int alo_isinteger(astate T, aindex_t index) {
+int alo_isinteger(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	return ttisint(o) || (ttisflt(o) && aloO_flt2int(tgetflt(o), NULL, 0));
 }
 
-int alo_isnumber(astate T, aindex_t index) {
+int alo_isnumber(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	return ttisnum(o);
 }
 
-int alo_iscfunction(astate T, aindex_t index) {
+int alo_iscfunction(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	return ttislcf(o) || ttisccl(o);
 }
 
-int alo_israwdata(astate T, aindex_t index) {
+int alo_israwdata(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	return ttisptr(o) || ttisrdt(o);
 }
 
-int alo_typeid(astate T, aindex_t index) {
+int alo_typeid(astate T, ssize_t index) {
 	askid_t b = T->frame->fun + 1;
 	if (isinstk(index) && (index + T->top < b || index + b >= T->top)) {
 		return ALO_TUNDEF;
@@ -235,7 +235,7 @@ int alo_typeid(astate T, aindex_t index) {
 	return isvalid(o) ? ttpnv(o) : ALO_TUNDEF;
 }
 
-astr alo_typename(astate T, aindex_t index) {
+astr alo_typename(astate T, ssize_t index) {
 	askid_t b = T->frame->fun + 1;
 	if (isinstk(index) && (index + T->top < b || index + b >= T->top)) {
 		return alo_tpidname(T, ALO_TUNDEF);
@@ -252,12 +252,12 @@ astr alo_tpidname(__attribute__((unused)) astate T, int id) {
 	return id == ALO_TUNDEF ? "none" : aloT_typenames[id];
 }
 
-int alo_toboolean(astate T, aindex_t index) {
+int alo_toboolean(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	return aloV_getbool(o);
 }
 
-aint alo_tointegerx(astate T, aindex_t index, int* p) {
+aint alo_tointegerx(astate T, ssize_t index, int* p) {
 	const atval_t* o = index2addr(T, index);
 	aint out;
 	int isint = aloV_toint(o, out);
@@ -268,7 +268,7 @@ aint alo_tointegerx(astate T, aindex_t index, int* p) {
 	return out;
 }
 
-afloat alo_tonumberx(astate T, aindex_t index, int* p) {
+afloat alo_tonumberx(astate T, ssize_t index, int* p) {
 	const atval_t* o = index2addr(T, index);
 	afloat out;
 	int isnum = aloV_toflt(o, out);
@@ -279,7 +279,7 @@ afloat alo_tonumberx(astate T, aindex_t index, int* p) {
 	return out;
 }
 
-astr alo_tolstring(astate T, aindex_t index, size_t* plen) {
+astr alo_tolstring(astate T, ssize_t index, size_t* plen) {
 	const atval_t* o = index2addr(T, index);
 	astring_t* value = tgetstr(o);
 	if (plen) {
@@ -288,7 +288,7 @@ astr alo_tolstring(astate T, aindex_t index, size_t* plen) {
 	return value->array;
 }
 
-acfun alo_tocfunction(astate T, aindex_t index) {
+acfun alo_tocfunction(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	switch (ttype(o)) {
 	case ALO_TCCL: return tgetclo(o)->c.handle;
@@ -297,7 +297,7 @@ acfun alo_tocfunction(astate T, aindex_t index) {
 	}
 }
 
-void* alo_torawdata(astate T, aindex_t index) {
+void* alo_torawdata(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	switch (ttype(o)) {
 	case ALO_TPOINTER: return tgetptr(o);
@@ -306,12 +306,12 @@ void* alo_torawdata(astate T, aindex_t index) {
 	}
 }
 
-astate alo_tothread(astate T, aindex_t index) {
+astate alo_tothread(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	return tgetthr(o);
 }
 
-void* alo_rawptr(astate T, aindex_t index) {
+void* alo_rawptr(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE  : return tgetrptr(o);
@@ -327,7 +327,7 @@ void* alo_rawptr(astate T, aindex_t index) {
 	}
 }
 
-size_t alo_rawlen(astate T, aindex_t index) {
+size_t alo_rawlen(astate T, ssize_t index) {
 	const atval_t* o = index2addr(T, index);
 	switch (ttype(o)) {
 	case ALO_THSTRING: return tgetstr(o)->lnglen;
@@ -339,7 +339,7 @@ size_t alo_rawlen(astate T, aindex_t index) {
 	}
 }
 
-int alo_equal(astate T, aindex_t index1, aindex_t index2) {
+int alo_equal(astate T, ssize_t index1, ssize_t index2) {
 	const atval_t* o1 = index2addr(T, index1);
 	const atval_t* o2 = index2addr(T, index2);
 	return aloV_equal(T, o1, o2);
@@ -371,7 +371,7 @@ void alo_arith(astate T, int op) {
 	}
 }
 
-int alo_compare(astate T, aindex_t index1, aindex_t index2, int op) {
+int alo_compare(astate T, ssize_t index1, ssize_t index2, int op) {
 	return aloV_compare(T, index2addr(T, index1), index2addr(T, index2), op);
 }
 
@@ -476,21 +476,21 @@ void alo_rawcat(astate T, size_t size) {
 /**
  ** iterate to next element in collection.
  */
-int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
+int alo_inext(astate T, ssize_t idown, aitr* poff) {
 	api_checkslots(T, 2);
 	askid_t o = index2addr(T, idown);
 	const atval_t* t;
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE: {
-		t = aloA_next(tgettup(o), poff);
+		t = aloA_next(tgettup(o), &poff->offset);
 		goto ielement;
 	}
 	case ALO_TLIST: {
-		t = aloI_next(tgetlis(o), poff);
+		t = aloI_next(tgetlis(o), &poff->offset);
 		goto ielement;
 	}
 	case ALO_TTABLE: {
-		const aentry_t* e = aloH_next(tgettab(o), poff);
+		const aentry_t* e = aloH_next(tgettab(o), &poff->offset);
 		if (e) {
 			tsetobj(T, T->top    , amkey(e));
 			tsetobj(T, T->top + 1, amval(e));
@@ -505,7 +505,7 @@ int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 	}
 	ielement: { /* for array like 'next' call */
 		if (t) { /* has next element? */
-			tsetint(   T->top    , *poff);
+			tsetint(   T->top    , poff->offset);
 			tsetobj(T, T->top + 1, t);
 			T->top += 2;
 			return ttpnv(t);
@@ -519,7 +519,7 @@ int alo_inext(astate T, aindex_t idown, ptrdiff_t* poff) {
 /**
  ** remove current element in collection.
  */
-void alo_iremove(astate T, aindex_t idown, ptrdiff_t off) {
+void alo_iremove(astate T, ssize_t idown, aitr* itr) {
 	api_checkslots(T, 2);
 	askid_t o = index2addr(T, idown);
 	switch (ttpnv(o)) {
@@ -528,11 +528,11 @@ void alo_iremove(astate T, aindex_t idown, ptrdiff_t off) {
 		break;
 	}
 	case ALO_TLIST: {
-		aloI_removei(T, tgetlis(o), off, NULL);
+		aloI_removei(T, tgetlis(o), itr->offset, NULL);
 		break;
 	}
 	case ALO_TTABLE: {
-		aloH_rawrem(T, tgettab(o), &off, NULL);
+		aloH_rawrem(T, tgettab(o), &itr->offset, NULL);
 		break;
 	}
 	default: {
@@ -543,7 +543,7 @@ void alo_iremove(astate T, aindex_t idown, ptrdiff_t off) {
 
 }
 
-int alo_rawget(astate T, aindex_t idown) {
+int alo_rawget(astate T, ssize_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	askid_t k = T->top - 1;
@@ -552,7 +552,7 @@ int alo_rawget(astate T, aindex_t idown) {
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
 
-int alo_rawgeti(astate T, aindex_t idown, aint key) {
+int alo_rawgeti(astate T, ssize_t idown, aint key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
 	const atval_t* v;
@@ -577,7 +577,7 @@ int alo_rawgeti(astate T, aindex_t idown, aint key) {
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
 
-int alo_rawgets(astate T, aindex_t idown, astr key) {
+int alo_rawgets(astate T, ssize_t idown, astr key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
 	api_check(T, ttistab(o), "illegal owner for 'rawgets'");
@@ -586,7 +586,7 @@ int alo_rawgets(astate T, aindex_t idown, astr key) {
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
 
-int alo_get(astate T, aindex_t idown) {
+int alo_get(astate T, ssize_t idown) {
 	askid_t o = index2addr(T, idown);
 	askid_t k = T->top - 1;
 	const atval_t* v;
@@ -613,7 +613,7 @@ int alo_get(astate T, aindex_t idown) {
 	}
 }
 
-int alo_gets(astate T, aindex_t idown, astr key) {
+int alo_gets(astate T, ssize_t idown, astr key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
 	if (ttistab(o)) {
@@ -635,7 +635,7 @@ int alo_gets(astate T, aindex_t idown, astr key) {
 	}
 }
 
-int alo_put(astate T, aindex_t idown) {
+int alo_put(astate T, ssize_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	api_check(T, ttislis(o), "only list can take 'put' operation.");
@@ -644,7 +644,7 @@ int alo_put(astate T, aindex_t idown) {
 	return result;
 }
 
-int alo_getmetatable(astate T, aindex_t index) {
+int alo_getmetatable(astate T, ssize_t index) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, index);
 	atable_t* mt = aloT_getmt(o);
@@ -655,7 +655,7 @@ int alo_getmetatable(astate T, aindex_t index) {
 	return false;
 }
 
-int alo_getmeta(astate T, aindex_t index, astr name, int lookup) {
+int alo_getmeta(astate T, ssize_t index, astr name, int lookup) {
 	api_checkslots(T, 1);
 	astring_t* s = aloS_of(T, name);
 	askid_t o = index2addr(T, index);
@@ -687,7 +687,7 @@ int alo_getmeta(astate T, aindex_t index, astr name, int lookup) {
 	return ttpnv(tm);
 }
 
-int alo_getdelegate(astate T, aindex_t index) {
+int alo_getdelegate(astate T, ssize_t index) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, index);
 	if (ttisccl(o) || ttisacl(o)) {
@@ -744,7 +744,7 @@ astate alo_newthread(astate T) {
 /**
  ** trim object, and make it takes lower memory cost.
  */
-void alo_trim(astate T, aindex_t idown) {
+void alo_trim(astate T, ssize_t idown) {
 	askid_t o = index2addr(T, idown);
 	switch (ttype(o)) {
 	case ALO_TLIST:
@@ -759,7 +759,7 @@ void alo_trim(astate T, aindex_t idown) {
 /**
  ** trim object
  */
-void alo_triml(astate T, aindex_t idown, size_t len) {
+void alo_triml(astate T, ssize_t idown, size_t len) {
 	askid_t o = index2addr(T, idown);
 	alist_t* list = tgetlis(o);
 	aloE_assert(len <= list->length, "the length should less than current length.");
@@ -767,7 +767,7 @@ void alo_triml(astate T, aindex_t idown, size_t len) {
 	aloI_trim(T, list); /* trim list size. */
 }
 
-void alo_rawsetx(astate T, aindex_t idown, int drop) {
+void alo_rawsetx(astate T, ssize_t idown, int drop) {
 	api_checkelems(T, 2);
 	askid_t o = index2addr(T, idown);
 	askid_t k = T->top - 2;
@@ -804,7 +804,7 @@ void alo_rawsetx(astate T, aindex_t idown, int drop) {
 	aloG_check(T);
 }
 
-void alo_rawseti(astate T, aindex_t idown, aint key) {
+void alo_rawseti(astate T, ssize_t idown, aint key) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	askid_t v = T->top - 1;
@@ -828,7 +828,7 @@ void alo_rawseti(astate T, aindex_t idown, aint key) {
 	aloG_check(T);
 }
 
-void alo_rawsets(astate T, aindex_t idown, astr key) {
+void alo_rawsets(astate T, ssize_t idown, astr key) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	askid_t v = T->top - 1;
@@ -840,7 +840,7 @@ void alo_rawsets(astate T, aindex_t idown, astr key) {
 	aloG_check(T);
 }
 
-int alo_rawrem(astate T, aindex_t idown) {
+int alo_rawrem(astate T, ssize_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	askid_t k = T->top - 1;
@@ -867,7 +867,7 @@ int alo_rawrem(astate T, aindex_t idown) {
 	return succ ? ttpnv(k) : ALO_TUNDEF; /* return removed value type or 'none' if nothing is removed */
 }
 
-void alo_rawclr(astate T, aindex_t idown) {
+void alo_rawclr(astate T, ssize_t idown) {
 	askid_t o = index2addr(T, idown);
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
@@ -885,7 +885,7 @@ void alo_rawclr(astate T, aindex_t idown) {
 	}
 }
 
-void alo_add(astate T, aindex_t idown) {
+void alo_add(astate T, ssize_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	api_check(T, ttislis(o), "illegal owner for 'add'");
@@ -893,7 +893,7 @@ void alo_add(astate T, aindex_t idown) {
 	api_decrtop(T);
 }
 
-void alo_setx(astate T, aindex_t idown, int dodrop) {
+void alo_setx(astate T, ssize_t idown, int dodrop) {
 	api_checkelems(T, 2);
 	askid_t o = index2addr(T, idown);
 	const atval_t* tm = aloT_fastgetx(T, o, TM_NIDX);
@@ -910,7 +910,7 @@ void alo_setx(astate T, aindex_t idown, int dodrop) {
 	}
 }
 
-int alo_remove(astate T, aindex_t idown) {
+int alo_remove(astate T, ssize_t idown) {
 	api_checkelems(T, 2);
 	askid_t o = index2addr(T, idown);
 	const atval_t* tm = aloT_gettm(T, o, TM_REM, true);
@@ -931,7 +931,7 @@ int alo_remove(astate T, aindex_t idown) {
 	}
 }
 
-int alo_setmetatable(astate T, aindex_t index) {
+int alo_setmetatable(astate T, ssize_t index) {
 	atval_t* o = index2addr(T, index);
 	atable_t* mt;
 	if (ttisnil(T->top - 1)) {
@@ -962,7 +962,7 @@ int alo_setmetatable(astate T, aindex_t index) {
 	return true;
 }
 
-int alo_setdelegate(astate T, aindex_t index) {
+int alo_setdelegate(astate T, ssize_t index) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, index);
 	if (ttisccl(o) || ttisacl(o)) {

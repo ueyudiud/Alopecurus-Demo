@@ -10,6 +10,7 @@
 #ifndef ADEF_H_
 #define ADEF_H_
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>

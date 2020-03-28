@@ -175,10 +175,10 @@ static void write_stacktrace(astate T, ambuf_t* buf, int level) {
 			line = 0;
 		}
 		if (line > 0) {
-			alo_format(T, aloB_bwrite, buf, "\nat %s (%s:%d)", name, src, line);
+			alo_format(T, aloB_bwrite, buf, "\n\tat %s (%s:%d)", name, src, line);
 		}
 		else {
-			alo_format(T, aloB_bwrite, buf, "\nat %s (%s)", name, src);
+			alo_format(T, aloB_bwrite, buf, "\n\tat %s (%s)", name, src);
 		}
 	}
 	while ((frame = frame->prev) && --level > 0);
