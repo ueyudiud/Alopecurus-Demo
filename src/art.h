@@ -13,27 +13,6 @@
 #include "acfg.h"
 #include "adef.h"
 
-#ifdef ALO_DEBUG
-
-/* ALO_ASSERT definition */
-#if !defined(ALO_ASSERT)
-#define ALO_ASSERT(exp,what) aloE_void(!!(exp) || (alo_assert(what, __FILE__, __LINE__), 0))
-extern void alo_assert(astr, astr, int);
-#endif
-
-/* ALO_LOG definition */
-#if !defined(ALO_LOG)
-#define ALO_LOG(what,args...) alo_log(what, __FILE__, __LINE__, ##args)
-extern void alo_log(astr, astr, int, ...);
-#endif
-
-#else
-#undef ALO_ASSERT
-#undef ALO_LOG
-#define ALO_ASSERT(exp,what) ((void) 0)
-#define ALO_LOG(what,args...) ((void) 0)
-#endif
-
 /**
  ** the ALO_IFUN marked for inner function which will not exported to outside module.
  */
@@ -52,6 +31,7 @@ extern void alo_log(astr, astr, int, ...);
 #include <errno.h>
 #include <limits.h>
 #include <setjmp.h>
+#include <float.h>
 #include <sys/types.h>
 
 /**
@@ -67,11 +47,6 @@ struct alo_JumpBuf {
 	int status;
 	jmp_buf buf;
 };
-
-/**
- ** string buffer type.
- */
-typedef struct alo_SBuf asbuf_t;
 
 /**
  ** limits and constants.
@@ -174,15 +149,6 @@ extern const aver_t aloR_version;
 /**
  ** useful macros.
  */
-
-#define aloE_xassert(exp) aloE_assert(exp, #exp)
-#define aloE_sassert(exp,what) _Static_assert(exp, what)
-#define aloE_check(exp,what,ret...) (aloE_assert(exp, what), ret)
-#define aloE_xcheck(exp,ret...) aloE_check(exp, #exp, ret)
-
-#define aloE_int(exp) aloE_cast(aint, exp)
-#define aloE_flt(exp) aloE_cast(afloat, exp)
-#define aloE_addr(exp) aloE_cast(uintptr_t, exp)
 
 #define api_check(T,e,m) aloE_assert(e, m)
 #define api_checkelems(T,n) api_check(T, (n) <= (T)->top - ((T)->frame->fun + 1), "arguments not enough")

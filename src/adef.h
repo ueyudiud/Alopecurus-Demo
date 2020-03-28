@@ -10,10 +10,10 @@
 #ifndef ADEF_H_
 #define ADEF_H_
 
-#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdarg.h>
+#include <sys/types.h>
 
 /**
  ** primitive types
@@ -24,6 +24,10 @@ typedef int64_t aint;
 typedef double afloat;
 typedef const char* astr;
 typedef void* amem;
+
+typedef struct alo_Iterator {
+	ptrdiff_t offset; /* inner use */
+} aitr;
 
 typedef struct alo_Version {
 	abyte major;
@@ -131,17 +135,47 @@ enum {
 #define ALO_ITERATE_BEGIN (-1)
 
 #define ALO_INT_PROP(field) INT64_##field
-#define ALO_FLT_PROP(field) DOUBLE##field
+#define ALO_FLT_PROP(field) DBL_##field
 
 /**
  ** useful macros
  */
 
+#ifdef ALO_DEBUG
+
+/* ALO_ASSERT definition */
+#if !defined(ALO_ASSERT)
+#define ALO_ASSERT(exp,what) aloE_void(!!(exp) || (alo_assert(what, __FILE__, __LINE__), 0))
+extern void alo_assert(astr, astr, int);
+#endif
+
+/* ALO_LOG definition */
+#if !defined(ALO_LOG)
+#define ALO_LOG(what,args...) alo_log(what, __FILE__, __LINE__, ##args)
+extern void alo_log(astr, astr, int, ...);
+#endif
+
+#else
+#undef ALO_ASSERT
+#undef ALO_LOG
+#define ALO_ASSERT(exp,what) ((void) 0)
+#define ALO_LOG(what,args...) ((void) 0)
+#endif
+
 #define aloE_assert(exp,what) ALO_ASSERT(exp,what)
+#define aloE_xassert(exp) aloE_assert(exp, #exp)
+#define aloE_sassert(exp,what) _Static_assert(exp, what)
+#define aloE_check(exp,what,ret...) (aloE_assert(exp, what), ret)
+#define aloE_xcheck(exp,ret...) aloE_check(exp, #exp, ret)
+
 #define aloE_log(what,fmt...) ALO_LOG(what, ##fmt)
+
 #define aloE_void(exp...) ((void) (exp))
 #define aloE_cast(type,exp) ((type) (exp))
 #define aloE_byte(exp) aloE_cast(abyte, exp)
+#define aloE_int(exp) aloE_cast(aint, exp)
+#define aloE_flt(exp) aloE_cast(afloat, exp)
+#define aloE_addr(exp) aloE_cast(uintptr_t, exp)
 
 /**
  ** non-standard features using controls,
