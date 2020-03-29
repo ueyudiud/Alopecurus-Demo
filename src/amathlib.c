@@ -123,7 +123,7 @@ static int math_acos(astate T) {
 }
 
 static int math_atan(astate T) {
-	alo_pushnumber(T, atan2(aloL_checknumber(T, 0), aloL_getoptnumber(T, 1, 0)));
+	alo_pushnumber(T, atan2(aloL_checknumber(T, 0), aloL_getoptnumber(T, 1, 1)));
 	return 1;
 }
 
