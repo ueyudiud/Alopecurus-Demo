@@ -166,31 +166,6 @@ alineinfo_t* aloU_lineof(aproto_t* proto, const ainsn_t* pc) {
 
 #define lineof(p,i) ({ alineinfo_t* _info = aloU_lineof(p,i); _info ? _info->line : 0; })
 
-void write_stacktrace(astate T, ambuf_t* buf, int level) {
-	aframe_t* frame = T->frame;
-	do {
-		astr name = fnname(frame);
-		astr src;
-		int line;
-		if (frame->falo) {
-			aproto_t* p = tgetclo(frame->fun)->a.proto;
-			src = p->src->array;
-			line = lineof(p, frame->a.pc);
-		}
-		else {
-			src = NATIVE_SOURCE;
-			line = 0;
-		}
-		if (line > 0) {
-			alo_format(T, aloB_bwrite, buf, "\n\tat %s (%s:%d)", name, src, line);
-		}
-		else {
-			alo_format(T, aloB_bwrite, buf, "\n\tat %s (%s)", name, src);
-		}
-	}
-	while ((frame = frame->prev) && --level > 0);
-}
-
 anoret aloU_error(astate T, int status) {
 	if (T->errfun) { /* error handling function exists, handle the error */
 		askid_t fun = putstkoff(T, T->errfun);
