@@ -112,7 +112,9 @@ static void growbuf(astate T, actable_t* table) {
 	}
 	for (size_t i = 0; i < oldcap; ++i) {
 		if (putcreg(table, oldarray[i].handle, oldarray[i].name)) {
-			/* TODO: memory for old array leaked */
+			aloM_dela(T, table->array, newcap); /* delete new array */
+			table->array = oldarray;
+			table->capacity = oldcap;
 			aloU_rterror(T, "failed to put entry into buffer.");
 		}
 	}
