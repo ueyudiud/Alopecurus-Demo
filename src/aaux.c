@@ -57,7 +57,7 @@ anoret aloL_argerror(astate T, ssize_t i, astr fmt, ...) {
 	va_start(varg, fmt);
 	astr s = alo_pushvfstring(T, fmt, varg);
 	va_end(varg);
-	aloL_error(T, 2, "illegal argument #%d: %s", (int) i, s);
+	aloL_error(T, "illegal argument #%d: %s", (int) i, s);
 }
 
 anoret aloL_typeerror(astate T, ssize_t i, astr t) {
@@ -70,7 +70,7 @@ anoret aloL_tagerror(astate T, ssize_t i, int t) {
 
 void aloL_ensure(astate T, size_t size) {
 	if (!alo_ensure(T, size)) {
-		aloL_error(T, 2, "no enough stack.");
+		aloL_error(T, "no enough stack.");
 	}
 }
 
@@ -175,7 +175,7 @@ const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
 			break;
 		default:
 			error:
-			aloL_error(T, 2, "'__tostr' must apply a string value");
+			aloL_error(T, "'__tostr' must apply a string value");
 			break;
 		}
 	}
@@ -429,28 +429,32 @@ int aloL_getframe(astate T, int level, astr what, aframeinfo_t* info) {
 	}
 }
 
-static void printstacktrace(astate T, astr name, astr src, int line) {
-	if (line > 0) {
-		alo_pushfstring(T, "\n\tat %s (%s:%d)", name, src, line);
-	}
-	else {
-		alo_pushfstring(T, "\n\tat %s (%s)", name, src);
-	}
-}
-
 /**
  ** append stack trace in the string in the top of stack.
  */
 void aloL_where(astate T, int level) {
+	aloL_checkstring(T, -1);
 	aframeinfo_t info;
-	int n = 2;
-	alo_getframe(T, "nsl", &info);
-	printstacktrace(T, info.name, info.src, info.line);
-	while (n <= level && alo_prevframe(T, "nsl", &info)) {
-		printstacktrace(T, info.name, info.src, info.line);
-		n += 1;
+	int n = level;
+	alo_getframe(T, "", &info); /* skip first frame */
+	aloL_usebuf(T, buf) {
+		aloL_bwrite(T, buf, -1);
+		while (alo_prevframe(T, "nsl", &info)) {
+			if (n-- == 0) {
+				aloL_bputxs(T, buf, "\n\t...");
+				break;
+			}
+			aloL_bputxs(T, buf, "\n\tat ");
+			aloL_bputs(T, buf, info.name);
+			aloL_bputxs(T, buf, " (");
+			aloL_bputs(T, buf, info.src);
+			if (info.line > 0) {
+				aloL_bputf(T, buf, ":%d", info.line);
+			}
+			aloL_bputc(T, buf, ')');
+		}
+		aloL_bpushstring(T, buf);
 	}
-	alo_rawcat(T, n);
 }
 
 /**
@@ -470,13 +474,13 @@ int aloL_errresult_(astate T, astr msg) {
 /**
  ** throw a runtime error.
  */
-anoret aloL_error(astate T, int level, astr fmt, ...) {
+anoret aloL_error(astate T, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	alo_pushvfstring(T, fmt, varg);
-	aloL_where(T, level);
+	alo_error(T);
+	/* unreachable code */
 	va_end(varg);
-	alo_throw(T);
 }
 
 void aloL_checkclassname(astate T, ssize_t index) {
@@ -492,7 +496,7 @@ void aloL_checkclassname(astate T, ssize_t index) {
 	return;
 
 	error:
-	aloL_error(T, 2, "illegal class name.");
+	aloL_error(T, "illegal class name.");
 }
 
 int aloL_getsimpleclass(astate T, astr name) {
@@ -519,7 +523,7 @@ void aloL_newclass_(astate T, astr name, ...) {
 	int c = 1;
 	while ((parent = va_arg(varg, astr))) {
 		if (alo_gets(T, base, parent) != ALO_TTABLE) {
-			aloL_error(T, 2, "fail to create new class: class @%s not found", parent);
+			aloL_error(T, "fail to create new class: class @%s not found", parent);
 		}
 		c++;
 	}

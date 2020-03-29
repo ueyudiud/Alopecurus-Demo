@@ -69,7 +69,7 @@ static int putcreg(actable_t* table, acfun handle, astr name) {
 	while (table->array[hash].handle) {
 		api_check(T, table->array[hash].handle != handle, "C function registered twice.");
 		hash = (hash + i * i) % table->capacity; /* rehash */
-		i += 1;
+		i++;
 		if (hash == hash0) { /* collide to first hash? */
 			return true;
 		}
@@ -87,7 +87,8 @@ static astr getcreg(actable_t* table, acfun handle) {
 		if (creg->handle == handle) {
 			return creg->name;
 		}
-		hash = (hash * hash + ++i) % table->capacity; /* rehash */
+		hash = (hash + i * i) % table->capacity; /* rehash */
+		i++;
 	}
 	return "<unknown>";
 }
@@ -101,6 +102,9 @@ static void growbuf(astate T, actable_t* table) {
 	acreg_t* oldarray = table->array;
 	size_t oldcap = table->capacity;
 	size_t newcap = oldcap * 2;
+	if (newcap > ALO_CTABLE_MAX_CAPACITY) {
+		aloU_rterror(T, "too many C function binding.");
+	}
 	table->array = aloM_newa(T, acreg_t, newcap);
 	table->capacity = newcap;
 	for (size_t i = 0; i < newcap; ++i) {
@@ -108,6 +112,7 @@ static void growbuf(astate T, actable_t* table) {
 	}
 	for (size_t i = 0; i < oldcap; ++i) {
 		if (putcreg(table, oldarray[i].handle, oldarray[i].name)) {
+			/* TODO: memory for old array leaked */
 			aloU_rterror(T, "failed to put entry into buffer.");
 		}
 	}
@@ -159,7 +164,7 @@ alineinfo_t* aloU_lineof(aproto_t* proto, const ainsn_t* pc) {
 
 #define lineof(p,i) ({ alineinfo_t* _info = aloU_lineof(p,i); _info ? _info->line : 0; })
 
-static void write_stacktrace(astate T, ambuf_t* buf, int level) {
+void write_stacktrace(astate T, ambuf_t* buf, int level) {
 	aframe_t* frame = T->frame;
 	do {
 		astr name = fnname(frame);
@@ -184,35 +189,15 @@ static void write_stacktrace(astate T, ambuf_t* buf, int level) {
 	while ((frame = frame->prev) && --level > 0);
 }
 
-anoret aloU_mnotfound(astate T, const atval_t* owner, astr fun) {
-	aloU_rterror(T, "method '%s.__%s' not found", aloV_typename(T, owner), fun);
-}
-
-static astring_t* aloU_pushvmsg(astate T, astr fmt, va_list varg) {
-	aloB_decl(T, buf);
-	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
-	write_stacktrace(T, &buf, WRITE_ERROR_LEVEL);
-	astring_t* value = aloB_tostr(T, buf);
-	aloB_close(T, buf);
-	tsetstr(T, T->top++, value); /* push error message to stack. */
-	return value;
-}
-
-static anoret aloU_vrterror(astate T, astr fmt, va_list varg) {
-	aloU_pushvmsg(T, fmt, varg);
-	aloD_throw(T, ThreadStateErrRuntime);
-}
-
-/**
- ** push error message and stack trace information into top of stack.
- */
-astring_t* aloU_pushmsg(astate T, astr fmt, ...) {
-	aloG_check(T);
-	va_list varg;
-	va_start(varg, fmt);
-	astring_t* value = aloU_pushvmsg(T, fmt, varg);
-	va_end(varg);
-	return value;
+anoret aloU_error(astate T, int status) {
+	if (T->errfun) { /* error handling function exists, handle the error */
+		askid_t fun = putstkoff(T, T->errfun);
+		tsetobj(T, T->top, T->top - 1); /* move error message */
+		tsetobj(T, T->top - 1, fun); /* move error handling function */
+		T->top++;
+		aloD_callnoyield(T, T->top - 2, 1);
+	}
+	aloD_throw(T, status);
 }
 
 /**
@@ -221,7 +206,31 @@ astring_t* aloU_pushmsg(astate T, astr fmt, ...) {
 anoret aloU_rterror(astate T, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	aloU_vrterror(T, fmt, varg);
+	aloG_check(T); /* GC checking point */
+	aloB_decl(T, buf);
+	alo_vformat(T, aloB_bwrite, &buf, fmt, varg); /* format error message */
+	astring_t* value = aloB_tostr(T, buf);
+	tsetstr(T, T->top++, value); /* push error message to stack. */
+	aloU_error(T, ThreadStateErrRuntime);
+	/* unreachable code */
+	aloB_close(T, buf);
+	va_end(varg);
+}
+
+/**
+ ** throw an error error.
+ */
+anoret aloU_ererror(astate T, astr fmt, ...) {
+	va_list varg;
+	va_start(varg, fmt);
+	aloB_decl(T, buf);
+	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
+	astring_t* value = aloB_tostr(T, buf);
+	tsetstr(T, T->top++, value); /* push error message to stack. */
+	aloD_throw(T, ThreadStateErrError);
+	/* unreachable code */
+	aloB_close(T, buf);
+	va_end(varg);
 }
 
 static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {

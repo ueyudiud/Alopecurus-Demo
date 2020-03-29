@@ -61,7 +61,7 @@ ALO_API int aloL_savef(astate, astr, int);
 ALO_API int aloL_getframe(astate, int, astr, aframeinfo_t*);
 ALO_API void aloL_where(astate, int);
 ALO_API int aloL_errresult_(astate, astr);
-ALO_API anoret aloL_error(astate, int, astr, ...);
+ALO_API anoret aloL_error(astate, astr, ...);
 
 ALO_API anoret aloL_argerror(astate, ssize_t, astr, ...);
 ALO_API anoret aloL_typeerror(astate, ssize_t, astr);

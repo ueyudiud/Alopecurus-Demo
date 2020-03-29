@@ -448,7 +448,7 @@ static int list_mkstr(astate T) {
 		defaults(s3, l3, DEFAULT_RIGHT);
 		break;
 	case 3:
-		aloL_error(T, 2, "illegal arguments: wrong argument count.");
+		aloL_error(T, "illegal arguments: wrong argument count.");
 		break;
 	default:
 		s1 = aloL_checklstring(T, 2, &l1);

@@ -72,7 +72,7 @@ static int base_toint(astate T) {
 	int flag;
 	aint value = alo_tointegerx(T, 0, &flag);
 	if (!flag) {
-		aloL_error(T, 2, "can not cast object to integer.");
+		aloL_error(T, "can not cast object to integer.");
 	}
 	alo_pushinteger(T, value);
 	return 1;
@@ -88,7 +88,7 @@ static int base_tonum(astate T) {
 	int flag;
 	afloat value = alo_tonumberx(T, 0, &flag);
 	if (!flag) {
-		aloL_error(T, 2, "can not cast object to number.");
+		aloL_error(T, "can not cast object to number.");
 	}
 	alo_pushnumber(T, value);
 	return 1;
@@ -152,7 +152,7 @@ static int base_rawlen(astate T) {
  */
 static int base_assert(astate T) {
 	if (alo_gettop(T) == 0 || !alo_toboolean(T, 0)) { /* when assertion failed */
-		aloL_error(T, 2, "assertion failed.");
+		aloL_error(T, "assertion failed.");
 	}
 	return 0;
 }
@@ -163,7 +163,6 @@ static int base_assert(astate T) {
  ** prototype: throw([msg])
  */
 static int base_throw(astate T) {
-	int level = 2;
 	switch (alo_typeid(T, 0)) {
 	case ALO_TNIL:
 		alo_pushstring(T, "no error message.");
@@ -172,15 +171,14 @@ static int base_throw(astate T) {
 		alo_pushfstring(T, "error code: %i", alo_tointeger(T, 0));
 		break;
 	case ALO_TSTRING:
-		alo_push(T, 0);
+		alo_settop(T, 1);
 		break;
 	default:
 		alo_pushstring(T, "illegal error message.");
-		level = 1;
 		break;
 	}
-	aloL_where(T, level);
-	alo_throw(T);
+	alo_error(T);
+	/* unreachable code */
 	return 0;
 }
 
@@ -197,7 +195,7 @@ static int try_unsafe(astate T, int status, __attribute__((unused)) void* contex
 static int base_try(astate T) {
 	aloL_checkcall(T, 0);
 	alo_settop(T, 1);
-	int status = alo_pcallk(T, 0, 0, try_unsafe, NULL);
+	int status = alo_pcallk(T, 0, 0, ALO_NOERRFUN, try_unsafe, NULL);
 	return try_unsafe(T, status, NULL);
 }
 

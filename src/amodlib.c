@@ -46,7 +46,7 @@ static void getpath(astate T, char* buf, const char* src, size_t len) {
 			}
 		}
 		else if (!isalnum(aloE_byte(src[i]))) {
-			aloL_error(T, 2, "illegal module name: %q", src, len);
+			aloL_error(T, "illegal module name: %q", src, len);
 		}
 		else {
 			*(buf++) = src[i];
@@ -165,7 +165,7 @@ static int dlbox_index(astate T) {
 	astr name = alo_tostring(T, 1);
 	acfun fun = l_get(T, box->library, name);
 	if (fun == NULL) {
-		aloL_error(T, 2, "failed to get function '%s' from library", name);
+		aloL_error(T, "failed to get function '%s' from library", name);
 	}
 	alo_push(T, 0); /* mark reference to the box to avoid GC */
 	alo_pushcclosure(T, fun, 1);
@@ -287,7 +287,7 @@ static int loader_l(astate T) {
 			alo_settop(T, 2);
 			goto initialize;
 		default: /* compiled failed */
-			alo_throw(T); /* throw error message */
+			alo_error(T); /* throw error message */
 		}
 		alo_pushfstring(T, "\n\tno file '%s'", actual);
 		alo_add(T, 2);
@@ -335,7 +335,7 @@ static int loader_c(astate T) {
 #ifndef DL_NOT_SUPPORT
 		if (l_readable(actual)) {
 			if (!loaddl(T, actual, false)) {
-				alo_throw(T); /* throw error message */
+				alo_error(T); /* throw error message */
 			}
 			return 1;
 		}
@@ -373,7 +373,7 @@ static int mod_import(astate T) {
 	}
 
 	if (alo_rawgets(T, ALO_CAPTURE_INDEX(0), ALO_MODLOADER_KEY) != ALO_TLIST) /* stack[2] = mod.LOADERS */
-		aloL_error(T, 2, "invalid module loader list.");
+		aloL_error(T, "invalid module loader list.");
 	alo_newlist(T, 4); /* initialize not found list */
 	size_t n = alo_rawlen(T, 2);
 	for (size_t i = 0; i < n; ++i) {
@@ -381,11 +381,11 @@ static int mod_import(astate T) {
 		alo_push(T, 0); /* push name */
 		alo_push(T, 1); /* push path */
 		alo_push(T, 3); /* push fail back message list */
-		if (alo_pcall(T, 3, 1) != ThreadStateRun) {
+		if (alo_pcall(T, 3, 1, ALO_NOERRFUN) != ThreadStateRun) {
 			/* caught error */
 			astr msg = alo_tostring(T, -1);
 			alo_pushfstring(T, "module '%s' failed to load: %s", name, msg);
-			alo_throw(T);
+			alo_error(T);
 		}
 		if (alo_isnonnil(T, 4)) /* load success? */
 			goto success;
@@ -403,7 +403,7 @@ static int mod_import(astate T) {
 		aloL_bpushstring(T, buf);
 	}
 	/* throw error */
-	alo_throw(T);
+	alo_error(T);
 
 	success:
 	/* push module to cache table */
@@ -461,7 +461,7 @@ static int mod_setpath(astate T) {
 	astr paths = aloL_checkstring(T, 1);
 	alo_settop(T, 3);
 	if (alo_rawgets(T, ALO_CAPTURE_INDEX(0), keys[type]) != ALO_TLIST) {
-		aloL_error(T, 2, "invalid module search path list.");
+		aloL_error(T, "invalid module search path list.");
 	}
 	if (aloL_getoptbool(T, 2, false)) {
 		alo_rawclr(T, 3);

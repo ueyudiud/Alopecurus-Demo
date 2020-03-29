@@ -44,8 +44,8 @@ typedef struct alo_JumpBuf ajmp_t;
 
 struct alo_JumpBuf {
 	ajmp_t* prev;
-	int status;
 	jmp_buf buf;
+	volatile int status;
 };
 
 /**
@@ -135,6 +135,7 @@ extern const aver_t aloR_version;
 #if !defined(ALO_CTABLE)
 #define ALO_CTABLE_INITIAL_CAPACITY 23
 #define ALO_CTABLE_LOAD_FACTOR 0.75
+#define ALO_CTABLE_MAX_CAPACITY (ALO_CTABLE_INITIAL_CAPACITY * 256)
 #define ALO_CTABLE
 #endif
 

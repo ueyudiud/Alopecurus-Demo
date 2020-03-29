@@ -107,7 +107,7 @@ static int table_mkstr(astate T) {
 		defaults(s3, l3, DEFAULT_RIGHT);
 		goto ct;
 	case 3:
-		aloL_error(T, 2, "illegal arguments: wrong argument count.");
+		aloL_error(T, "illegal arguments: wrong argument count.");
 		break;
 	case 4:
 		s1 = aloL_checklstring(T, 2, &l1);

@@ -717,10 +717,6 @@ static size_t sweepstep(astate T, aglobal_t* G, agct* nextlist, int nextstep) {
 	return 0;
 }
 
-static void docallfin(astate T, __attribute__((unused)) void* context) {
-	aloD_callnoyield(T, T->top - 2, 0);
-}
-
 static void callfinimpl(astate T, int dothrow) {
 	Gd(T);
 	agct g = G->gtobefnz; /* remove object from 'tobefnz' list */
@@ -736,12 +732,15 @@ static void callfinimpl(astate T, int dothrow) {
 	const atval_t* f = aloT_gettm(T, &t, TM_DEL, true); /* get delete function */
 	if (f) {
 		int oldgc = G->fgc; /* set GC state */
+		int allowhook = T->fallowhook;
 		G->fgc = false; /* disable GC during calling finalizer */
+		T->fallowhook = false;
 		tsetobj(T, T->top++, f);
-		tsetobj(T, T->top++, &t);
+		tsetref(T, T->top++, g);
 		T->frame->ffnz = true; /* start in finalizing state */
-		int status = aloD_prun(T, docallfin, NULL);
+		int status = aloD_pcall(T, T->top - 2, 0, ALO_NOERRFUN);
 		T->frame->ffnz = false; /* end in finalizing state */
+		T->fallowhook = allowhook;
 		G->fgc = oldgc; /* restore GC state */
 		if (status != ThreadStateRun && dothrow) {
 			if (status == ThreadStateErrRuntime) {

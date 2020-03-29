@@ -49,5 +49,6 @@ ALO_IFUN int aloD_precall(astate, askid_t, int);
 ALO_IFUN void aloD_postcall(astate, askid_t, int);
 ALO_IFUN void aloD_call(astate, askid_t, int);
 ALO_IFUN void aloD_callnoyield(astate, askid_t, int);
+ALO_IFUN int aloD_pcall(astate, askid_t, int, ptrdiff_t);
 
 #endif /* ADO_H_ */

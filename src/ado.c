@@ -141,18 +141,21 @@ void aloD_shrinkstack(astate T) {
  ** run function in protection.
  */
 int aloD_prun(astate T, apfun fun, void* ctx) {
-	uint16_t nccall = T->nccall, nxyield = T->nxyield;
+	/* store current thread state */
+	uint16_t nccall = T->nccall;
 	ambuf_t* mbuf = T->memstk.top; /* store memory buffer */
+	/* initialize jump label */
 	ajmp_t label;
 	label.prev = T->label;
 	label.status = ThreadStateRun;
 	T->label = &label;
+	/* run protected function */
 	if (setjmp(label.buf) == 0) {
 		fun(T, ctx);
 	}
+	/* restore old thread state */
 	T->label = label.prev;
 	T->nccall = nccall;
-	T->nxyield = nxyield;
 	T->memstk.top = mbuf; /* revert memory buffer */
 	return label.status;
 }
@@ -162,6 +165,7 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
  */
 anoret aloD_throw(astate T, int status) {
 	aloE_assert(status >= ThreadStateErrRuntime, "can only throw error status by this function.");
+	rethrow:
 	if (T->label) {
 		T->label->status = status;
 		longjmp(T->label->buf, 1);
@@ -170,7 +174,8 @@ anoret aloD_throw(astate T, int status) {
 		T->status = aloE_byte(status);
 		if (T->caller) {
 			tsetobj(T, T->caller->top++, T->top - 1); /* move error message */
-			aloD_throw(T->caller, status); /* handle error function by caller */
+			T = T->caller;
+			goto rethrow; /* handle error function by caller */
 		}
 		else {
 			Gd(T);
@@ -273,6 +278,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 			frame->name = aloU_getcname(T, caller);
 			frame->c.kfun = NULL;
 			frame->c.ctx = NULL;
+			frame->c.oef = 0;
 			frame->fun = fun;
 			frame->top = T->top + ALO_MINSTACKSIZE;
 			frame->flags = 0;
@@ -369,7 +375,7 @@ static void stackerror(astate T) {
 		aloU_rterror(T, "C stack overflow");
 	}
 	else if (T->nccall >= ALO_MAXCCALL + EXTRAERRCALL) {
-		aloD_throw(T, ThreadStateErrError); /* too many stack while handling error */
+		aloU_ererror(T, "error in error handling: C stack overflow"); /* too many stack while handling error */
 	}
 }
 
@@ -391,6 +397,41 @@ void aloD_callnoyield(astate T, askid_t fun, int nresult) {
 	T->nxyield++;
 	aloD_call(T, fun, nresult);
 	T->nxyield--;
+}
+
+/* protected call information */
+struct PCI {
+	askid_t fun;
+	int nres;
+};
+
+static void pcall_unsafe(astate T, void* context) {
+	struct PCI* pci = aloE_cast(struct PCI*, context);
+	aloD_callnoyield(T, pci->fun, pci->nres);
+}
+
+int aloD_pcall(astate T, askid_t fun, int nres, ptrdiff_t ef) {
+	struct PCI pci = { fun, nres };
+	/* store current frame state */
+	aframe_t* const frame = T->frame;
+	uint16_t nxyield = T->nxyield;
+	abyte allowhook = T->fallowhook;
+	ptrdiff_t oldef = T->errfun;
+	ptrdiff_t oldtop = getstkoff(T, fun);
+	T->errfun = ef;
+	int status = aloD_prun(T, pcall_unsafe, &pci);
+	if (status != ThreadStateRun) {
+		askid_t top = putstkoff(T, oldtop);
+		aloF_close(T, top);
+		tsetobj(T, top++, T->top - 1);
+		T->top = top;
+		T->frame = frame;
+		T->fallowhook = allowhook;
+		T->nxyield = nxyield;
+		aloD_shrinkstack(T);
+	}
+	T->errfun = oldef;
+	return status;
 }
 
 static void postpcc(astate T, int status) {
@@ -476,11 +517,7 @@ static void resume_unsafe(astate T, void* context) {
 	}
 }
 
-static int resume_error(astate T, const char* msg, int narg) {
-	T->top -= narg;
-	aloU_pushmsg(T, msg); /* push message to the top */
-	return ThreadStateErrRuntime;
-}
+#define resume_error(T,msg,narg) ({ T->top -= (narg); tsetstr(T, T->top, aloS_newl(T, msg)); T->top++; ThreadStateErrRuntime; })
 
 int alo_resume(astate T, astate from, int narg) {
 	Gd(T);
@@ -490,9 +527,10 @@ int alo_resume(astate T, astate from, int narg) {
 		return resume_error(T, "the main coroutine is not resumable.", narg);
 	}
 	else if (T->status != ThreadStateYield) { /* check coroutine status */
-		return resume_error(T, T->status == ThreadStateRun ?
-				"cannot resume a non-suspended coroutine." :
-				"the coroutine is already dead.", narg);
+		if (T->status == ThreadStateRun)
+			return resume_error(T, "cannot resume a non-suspended coroutine.", narg);
+		else
+			return resume_error(T, "the coroutine is already dead.", narg);
 	}
 	else if (T->frame == &T->base_frame && T->top != T->base_frame.fun + 2) { /* check function not called yet */
 		return resume_error(T, "the coroutine is already dead.", narg);

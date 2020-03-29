@@ -61,7 +61,7 @@ static int str_repeat(astate T) {
 	const char* src = aloL_checklstring(T, 0, &len);
 	size_t time = aloL_checkinteger(T, 1);
 	if (time >= ALO_INT_PROP(MAX) / len) {
-		aloL_error(T, 2, "repeat time overflow.");
+		aloL_error(T, "repeat time overflow.");
 	}
 	const size_t nlen = len * time;
 	if (nlen == 0) {
@@ -148,7 +148,7 @@ static int str_byte(astate T) {
 	return 1;
 
 	error:
-	aloL_error(T, 2, "index out of bound");
+	aloL_error(T, "index out of bound");
 	return 0;
 }
 
@@ -400,7 +400,7 @@ static astr seqcheck(amstat_t*, amnode_t*, astr, amcon_t, int);
 
 static astr seqcon(amstat_t* M, astr s, struct context_seq* context) {
 	if (M->depth-- == 0) {
-		aloL_error(M->T, 2, "matching string is too complex.");
+		aloL_error(M->T, "matching string is too complex.");
 	}
 	return seqcheck(M, context->node, s, context->con, context->index + 1);
 }
@@ -429,7 +429,7 @@ static astr greedycon(amstat_t* M, astr s, struct context_greedy* context) {
 
 static astr matchx(amstat_t* M, amnode_t* node, astr s, amcon_t con) {
 	if (M->depth-- == 0) {
-		aloL_error(M->T, 2, "matching string is too complex.");
+		aloL_error(M->T, "matching string is too complex.");
 	}
 	amfun_t handle = handles[node->type];
 	switch (node->mode) {
@@ -514,7 +514,7 @@ static void destory(astate T, amnode_t* node) {
 	alloc(T, node, sizeof(amnode_t), 0);
 }
 
-#define cerror(C,msg,args...) { destory((C)->T, (C)->node); aloL_error((C)->T, 2, msg, ##args); }
+#define cerror(C,msg,args...) { destory((C)->T, (C)->node); aloL_error((C)->T, msg, ##args); }
 
 static amnode_t* construct(acstat_t* C, int type) {
 	amnode_t* node = C->alloc(C->context, NULL, 0, sizeof(amnode_t));
@@ -543,7 +543,7 @@ static amnode_t** alloc(acstat_t* C, amnode_t* node, int len) {
 		amnode_t** children = C->alloc(C->context, node->arr, node->data * sizeof(amnode_t*), newsize * sizeof(amnode_t*));
 		if (children == NULL) {
 			destory(C->T, node);
-			aloL_error(C->T, 2, "no enough memory.");
+			aloL_error(C->T, "no enough memory.");
 		}
 		for (int i = len; i < newsize; ++i) {
 			children[i] = NULL;
@@ -802,7 +802,7 @@ static Matcher* self(astate T) {
 	aloL_checktype(T, 0, ALO_TRAWDATA);
 	Matcher* matcher = aloE_cast(Matcher*, alo_torawdata(T, 0));
 	if (matcher->node == NULL) {
-		aloL_error(T, 2, "matcher already destroyed.");
+		aloL_error(T, "matcher already destroyed.");
 	}
 	return matcher;
 }
@@ -871,14 +871,14 @@ static void aux_replaces(astate T, Matcher* matcher, amstat_t* M, ambuf_t* buf) 
 						index = index * 10 + (*s1 - '0');
 					}
 					else {
-						aloL_error(T, 2, "illegal replacement string.");
+						aloL_error(T, "illegal replacement string.");
 					}
 				}
 				while (*(++s1) != '}');
 				s1++;
 			format:
 				if (index >= matcher->ngroup) {
-					aloL_error(T, 2, "replacement index out of bound.");
+					aloL_error(T, "replacement index out of bound.");
 				}
 				amgroup_t* group = &M->groups[index];
 				aloL_bputls(T, buf, group->begin, group->end - group->begin);
@@ -1140,10 +1140,10 @@ static int str_replace(astate T) {
 	if (aloL_getoptbool(T, 3, false)) { /* replace in regex mode. */
 		alo_settop(T, 3);
 		if (!aloL_callselfmeta(T, 1, "matcher")) { /* stack[3] = target->matcher */
-			aloL_error(T, 2, "failed to call function 'string.matcher'");
+			aloL_argerror(T, 1, "failed to call function 'string.matcher'");
 		}
 		if (alo_getmeta(T, 3, "replace", false) != ALO_TFUNCTION) {
-			aloL_error(T, 2, "failed to call function 'matcher.replace'");
+			aloL_argerror(T, 3, "failed to call function 'matcher.replace'");
 		}
 		alo_push(T, 3);
 		alo_push(T, 0);
@@ -1157,7 +1157,7 @@ static int str_replace(astate T) {
 		size_t l1, l2, l3;
 		s1 = alo_tolstring(T, 0, &l1);
 		if (l1 == 0) {
-			aloL_error(T, 2, "replace target cannot be empty.");
+			aloL_argerror(T, 0, "replace target cannot be empty.");
 		}
 		s2 = aloL_checklstring(T, 1, &l2);
 		if (l1 < l2) {
@@ -1203,10 +1203,10 @@ static int str_split(astate T) {
 	if (aloL_getoptbool(T, 2, false)) { /* replace in regex mode. */
 		alo_settop(T, 2);
 		if (!aloL_callselfmeta(T, 1, "matcher")) { /* stack[3] = target->matcher */
-			aloL_error(T, 2, "failed to call function 'string.matcher'");
+			aloL_argerror(T, 1, "failed to call function 'string.matcher'");
 		}
 		if (alo_getmeta(T, 2, "split", false) != ALO_TFUNCTION) {
-			aloL_error(T, 2, "failed to call function 'matcher.split'");
+			aloL_argerror(T, 2, "failed to call function 'matcher.split'");
 		}
 		alo_push(T, 2);
 		alo_push(T, 0);

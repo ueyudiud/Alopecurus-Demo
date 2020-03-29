@@ -115,6 +115,7 @@ struct alo_Frame {
 		struct { /* for C functions */
 			akfun kfun;
 			void* ctx;
+			ptrdiff_t oef; /* the old error function for previous frame */
 		} c;
 	};
 	int nresult; /* expected results from this frame */
@@ -158,6 +159,7 @@ struct alo_Thread {
 	askid_t top; /* top of stack */
 	size_t stacksize; /* current stack size */
 	ajmp_t* label;
+	ptrdiff_t errfun; /* index of error handling function */
 	amstack_t memstk; /* memory stack */
 	ahfun hook;
 	aframe_t base_frame;

@@ -314,7 +314,7 @@ int main(int argc, astr argv[]) {
 		return EXIT_FAILURE;
 	}
 	alo_pushlightcfunction(T, tmain);
-	if (alo_pcall(T, 0, 0)) {
+	if (alo_pcall(T, 0, 0, ALO_NOERRFUN)) {
 		fprintf(stderr, "%s\n", alo_tostring(T, -1));
 	}
 	alo_deletestate(T);

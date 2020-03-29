@@ -83,7 +83,7 @@ static afile* l_preopen(astate T) {
 
 static void l_checkopen(astate T, afile* file) {
 	if (file->closer == NULL) {
-		aloL_error(T, 2, "file already closed.");
+		aloL_error(T, "file already closed.");
 	}
 }
 

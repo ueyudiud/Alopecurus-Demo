@@ -997,46 +997,31 @@ void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	aloD_adjustresult(T, nres);
 }
 
-/* call information */
-typedef struct {
-	askid_t fun;
-	int nres;
-} CI;
-
-static void unsafecall(astate T, void* context) {
-	CI* ci = aloE_cast(CI*, context);
-	aloD_callnoyield(T, ci->fun, ci->nres);
-}
-
-int alo_pcallk(astate T, int narg, int nres, akfun kfun, void* kctx) {
+int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* kctx) {
 	api_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
 	api_check(T, T->g->trun == T, "thread is not running.");
 	api_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
-	CI ci = { T->top - (narg + 1), nres }; /* initialize call information */
-	ptrdiff_t p = getstkoff(T, ci.fun);
-	int status;
+	api_check(T, errfun == ALO_NOERRFUN || isinstk(errfun), "error function is not in stack.");
 	aframe_t* const frame = T->frame;
+	askid_t fun = T->top - (narg + 1);
+	ptrdiff_t ef = errfun == ALO_NOERRFUN ? 0 : getstkoff(T, index2addr(T, errfun));
+	int status;
 	if (kfun == NULL || T->nxyield > 0) {
-		status = aloD_prun(T, unsafecall, &ci); /* call function in protection */
+		status = aloD_pcall(T, fun, nres, ef); /* call function in protection */
 	}
 	else {
 		frame->c.kfun = kfun;
 		frame->c.ctx = kctx;
+		frame->c.oef = T->errfun;
+		T->errfun = ef;
 		frame->fypc = true;
-		aloD_call(T, ci.fun, ci.nres); /* call function in protection */
-		status = ThreadStateRun;
+		aloD_call(T, fun, nres); /* call function in protection */
 		frame->fypc = false;
+		T->errfun = frame->c.oef;
+		status = ThreadStateRun;
 	}
-	T->frame = frame; /* restore to correct frame */
-	ci.fun = putstkoff(T, p);
-	if (status == ThreadStateRun) { /* return exact value if thread is still running */
-		aloD_adjustresult(T, nres);
-	}
-	else { /* not in normal state? */
-		tsetobj(T, ci.fun, T->top - 1); /* move error object */
-		T->top = ci.fun + 1; /* correct current position */
-	}
+	aloD_adjustresult(T, nres);
 	return status;
 }
 
@@ -1086,8 +1071,9 @@ int alo_save(astate T, awriter writer, void* context, int debug) {
 	return aloZ_save(T, c->a.proto, writer, context, debug);
 }
 
-anoret alo_throw(astate T) {
-	aloD_throw(T, ThreadStateErrRuntime);
+anoret alo_error(astate T) {
+	api_checkelems(T, 1);
+	aloU_error(T, ThreadStateErrRuntime);
 }
 
 size_t alo_memused(astate T) {

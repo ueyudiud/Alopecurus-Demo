@@ -20,17 +20,17 @@
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
 #define l_err(fmt,args...) fprintf(stderr, fmt, ##args)
 
-static int compilef(astate T, astr name) {
+static void compilef(astate T, astr name) {
 	int status = aloL_compilef(T, name, name);
 	switch (status) {
 	case ThreadStateRun:
-		return true;
+		break;
 	case -1:
-		aloL_error(T, 1, "fail to open file '%s'", name);
-		return false;
+		aloL_error(T, "fail to open file '%s'", name);
+		break;
 	default:
-		aloL_error(T, 2, alo_tostring(T, -1));
-		return false;
+		alo_error(T);
+		break;
 	}
 }
 
@@ -62,7 +62,7 @@ static int compilec(astate T, astr name, int strict) {
 		return true;
 	}
 	else if (strict && !incomplete(T, status)) {
-		alo_throw(T);
+		alo_error(T);
 	}
 	alo_settop(T, -2);
 	return false;
@@ -82,12 +82,12 @@ static char* readline(astate T) {
 			exit(EXIT_SUCCESS);
 		}
 		alo_pushstring(T, strerror(errno));
-		alo_throw(T);
+		alo_error(T);
 	}
 	size_t l = strlen(p);
 	if (l == MAXINPUT + 1 && buf[MAXINPUT] != '\n') {
 		alo_pushstring(T, "script too long.");
-		alo_throw(T);
+		alo_error(T);
 	}
 	buf[l - 1] = '\0';
 	return p;
@@ -116,7 +116,7 @@ static void runscript(astate T) {
 	if (n > 0) {
 		alo_getreg(T, "println");
 		alo_insert(T, 0);
-		if (alo_pcall(T, n, 0) != ThreadStateRun) {
+		if (alo_pcall(T, n, 0, ALO_NOERRFUN) != ThreadStateRun) {
 			l_msg("error calling 'println', %s\n", alo_tostring(T, -1));
 		}
 	}
@@ -129,24 +129,6 @@ static int runc(astate T) {
 	while (true) {
 		l_msg("> ");
 		astr s = readline(T);
-		if (*s == ':') { /* command */
-			if (s[2] == '\0') {
-				switch (s[1]) {
-				case 'q': case 'Q': /* quit */
-					alo_deletestate(T);
-					exit(EXIT_SUCCESS);
-				case 'v': case 'V': /* display local values */
-					alo_getreg(T, "println");
-					aloL_getsubfield(T, ALO_GLOBAL_IDNEX, "table", "mkstr");
-					alo_push(T, ALO_REGISTRY_INDEX);
-					alo_call(T, 1, 1);
-					alo_call(T, 1, 0);
-					continue;
-				}
-			}
-			l_msg("unknown command '%s'\n", s + 1);
-			continue;
-		}
 		/* load and run run script */
 		loadscript(T, s);
 		runscript(T);
@@ -155,29 +137,17 @@ static int runc(astate T) {
 	return 0;
 }
 
-static int run(astate T) {
-	astr src = alo_tostring(T, 0);
-	if (*src) {
-		if (compilef(T, src)) {
-			alo_call(T, 0, 0); /* call function */
-		}
-	}
-	else {
-		l_msg(ALO_COPYRIGHT"\n");
-		alo_settop(T, 0);
-		while (true) {
-			alo_pushlightcfunction(T, runc);
-			alo_push(T, 0);
-			if (alo_pcall(T, 0, 0) != ThreadStateRun) {
-				l_err("%s\n", alo_tostring(T, -1));
-				alo_settop(T, 1);
-			}
-		}
-	}
+/**
+ ** run script from file.
+ */
+static int runf(astate T) {
+	compilef(T, alo_tostring(T, 0));
+	alo_call(T, 0, 0); /* call function */
 	return 0;
 }
 
 static __attribute__((noreturn)) int panic(__attribute__((unused)) astate T) {
+	l_err("unmanaged error caught.\n");
 	exit(EXIT_FAILURE);
 }
 
@@ -277,7 +247,7 @@ static int check_args(int argc, const astr argv[]) {
 static int openlib(astate T, astr name) {
 	alo_getreg(T, "import");
 	alo_pushstring(T, name);
-	if (alo_pcall(T, 1, 1) != ThreadStateRun)
+	if (alo_pcall(T, 1, 1, ALO_NOERRFUN) != ThreadStateRun)
 		return false;
 	alo_rawsets(T, ALO_REGISTRY_INDEX, name);
 	alo_settop(T, 0);
@@ -299,18 +269,40 @@ static int openlibs(astate T, int argc, const astr argv[]) {
 
 /* the action after initialize */
 
-#define m_invoke 0
-#define m_skip   1
-#define m_error  2
+static int ferrmsg(astate T) {
+	if (!alo_isstring(T, 0)) {
+		int type = alo_getmeta(T, 0, "__tostr", true);
+		switch (type) {
+		case ALO_TFUNCTION: /* applied by function? */
+			/* call function */
+			alo_push(T, 0);
+			alo_call(T, 1, 1);
+			if (alo_typeid(T, -1) != ALO_TSTRING) {
+				goto error;
+			}
+			break;
+		case ALO_TSTRING:
+			break;
+		default:
+			error:
+			alo_pushfstring(T, "can not transform %s value to string");
+			break;
+		}
+	}
+	aloL_where(T, 16);
+	return 1;
+}
 
-static int initialize(astate T, int argc, const astr argv[]) {
+int main(int argc, astr argv[]) {
+	astate T = aloL_newstate();
+	if (T == NULL) {
+		l_err("fail to initialize VM.\n");
+	}
 	alo_setpanic(T, panic); /* set error callback */
-	alo_bind(T, "<run>", run); /* put main function name */
-	alo_bind(T, "<runc>", runc); /* put main function name */
 
 	int flags = check_args(argc, argv); /* check and collect arguments */
 	if (flags == has_err) /* error? */
-		return m_error;
+		goto error;
 
 	if (flags & has_h)
 		prtusage();
@@ -321,7 +313,7 @@ static int initialize(astate T, int argc, const astr argv[]) {
 	/* move runtime directory to configurated path */
 	if (rtpath ? chdir(rtpath) : srcpath ? movedir(srcpath) : 0) {
 		l_err("fail to move directory to target place.\n");
-		return m_error;
+		goto error;
 	}
 
 	if (srcpath || !(flags & (has_h | has_v))) {
@@ -329,33 +321,38 @@ static int initialize(astate T, int argc, const astr argv[]) {
 
 		if (flags & has_l) { /* has custom libraries */
 			if (!openlibs(T, argc, argv)) { /* open custom libraries */
-				return m_error;
+				goto error;
 			}
 		}
 
-		aloL_pushscopedcfunction(T, run);
-		alo_pushstring(T, srcpath);
-		return m_invoke;
-	}
-
-	return m_skip;
-}
-
-int main(int argc, astr argv[]) {
-	astate T = aloL_newstate();
-	if (T == NULL) {
-		l_err("fail to initialize VM.\n");
-	}
-	switch (initialize(T, argc, argv)) {
-	case m_error: /* initialized failed */
-		alo_deletestate(T);
-		return EXIT_FAILURE;
-	case m_invoke: /* invoke script */
-		if (alo_pcall(T, 1, 0)) {
-			fputs(alo_tostring(T, -1), stderr);
+		alo_pushlightcfunction(T, ferrmsg);
+		if (srcpath) {
+			alo_bind(T, "<run>", runf); /* put main function name */
+			aloL_pushscopedcfunction(T, runf);
+			alo_pushstring(T, srcpath);
+			if (alo_pcall(T, 1, 0, 0) != ThreadStateRun) {
+				l_err("%s\n", alo_tostring(T, -1));
+			}
 		}
-		break;
+		else {
+			alo_bind(T, "<run>", runc); /* put main function name */
+			l_msg(ALO_COPYRIGHT"\n");
+			alo_settop(T, 0);
+			alo_pushlightcfunction(T, ferrmsg);
+			while (true) {
+				alo_pushlightcfunction(T, runc);
+				if (alo_pcall(T, 0, 0, 0) != ThreadStateRun) {
+					l_err("%s\n", alo_tostring(T, -1));
+					alo_settop(T, 1);
+				}
+			}
+		}
 	}
+
 	alo_deletestate(T);
 	return EXIT_SUCCESS;
+
+	error:
+	alo_deletestate(T);
+	return EXIT_FAILURE;
 }

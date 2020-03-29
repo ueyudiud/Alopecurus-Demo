@@ -89,6 +89,7 @@ static void preinit(astate T, aglobal_t* G) {
 	T->nxyield = 0;
 	T->label = NULL;
 	T->flags = 0;
+	T->errfun = 0;
 	T->base_frame.name = "<start>";
 	T->base_frame.next = T->base_frame.prev = NULL;
 	T->base_frame.fun = T->base_frame.top = NULL;

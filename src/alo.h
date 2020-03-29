@@ -45,6 +45,8 @@
 #define ALO_REGISTRY_INDEX (-ALO_MAXSTACKSIZE - 100000)
 #define ALO_CAPTURE_INDEX(x) (-ALO_MAXSTACKSIZE - 150000 + (x))
 
+#define ALO_NOERRFUN (-ALO_MAXSTACKSIZE - 50000)
+
 /**
  * state manipulation
  */
@@ -191,13 +193,13 @@ ALO_API int alo_setdelegate(astate, ssize_t);
  */
 
 ALO_API void alo_callk(astate, int, int, akfun, void*);
-ALO_API int alo_pcallk(astate, int, int, akfun, void*);
+ALO_API int alo_pcallk(astate, int, int, ssize_t, akfun, void*);
 ALO_API int alo_compile(astate, astr, astr, areader, void*);
 ALO_API int alo_load(astate, astr, areader, void*);
 ALO_API int alo_save(astate, awriter, void*, int);
 
-#define alo_call(T,narg,nres) alo_callk(T, narg, nres, NULL, NULL)
-#define alo_pcall(T,narg,nres) alo_pcallk(T, narg, nres, NULL, NULL)
+#define alo_call(T,a,r) alo_callk(T, a, r, NULL, NULL)
+#define alo_pcall(T,a,r,e) alo_pcallk(T, a, r, e, NULL, NULL)
 
 /**
  ** coroutine functions.
@@ -214,7 +216,7 @@ ALO_API int alo_isyieldable(astate);
  ** error handling
  */
 
-ALO_API anoret alo_throw(astate);
+ALO_API anoret alo_error(astate);
 
 /**
  ** miscellaneous functions.

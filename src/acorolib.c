@@ -49,7 +49,7 @@ static int aux_resume_closure(astate T) {
 	astate T1 = alo_tothread(T, ALO_CAPTURE_INDEX(0));
 	int nres = aux_resume(T1, T, narg);
 	if (nres == -1) {
-		alo_throw(T);
+		alo_error(T);
 	}
 	return nres;
 }
@@ -95,7 +95,7 @@ static int coro_resume(astate T) {
 	int narg = alo_gettop(T) - 1;
 	int nres = aux_resume(T1, T, narg);
 	if (nres == -1) { /* error occurred? */
-		alo_throw(T);
+		alo_error(T);
 	}
 	return nres;
 }

@@ -25,7 +25,7 @@ static int class_meta_new(astate T) {
 	aloL_checkclassname(T, 1);
 	const char* name = alo_tostring(T, 1);
 	if (alo_rawgets(T, 0, name) != ALO_TUNDEF) {
-		aloL_error(T, 2, "class with name '%s' already registered.", name);
+		aloL_error(T, "class with name '%s' already registered.", name);
 	}
 	alo_drop(T);
 
@@ -78,7 +78,7 @@ static int class_meta_new(astate T) {
 			break;
 		}
 		default: {
-			aloL_error(T, 2, "illegal look up target.");
+			aloL_error(T, "illegal look up target.");
 			break;
 		}
 		}
@@ -91,7 +91,7 @@ static int class_meta_new(astate T) {
 }
 
 static int class_meta_newindex(astate T) {
-	aloL_error(T, 2, "can not put object into '@' directly, use 'new' function instead.");
+	aloL_error(T, "can not put object into '@' directly, use 'new' function instead.");
 	return 0;
 }
 
