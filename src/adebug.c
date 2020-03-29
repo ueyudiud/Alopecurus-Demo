@@ -52,6 +52,20 @@ void alo_log(astr msg, astr file, int line, ...) {
 
 #endif
 
+/**===========================================================================
+ **                  C function binding registry functions
+ **===========================================================================*/
+
+/**
+ ** the function uses for C binding registry, which stores the debug
+ ** informations for C functions.
+ ** the registry use address of function as key and use quadratic hashing
+ ** function to build a hash table.
+ */
+
+/**
+ ** debug environment initialize function.
+ */
 void aloU_init(astate T) {
 	Gd(T);
 	actable_t* table = &G->ctable;
@@ -93,6 +107,9 @@ static astr getcreg(actable_t* table, acfun handle) {
 	return "<unknown>";
 }
 
+/**
+ ** get the binding name of C function.
+ */
 astr aloU_getcname(astate T, acfun handle) {
 	Gd(T);
 	return getcreg(&G->ctable, handle);
@@ -121,6 +138,9 @@ static void growbuf(astate T, actable_t* table) {
 	aloM_dela(T, oldarray, oldcap);
 }
 
+/**
+ ** register a binding for C function into registry
+ */
 void aloU_bind(astate T, acfun handle, astring_t* name) {
 	Gd(T);
 	actable_t* table = &G->ctable;
@@ -136,11 +156,16 @@ void aloU_bind(astate T, acfun handle, astring_t* name) {
 	table->length++;
 }
 
+/**
+ ** clear the registry
+ */
 void aloU_clearbuf(astate T) {
 	Gd(T);
 	actable_t* table = &G->ctable;
 	aloM_delb(T, table->array, table->capacity);
 }
+
+/**===========================================================================*/
 
 alineinfo_t* aloU_lineof(aproto_t* proto, const ainsn_t* pc) {
 	alineinfo_t* ls = proto->lineinfo;
