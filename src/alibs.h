@@ -30,8 +30,6 @@ ALO_API int aloopen_tablib(astate);
 
 ALO_API int aloopen_mathlib(astate);
 
-ALO_API int aloopen_veclib(astate);
-
 ALO_API int aloopen_iolib(astate);
 
 ALO_API int aloopen_syslib(astate);

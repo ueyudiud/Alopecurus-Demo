@@ -6,7 +6,7 @@
  */
 
 #define AINIT_C_
-#define ALO_CORE
+#define ALO_LIB
 
 #include "aaux.h"
 #include "alibs.h"
@@ -24,7 +24,6 @@ const amodinfo_t stdmods[] = {
 	{ "string", aloopen_strlib },
 	{ "list", aloopen_lislib },
 	{ "table", aloopen_tablib },
-	{ "vec", aloopen_veclib },
 	{ "sys", aloopen_syslib },
 	{ "mod", aloopen_modlib },
 	{ "gc", aloopen_gclib },
