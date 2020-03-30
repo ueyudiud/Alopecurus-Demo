@@ -33,7 +33,7 @@
 #define ALO_LOADED_KEY "__loaded"
 
 #if !defined(MAX_PATH_LENGTH)
-#define MAX_PATH_LENGTH 1024
+#define MAX_PATH_LENGTH 512
 #endif
 
 #define l_strchr(s,c,l) aloE_cast(const char*, memchr(s, c, (l) * sizeof(char)))
