@@ -10,11 +10,11 @@
 #ifndef ALO_H_
 #define ALO_H_
 
-#define ALO 200
+#define ALO
 
 #define ALO_VERSION_MAJOR	"0"
 #define ALO_VERSION_MINOR	"2"
-#define ALO_VERSION_NUM		0, 2
+#define ALO_VERSION_NUM		2
 #define ALO_VERSION_RELEASE	"0"
 
 #define ALO_NAME "Alopecurus"
