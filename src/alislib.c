@@ -496,7 +496,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_lislib(astate T) {
+int aloopen_lis(astate T) {
 	alo_bind(T, "list.contains", list_contains);
 	alo_bind(T, "list.filter", list_filter);
 	alo_bind(T, "list.fold", list_fold);

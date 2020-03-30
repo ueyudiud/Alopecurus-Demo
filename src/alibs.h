@@ -12,27 +12,27 @@
 
 #define ALO_LOADEDMODS "_MODS"
 
-ALO_API int aloopen_baselib(astate);
+ALO_API int aloopen_base(astate);
 
-ALO_API int aloopen_gclib(astate);
+ALO_API int aloopen_gc(astate);
 
-ALO_API int aloopen_modlib(astate);
+ALO_API int aloopen_mod(astate);
 
-ALO_API int aloopen_clslib(astate);
+ALO_API int aloopen_cls(astate);
 
-ALO_API int aloopen_corolib(astate);
+ALO_API int aloopen_coro(astate);
 
-ALO_API int aloopen_strlib(astate);
+ALO_API int aloopen_str(astate);
 
-ALO_API int aloopen_lislib(astate);
+ALO_API int aloopen_lis(astate);
 
-ALO_API int aloopen_tablib(astate);
+ALO_API int aloopen_tab(astate);
 
-ALO_API int aloopen_mathlib(astate);
+ALO_API int aloopen_math(astate);
 
-ALO_API int aloopen_iolib(astate);
+ALO_API int aloopen_io(astate);
 
-ALO_API int aloopen_syslib(astate);
+ALO_API int aloopen_sys(astate);
 
 ALO_API void aloL_openlibs(astate);
 

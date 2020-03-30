@@ -30,7 +30,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_gclib(astate T) {
+int aloopen_gc(astate T) {
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	return 1;

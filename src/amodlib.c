@@ -188,13 +188,13 @@ static adlbox_t* l_preload(astate T) {
 
 }
 
-static int loaddl(astate T, astr path, int seeglb) {
+static adlbox_t* loaddl(astate T, astr path, int seeglb) {
 	adlbox_t* box = l_preload(T);
 	box->library = l_load(T, path, seeglb);
 	if (box->library == NULL) {
-		return false;
+		return NULL;
 	}
-	return true;
+	return box;
 }
 
 #if defined(ALO_USE_POSIX)
@@ -230,7 +230,7 @@ static int mod_loaddl(astate T) {
 	alo_settop(T, 2);
 	/* find library in loaded list */
 	if (alo_rawgets(T, ALO_CAPTURE_INDEX(0), path) != ALO_TRAWDATA) {
-		if (!loaddl(T, path, *fname == '*'))
+		if (loaddl(T, path, *fname == '*') == NULL)
 			goto error;
 		/* put library into loaded list */
 		alo_push(T, 2);
@@ -283,8 +283,6 @@ static int loader_l(astate T) {
 			alo_drop(T);
 			break;
 		case ThreadStateRun: /* module script loaded */
-			alo_pop(T, 1);
-			alo_settop(T, 2);
 			goto initialize;
 		default: /* compiled failed */
 			alo_error(T); /* throw error message */
@@ -296,6 +294,9 @@ static int loader_l(astate T) {
 	return 0;
 
 	initialize:
+	alo_pop(T, 1);
+	alo_settop(T, 2);
+
 	alo_newtable(T, 0); /* delegate = [:]  */
 	alo_newtable(T, 1); /* meta = [:] */
 	alo_push(T, ALO_REGISTRY_INDEX); /* push environment */
@@ -316,35 +317,85 @@ static int loader_l(astate T) {
 	alo_push(T, 1);
 	alo_call(T, 0, 0); /* call initialize function,
 	                      the error thrown will be caught by import function directly */
-
 	alo_push(T, 1);
 	return 1;
 }
 
+/* prefix of open function in C library */
+#define ALO_POF "aloopen_"
+
+static acfun getopenf(astate T, void* library, astr name) {
+	acfun fun = NULL;
+	aloL_usebuf(T, buf) {
+		aloL_bputxs(T, buf, ALO_POF); /* put prefix */
+		astr p = name;
+		astr q;
+		while ((q = strchr(p, '.'))) { /* replace all '.' to '$' */
+			aloL_bputls(T, buf, p, q - p);
+			aloL_bputc(T, buf, '$');
+			p = q + 1;
+		}
+		aloL_bputs(T, buf, p);
+		fun = l_get(T, library, aloL_b2str(T, buf));
+	}
+	return fun;
+}
+
 static int loader_c(astate T) {
 	/* the loader will only take effect when loading dynamic library is available */
-	aloL_checkstring(T, 0);
+	astr name = aloL_checkstring(T, 0);
 	astr path = aloL_checkstring(T, 1);
 	aloL_checktype(T, 2, ALO_TLIST);
 	alo_settop(T, 3);
+#ifndef DL_NOT_SUPPORT
+	alo_gets(T, ALO_CAPTURE_INDEX(0), ALO_CPATH_KEY); /* stack[2] = mod.__cpath */
+	int n = alo_rawlen(T, 3);
+	adlbox_t* box;
+	for (int i = n - 1; i >= 0; --i) {
+		alo_rawgeti(T, 3, i);
+		alo_newbuf(T, buf); /* push string buffer */
+		aloL_brepts(T, buf, alo_tostring(T, 4), "?", path);
+		astr actual = aloL_b2str(T, buf);
+		if (l_readable(actual)) {
+			box = loaddl(T, actual, false);
+			alo_popbuf(T, buf); /* pop string buffer */
+			if (box == NULL) {
+				alo_error(T); /* throw error message */
+			}
+			goto initialize;
+		}
+		alo_pushfstring(T, "\n\tno file '%s'", actual);
+		alo_popbuf(T, buf); /* pop string buffer */
+		alo_add(T, 2);
+		alo_settop(T, 4);
+	}
+	return 0;
+
+	initialize:
+	alo_pop(T, 1);
+	alo_settop(T, 2);
+
+	acfun fun = getopenf(T, box->library, name); /* get open function */
+	if (fun == NULL) /* function not found */
+		alo_error(T); /* throw error message */
+	alo_pushlightcfunction(T, fun);
+	alo_push(T, 1);
+	alo_call(T, 1, 1); /* call open function*/
+	return 1;
+
+
+#else
 	alo_gets(T, ALO_CAPTURE_INDEX(0), ALO_CPATH_KEY); /* stack[2] = mod.__cpath */
 	int n = alo_rawlen(T, 3);
 	for (int i = n - 1; i >= 0; --i) {
 		alo_rawgeti(T, 3, i);
 		astr actual = aloL_sreplace(T, alo_tostring(T, 4), "?", path);
-#ifndef DL_NOT_SUPPORT
-		if (l_readable(actual)) {
-			if (!loaddl(T, actual, false)) {
-				alo_error(T); /* throw error message */
-			}
-			return 1;
-		}
-#endif
 		alo_pushfstring(T, "\n\tno file '%s'", actual);
 		alo_add(T, 2);
 		alo_settop(T, 4);
 	}
 	return 0;
+#endif
 }
 
 /**
@@ -494,7 +545,7 @@ static void create_loaderlist(astate T) {
 	}
 }
 
-int aloopen_modlib(astate T) {
+int aloopen_mod(astate T) {
 	alo_bind(T, "mod.loaddl", mod_loaddl);
 	alo_bind(T, "mod.import", mod_import);
 	alo_newtable(T, 8);

@@ -323,7 +323,7 @@ static const acreg_t mod_funcs[] = {
 
 #define NUM_DELEGATES (ALO_TRAWDATA + 1)
 
-int aloopen_baselib(astate T) {
+int aloopen_base(astate T) {
 	alo_bind(T, "base.assert", base_assert);
 	alo_bind(T, "base.boxarg", base_boxarg);
 	alo_bind(T, "base.print", base_print);

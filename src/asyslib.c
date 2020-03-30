@@ -96,7 +96,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_syslib(astate T) {
+int aloopen_sys(astate T) {
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	return 1;

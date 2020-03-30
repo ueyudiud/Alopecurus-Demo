@@ -174,7 +174,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_corolib(astate T) {
+int aloopen_coro(astate T) {
 	alo_bind(T, "thread.create", coro_create);
 	alo_bind(T, "thread.current", coro_current);
 	alo_bind(T, "thread.isyieldable", coro_isyieldable);

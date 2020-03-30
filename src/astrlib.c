@@ -1243,7 +1243,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_strlib(astate T) {
+int aloopen_str(astate T) {
 	alo_bind(T, "string.byte", str_byte);
 	alo_bind(T, "string.char", str_char);
 	alo_bind(T, "string.repeat", str_repeat);

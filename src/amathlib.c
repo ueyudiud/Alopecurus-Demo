@@ -202,7 +202,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_mathlib(astate T) {
+int aloopen_math(astate T) {
 	alo_bind(T, "math.abs", math_abs);
 	alo_bind(T, "math.acos", math_acos);
 	alo_bind(T, "math.asin", math_asin);

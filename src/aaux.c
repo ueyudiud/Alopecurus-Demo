@@ -8,6 +8,8 @@
 #define AAUX_C_
 #define ALO_CORE
 
+#define _GNU_SOURCE
+
 #include "aaux.h"
 #include "alibs.h"
 #include "achr.h"
@@ -206,18 +208,9 @@ const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
  ** push a string that replaced all t as sub sequence in s into m.
  */
 astr aloL_sreplace(astate T, astr s, astr t, astr m) {
-	size_t l1 = strlen(t);
-	size_t l2 = strlen(m);
 	astr result = NULL;
 	aloL_usebuf(T, buf) {
-		const char* s1 = s;
-		const char* s2;
-		while ((s2 = strstr(s1, t))) {
-			aloL_bputls(T, buf, s1, s2 - s1);
-			aloL_bputls(T, buf, m, l2);
-			s1 = s2 + l1;
-		}
-		aloL_bputs(T, buf, s1);
+		aloL_brepts(T, buf, s, t, m);
 		result = aloL_bpushstring(T, buf);
 	}
 	return result;
@@ -533,11 +526,41 @@ void aloL_newclass_(astate T, astr name, ...) {
 void aloL_bputm(astate T, ambuf_t* buf, const void* src, size_t len) {
 	aloL_bcheck(T, buf, len);
 	memcpy(buf->buf + buf->len, src, len);
-	buf->len += len;
+	aloL_blen(buf) += len;
 }
 
 void aloL_bputs(astate T, ambuf_t* buf, astr src) {
 	aloL_bputls(T, buf, src, strlen(src));
+}
+
+void aloL_breptc(astate T, ambuf_t* buf, astr src, int tar, int rep) {
+	size_t len = strlen(src);
+	aloL_bcheck(T, buf, len);
+	abyte* d = aloL_braw(buf);
+	astr p = src;
+	astr q;
+	while ((q = strchr(p, tar))) {
+		size_t n = q - p;
+		memcpy(d, p, n);
+		d += n;
+		*(d++) = aloE_byte(rep);
+		p = q + 1;
+	}
+	memcpy(d, p, src + len - p);
+	aloL_blen(buf) += len;
+}
+
+void aloL_brepts(astate T, ambuf_t* buf, astr src, astr tar, astr rep) {
+	size_t l1 = strlen(tar);
+	size_t l2 = strlen(rep);
+	astr p = src;
+	astr q;
+	while ((q = strstr(p, tar))) {
+		aloL_bputls(T, buf, p, q - p);
+		aloL_bputls(T, buf, rep, l2);
+		p = q + l1;
+	}
+	aloL_bputs(T, buf, p);
 }
 
 void aloL_bputf(astate T, ambuf_t* buf, astr fmt, ...) {
@@ -558,7 +581,7 @@ void aloL_bwrite(astate T, ambuf_t* buf, ssize_t index) {
 }
 
 astr aloL_bpushstring(astate T, ambuf_t* buf) {
-	return alo_pushlstring(T, aloE_cast(char*, buf->buf), buf->len / sizeof(char));
+	return alo_pushlstring(T, aloE_cast(char*, aloL_braw(buf)), aloL_blen(buf) / sizeof(char));
 }
 
 int aloL_bwriter(astate T, void* buf, const void* src, size_t len) {

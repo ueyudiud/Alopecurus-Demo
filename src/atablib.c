@@ -166,7 +166,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_tablib(astate T) {
+int aloopen_tab(astate T) {
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TTABLE);
 	aloL_setfuns(T, -1, mod_funcs);

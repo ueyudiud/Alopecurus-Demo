@@ -244,7 +244,8 @@ ALO_API void alo_pushbuf(astate, ambuf_t*);
 ALO_API void alo_growbuf(astate, ambuf_t*, size_t);
 ALO_API void alo_popbuf(astate, ambuf_t*);
 
-#define alo_newbuf(name) ambuf_t name = ((ambuf_t) { { ALO_MBUF_SHTLEN, 0, name.instk }, NULL, {} })
+#define alo_newbuf(T,n) \
+	ambuf_t n##$data, *n = (alo_pushbuf(T, &n##$data), &n##$data)
 
 /**
  ** debugger

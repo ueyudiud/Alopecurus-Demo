@@ -101,7 +101,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_clslib(astate T) {
+int aloopen_cls(astate T) {
 	alo_bind(T, "class.meta.__new", class_meta_new);
 	alo_bind(T, "class.meta.__nidx", class_meta_newindex);
 	alo_newtable(T, 16);

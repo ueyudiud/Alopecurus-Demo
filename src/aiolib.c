@@ -334,7 +334,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_iolib(astate T) {
+int aloopen_io(astate T) {
 	alo_bind(T, "io.open", io_open);
 	alo_bind(T, "io.meta.__idx", io_index);
 	alo_bind(T, "file.flush", f_flush);
