@@ -10,7 +10,7 @@
 #ifndef ALO_H_
 #define ALO_H_
 
-#define ALO
+#define ALO ALO_VERSION_NUM
 
 #define ALO_VERSION_MAJOR	"0"
 #define ALO_VERSION_MINOR	"2"
