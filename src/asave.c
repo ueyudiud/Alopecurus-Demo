@@ -11,8 +11,8 @@
 #define ALO_CORE
 
 #include "astr.h"
+#include "astate.h"
 #include "aload.h"
-#include "alo.h"
 
 typedef struct {
 	astate T;
