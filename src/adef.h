@@ -121,7 +121,7 @@ enum { /* operation tags */
  ** thread states.
  */
 enum {
-	ThreadStateRun,
+	ThreadStateRun = 0,
 	ThreadStateYield,
 	ThreadStateErrRuntime,
 	ThreadStateErrSerialize,

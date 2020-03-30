@@ -45,7 +45,6 @@ typedef struct alo_JumpBuf ajmp_t;
 struct alo_JumpBuf {
 	ajmp_t* prev;
 	jmp_buf buf;
-	volatile int status;
 };
 
 /**
@@ -160,24 +159,39 @@ extern const aver_t aloR_version;
 #define api_incrtop(T) (api_check(T, (T)->top < (T)->frame->top, "stack overflow"), (T)->top++)
 #define api_decrtop(T) (api_check(T, (T)->top > (T)->frame->fun, "arguments not enough"), --(T)->top)
 
-/* users' thread opening function declaration */
+/* user defined thread opening function */
 #if !defined(aloi_openthread)
 #define aloi_openthread(T,from) aloE_void(T)
 #endif
 
-/* users' thread closing function declaration */
+/* user defined thread closing function */
 #if !defined(aloi_closethread)
 #define aloi_closethread(T) aloE_void(T)
 #endif
 
-/* users' thread yielding function declaration */
+/* user defined thread yielding function */
 #if !defined(aloi_yieldthread)
 #define aloi_yieldthread(T,n) aloE_void(T)
 #endif
 
-/* users' thread resuming function declaration */
+/* user defined thread resuming function */
 #if !defined(aloi_resumethread)
 #define aloi_resumethread(T,n) aloE_void(T)
+#endif
+
+/* user defined try function */
+#if !defined(aloi_try)
+#define aloi_try(T,b,p) ({ aloE_void(T); volatile int $status = setjmp((b).buf); if ($status == ThreadStateRun) { p; } $status; })
+#endif
+
+/* user defined throw function */
+#if !defined(aloi_throw)
+#define aloi_throw(T,b,s) ({ aloE_void(T); longjmp((b).buf, s); })
+#endif
+
+/* user defined yield function */
+#if !defined(aloi_yield)
+#define aloi_yield(T,b) ({ aloE_void(T); longjmp((b).buf, ThreadStateYield); })
 #endif
 
 #endif /* ART_H_ */

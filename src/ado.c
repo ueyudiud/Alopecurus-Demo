@@ -147,17 +147,14 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
 	/* initialize jump label */
 	ajmp_t label;
 	label.prev = T->label;
-	label.status = ThreadStateRun;
 	T->label = &label;
 	/* run protected function */
-	if (setjmp(label.buf) == 0) {
-		fun(T, ctx);
-	}
+	int status = aloi_try(T, label, fun(T, ctx));
 	/* restore old thread state */
 	T->label = label.prev;
 	T->nccall = nccall;
 	T->memstk.top = mbuf; /* revert memory buffer */
-	return label.status;
+	return status;
 }
 
 /**
@@ -167,8 +164,7 @@ anoret aloD_throw(astate T, int status) {
 	aloE_assert(status >= ThreadStateErrRuntime, "can only throw error status by this function.");
 	rethrow:
 	if (T->label) {
-		T->label->status = status;
-		longjmp(T->label->buf, 1);
+		aloi_throw(T, *T->label, status);
 	}
 	else { /* no error handler in current thread */
 		T->status = aloE_byte(status);
@@ -582,8 +578,8 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 	}
 	T->status = ThreadStateYield;
 	aloi_yieldthread(T, nres); /* call user's yield action */
-	if (frame->falo) { //TODO
-		aloU_rterror(T, "not implemented yet.");
+	if (frame->falo) {
+		aloU_rterror(T, "can not yield in hook.");
 	}
 	else {
 		aloE_assert(T->label, "missing resume label.");
@@ -600,8 +596,7 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 		frame->fun = T->top - nres;
 		frame->top = T->top;
 		frame->flags = 0;
-		T->label->status = ThreadStateYield;
-		longjmp(T->label->buf, 1);
+		aloi_yield(T, *T->label);
 	}
 }
 
