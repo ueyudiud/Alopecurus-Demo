@@ -169,7 +169,7 @@ static void savefun(O* out, const aproto_t* p, astring_t* psrc) {
 
 static void saveheader(O* out) {
 	savel(out, ALOZ_SIGNATURE);
-	saveversion(out, aloR_version);
+	saveversion(out, out->T->g->version);
 	saveu8(out, ALOZ_FORMAT);
 	savel(out, ALOZ_DATA);
 	savek(out, ALOZ_INT);

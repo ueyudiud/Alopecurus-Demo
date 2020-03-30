@@ -131,12 +131,26 @@ enum {
 	ThreadStateErrError
 };
 
+/* option for multiple returns in 'alo_call' and 'alo_pcall' */
 #define ALO_MULTIRET (-1)
 
+/* initialized value for iterator in 'alo_ibegin' */
 #define ALO_ITERATE_BEGIN (-1)
 
+/**
+ ** numeric type property getter.
+ ** common available property keys: MAX, MIN
+ */
 #define ALO_INT_PROP(field) INT64_##field
 #define ALO_FLT_PROP(field) DBL_##field
+
+/**
+ ** macro derived macros
+ */
+
+#define aloE_apply(f,x...) f(x)
+#define aloE_1(e1,...) e1
+#define aloE_2(e1,e2,...) e2
 
 /**
  ** useful macros

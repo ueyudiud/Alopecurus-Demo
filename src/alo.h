@@ -10,11 +10,11 @@
 #ifndef ALO_H_
 #define ALO_H_
 
-#define ALO ALO_VERSION_NUM
+#define ALO aloE_vernum
 
 #define ALO_VERSION_MAJOR	"0"
 #define ALO_VERSION_MINOR	"2"
-#define ALO_VERSION_NUM		2
+#define ALO_VERSION_NUM		0, 2
 #define ALO_VERSION_RELEASE	"0"
 
 #define ALO_NAME "Alopecurus"
@@ -25,6 +25,14 @@
 
 #include "adef.h"
 #include "acfg.h"
+
+/**
+ ** version number declaration
+ */
+
+#define aloE_vermajor aloE_apply(aloE_1, ALO_VERSION_NUM)
+#define aloE_verminor aloE_apply(aloE_2, ALO_VERSION_NUM)
+#define aloE_vernum (aloE_vermajor * 100 + aloE_verminor)
 
 /**
  ** the ALO_API marked for API functions.
