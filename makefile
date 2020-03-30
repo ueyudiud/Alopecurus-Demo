@@ -6,10 +6,10 @@ export V= 0.2
 
 ifndef (SHELL)
 	ifeq ($(OS),Windows_NT)
-		MAKE_SUB= $(MAKE) -f makefile_cmd
+		MAKE_SUB= $(MAKE) -f cmd.mk
 		
 	else
-		MAKE_SUB= $(MAKE) -f makefile_shl
+		MAKE_SUB= $(MAKE) -f shl.mk
 	endif
 endif
 
