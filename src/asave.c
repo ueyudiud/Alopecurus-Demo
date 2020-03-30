@@ -71,8 +71,8 @@ static void savestr(O* out, astring_t* s) {
 	}
 }
 
-static void saveversion(O* out, abyte major, abyte minor) {
-	savek(out, aloE_byte(major * 16 + minor));
+static void saveversion(O* out, aver_t version) {
+	savek(out, aloE_byte(version.major * 16 + version.minor));
 }
 
 static void saveconsts(O* out, const aproto_t* p) {
@@ -169,7 +169,7 @@ static void savefun(O* out, const aproto_t* p, astring_t* psrc) {
 
 static void saveheader(O* out) {
 	savel(out, ALOZ_SIGNATURE);
-	saveversion(out, ALO_VERSION_NUM);
+	saveversion(out, aloR_version);
 	saveu8(out, ALOZ_FORMAT);
 	savel(out, ALOZ_DATA);
 	savek(out, ALOZ_INT);

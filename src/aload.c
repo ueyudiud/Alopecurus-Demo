@@ -245,7 +245,7 @@ static void checkhead(I* in) {
 	checkl(in, ALOZ_SIGNATURE, "not a");
 	checkversion(in);
 	if (loadu8(in) != ALOZ_FORMAT) {
-		error(in, "format mismatch in ");
+		error(in, "format mismatch in");
 	}
 	checkl(in, ALOZ_DATA, "corrupted");
 	if (loadt(in, aint) != ALOZ_INT) {
