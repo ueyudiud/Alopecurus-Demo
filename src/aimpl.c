@@ -50,6 +50,10 @@ void alo_bind(astate T, astr name, acfun handle) {
 	aloU_bind(T, handle, aloS_newi(T, name, strlen(name)));
 }
 
+const aver_t* alo_version(astate T) {
+	return T ? &T->g->version : &aloR_version;
+}
+
 #define isinstk(index) ((index) > ALO_GLOBAL_IDNEX)
 #define stackoff(top,base) (api_check(T, (top) >= (base), "illegal stack"), aloE_cast(size_t, (top) - (base)))
 

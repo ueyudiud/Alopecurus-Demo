@@ -10,10 +10,12 @@
 #ifndef ALO_H_
 #define ALO_H_
 
+#define ALO 200
+
 #define ALO_VERSION_MAJOR	"0"
-#define ALO_VERSION_MINOR	"1"
-#define ALO_VERSION_NUM		0, 1
-#define ALO_VERSION_RELEASE	"4"
+#define ALO_VERSION_MINOR	"2"
+#define ALO_VERSION_NUM		0, 2
+#define ALO_VERSION_RELEASE	"0"
 
 #define ALO_NAME "Alopecurus"
 #define ALO_VERSION ALO_NAME" "ALO_VERSION_MAJOR"."ALO_VERSION_MINOR
@@ -58,6 +60,8 @@ ALO_API void alo_setpanic(astate, acfun);
 ALO_API aalloc alo_getalloc(astate, void**);
 ALO_API void alo_setalloc(astate, aalloc, void*);
 ALO_API void alo_bind(astate, astr, acfun);
+
+ALO_API const aver_t* alo_version(astate);
 
 /**
  ** basic stack manipulation
