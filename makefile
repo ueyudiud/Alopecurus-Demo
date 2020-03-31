@@ -13,10 +13,13 @@ ifndef (SHELL)
 	endif
 endif
 
-default:  build
+default: build
 
 build:
 	cd src && $(MAKE) all
+
+test: build
+	cd src && alo -v
 
 clean:
 	cd src && $(MAKE) clean
