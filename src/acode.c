@@ -458,7 +458,7 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 		aloE_assert(ss[i].type == SYMBOL_LOC, "unexpected variable type.");
 		if (ss[i].name == name) { /* find symbol in table */
 			e->t = E_LOCAL;
-			e->v.g = ss[i].index; /* get symbol index */
+			e->v.g = f->p->locvars[ss[i].index].index; /* get register index */
 			return true;
 		}
 	}

@@ -229,7 +229,7 @@ static void leaveblock(afstat_t* f) {
 	ablock_t* b = f->b;
 	asymbol* symbols = f->d->ss.a + f->firstlocal;
 	for (size_t i = b->nallvar; i < f->nactvar; ++i) {
-		if (symbols[i].type != SYMBOL_VAR) {
+		if (symbols[i].type == SYMBOL_LOC) {
 			f->p->locvars[symbols[i].index].end = f->ncode; /* settle end pc */
 		}
 	}
