@@ -637,17 +637,14 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_NEWA: {
 			askid_t s = R(B);
-			size_t n = GET_C(I);
-			if (GET_xC(I)) {
-				size_t m = n;
+			int n = GET_C(I) - 1;
+			if (n == ALO_MULTIRET) {
 				n = T->top - s;
-				if (m && m - 1 != n) {
-					break;
-				}
-				T->top = frame->top;
 			}
 			tsettup(T, S(A), aloA_new(T, n, s));
-			checkGC(T, s);
+			T->top = frame->top;
+			s = R(B);
+			checkGC(T, s == S(A) ? s + 1 : s);
 			break;
 		}
 		case OP_NEWL: {

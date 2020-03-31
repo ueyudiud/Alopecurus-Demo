@@ -458,7 +458,7 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 		aloE_assert(ss[i].type == SYMBOL_LOC, "unexpected variable type.");
 		if (ss[i].name == name) { /* find symbol in table */
 			e->t = E_LOCAL;
-			e->v.g = i;
+			e->v.g = ss[i].index; /* get symbol index */
 			return true;
 		}
 	}
@@ -687,11 +687,13 @@ void aloK_unbox(afstat_t* f, aestat_t* e, int narg) {
 }
 
 void aloK_boxt(afstat_t* f, aestat_t* e, int narg) {
-	aloK_putreg(f, e);
-	if (e->v.g >= f->nactvar) {
-		f->freelocal -= narg;
+	int multi = false;
+	if ((e)->t == E_VARARG || (e)->t == E_UNBOX || (e)->t == E_CALL) {
+		aloK_multiret(f, e);
+		multi = true;
 	}
-	e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, e->v.g - narg + 1, narg);
+	aloK_nextreg(f, e);
+	e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, e->v.g - narg + 1, (multi ? ALO_MULTIRET : narg) + 1);
 	e->t = E_ALLOC;
 }
 
