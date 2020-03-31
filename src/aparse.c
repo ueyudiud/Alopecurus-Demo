@@ -537,24 +537,58 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 	afstat_t* f = lex->f;
 	int n;
 	int line;
+	int lbnil = NO_JUMP;
 	while (true) {
 		switch (lex->ct.t) {
-		case '.': { /* suffix -> '.' ['?'] IDENT */
+		case '.': { /* suffix -> '.' IDENT */
 			poll(lex); /* skip '.' */
 			initexp(&e2, E_STRING);
 			e2.v.s = testident(lex);
 			aloK_member(f, e, &e2);
 			break;
 		}
-		case '[': { /* suffix -> '[' expr ']' */
+		case '[': { /* suffix -> '[' (expr | '?' expr [':' expr]) ']' */
 			int line = lex->cl;
 			do {
 				poll(lex); /* skip '[' or ',' */
-				expr(lex, &e2);
-				aloK_member(f, e, &e2);
+				if (checknext(lex, '?')) {
+					int line2 = lex->cl;
+					expr(lex, &e2);
+					aloK_member(f, e, &e2);
+					aloK_gwt(f, e);
+					aloK_fixline(f, line2);
+					aloK_reuse(f, e);
+					int label1 = e->lf;
+					e->lf = NO_JUMP;
+					int label2 = aloK_jumpforward(f, NO_JUMP);
+					aloK_putlabel(f, label1);
+					if (checknext(lex, ':')) {
+						expr(lex, &e2);
+						aloK_move(f, &e2, e->v.g);
+					}
+					else {
+						aloK_loadnil(f, e->v.g, 1);
+					}
+					aloK_putlabel(f, label2);
+				}
+				else {
+					expr(lex, &e2);
+					aloK_member(f, e, &e2);
+				}
 			}
 			while (check(lex, ','));
 			testenclose(lex, '[', ']', line);
+			break;
+		}
+		case TK_QCOL: { /* suffix -> '?.' IDENT */
+			poll(lex); /* skip '?.' */
+			aloK_gwt(f, e);
+			aloK_reuse(f, e);
+			lbnil = e->lf;
+			e->lf = NO_JUMP;
+			initexp(&e2, E_STRING);
+			e2.v.s = testident(lex);
+			aloK_member(f, e, &e2);
 			break;
 		}
 		case TK_RARR: { /* suffix -> '->' IDENT [funargs] */
@@ -591,6 +625,13 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			break;
 		}
 		default:
+			if (lbnil != NO_JUMP) {
+				aloK_nextreg(f, e);
+				int lbend = aloK_jumpforward(f, NO_JUMP);
+				aloK_putlabel(f, lbnil);
+				aloK_loadnil(f, e->v.g, 1);
+				aloK_putlabel(f, lbend);
+			}
 			return;
 		}
 	}

@@ -275,12 +275,10 @@ static void freeexp(afstat_t* f, aestat_t* e) {
 	}
 }
 
-static void fixR(afstat_t*, aestat_t*, int);
-
 static void newR(afstat_t* f, aestat_t* e) {
 	aloK_checkstack(f, 1);
 	int index = f->freelocal;
-	fixR(f, e, index);
+	aloK_move(f, e, index);
 	aloE_xassert(f->freelocal == index);
 	f->freelocal++;
 }
@@ -374,48 +372,6 @@ static void fixregaux(afstat_t* f, aestat_t* e, int reg) {
 		aloE_assert(e->t == E_JMP, "illegal type.");
 		break;
 	}
-}
-
-static void fixR(afstat_t* f, aestat_t* e, int reg) {
-	if (e->t == E_JMP) {
-		linkcjmp(f, &e->lf, e->v.g);
-	}
-	int end;
-	if (hasjump(e)) {
-		switch (e->t) {
-		case E_TRUE:
-			aloK_putlabel(f, e->lt);
-			e->lt = NO_JUMP;
-			loadbool(f, reg, true);
-			end = aloK_jumpforward(f, NO_JUMP);
-			goto next;
-		case E_FALSE:
-			aloK_putlabel(f, e->lf);
-			e->lf = NO_JUMP;
-			loadbool(f, reg, false);
-			end = aloK_jumpforward(f, NO_JUMP);
-			goto next;
-		}
-	}
-	fixregaux(f, e, reg);
-	if (hasjump(e)) {
-		end = NO_JUMP;
-		next:
-		if (e->lt != NO_JUMP || e->t == E_JMP) {
-			aloK_putlabel(f, e->lt);
-			loadbool(f, reg, true);
-			if (e->lf != NO_JUMP)
-				end = aloK_jumpforward(f, end);
-		}
-		if (e->lf != NO_JUMP) {
-			aloK_putlabel(f, e->lf);
-			loadbool(f, reg, false);
-		}
-		aloK_putlabel(f, end);
-	}
-	e->lf = e->lt = NO_JUMP;
-	e->v.g = reg;
-	e->t = E_FIXED;
 }
 
 /**
@@ -828,7 +784,45 @@ void aloK_gwf(afstat_t* f, aestat_t* e) {
 }
 
 void aloK_move(afstat_t* f, aestat_t* e, int reg) {
-	fixR(f, e, reg);
+	if (e->t == E_JMP) {
+		linkcjmp(f, &e->lf, e->v.g);
+	}
+	int end;
+	if (hasjump(e)) {
+		switch (e->t) {
+		case E_TRUE:
+			aloK_putlabel(f, e->lt);
+			e->lt = NO_JUMP;
+			loadbool(f, reg, true);
+			end = aloK_jumpforward(f, NO_JUMP);
+			goto next;
+		case E_FALSE:
+			aloK_putlabel(f, e->lf);
+			e->lf = NO_JUMP;
+			loadbool(f, reg, false);
+			end = aloK_jumpforward(f, NO_JUMP);
+			goto next;
+		}
+	}
+	fixregaux(f, e, reg);
+	if (hasjump(e)) {
+		end = NO_JUMP;
+		next:
+		if (e->lt != NO_JUMP || e->t == E_JMP) {
+			aloK_putlabel(f, e->lt);
+			loadbool(f, reg, true);
+			if (e->lf != NO_JUMP)
+				end = aloK_jumpforward(f, end);
+		}
+		if (e->lf != NO_JUMP) {
+			aloK_putlabel(f, e->lf);
+			loadbool(f, reg, false);
+		}
+		aloK_putlabel(f, end);
+	}
+	e->lf = e->lt = NO_JUMP;
+	e->v.g = reg;
+	e->t = E_FIXED;
 }
 
 void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
@@ -836,13 +830,13 @@ void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
 	switch (r->t) {
 	case E_LOCAL: {
 		index = aloK_setstack(r->v.g);
-		fixR(f, v, index);
+		aloK_move(f, v, index);
 		r->t = E_FIXED;
 		break;
 	}
 	case E_CAPTURE: {
 		index = aloK_setcapture(r->v.g + 1);
-		fixR(f, v, index);
+		aloK_move(f, v, index);
 		r->t = E_FIXED;
 		r->v.g = index;
 		break;

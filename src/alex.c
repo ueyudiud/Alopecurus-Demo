@@ -519,6 +519,13 @@ static int peek(alexer_t* lex, union alo_TokenData* data) {
 			return TK_NE;
 		}
 		return '!';
+	case '?':
+		switch (lgetc(lex)) {
+		case '.':
+			lgetc(lex);
+			return TK_QCOL;
+		}
+		return '?';
 	case '\r': {
 		if (lgetc(lex) == '\n') { /* '\r\n' */
 			lgetc(lex);
