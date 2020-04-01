@@ -234,40 +234,49 @@ static int f_setbuf(astate T) {
 	return aloL_errresult(T, setvbuf(file->stream, NULL, masks[id], size) == 0, NULL);
 }
 
+static int aux_lines(astate T, __attribute__((unused)) int status, void* context) {
+	afile* file = aloE_cast(afile*, context);
+	aloL_usebuf(T, buf) {
+		while (!feof(file->stream)) {
+			l_lockstream(file->stream);
+			l_getline(T, file, buf);
+			l_unlockstream(file->stream);
+			aloL_bpushstring(T, buf);
+			aloL_blen(buf) = 0; /* rewind buffer */
+			alo_push(T, 1); /* push function */
+			alo_push(T, -2); /* push string */
+			alo_callk(T, 1, 0, aux_lines, file);
+		}
+	}
+	return 0;
+}
+
 /**
  ** transform file to lines input, and apply by function if present.
  */
 static int f_lines(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	int n = alo_gettop(T) < 2;
-	aloL_usebuf(T, buf) {
-		l_lockstream(file->stream);
-		if (!n) {
-			aloL_checkcall(T, 1); /* check function */
-			while (!feof(file->stream)) {
-				l_getline(T, file, buf);
-				aloL_bpushstring(T, buf);
-				aloL_blen(buf) = 0; /* rewind buffer */
-				alo_push(T, 1); /* push function */
-				alo_push(T, -2); /* push string */
-				alo_call(T, 1, 0);
-			}
-		}
-		else {
-			alo_newlist(T, 0); /* create new line list */
-			int index = 0;
+	if (alo_gettop(T) >= 2) {
+		aloL_checkcall(T, 1); /* check function */
+		return aux_lines(T, ThreadStateRun, file); /* invoke by auxiliary function */
+	}
+	else {
+		alo_newlist(T, 0); /* create new line list */
+		int index = 0;
+		aloL_usebuf(T, buf) {
+			l_lockstream(file->stream);
 			while (!feof(file->stream)) {
 				l_getline(T, file, buf);
 				aloL_bpushstring(T, buf);
 				alo_rawseti(T, 1, index++); /* add string to list */
 				aloL_blen(buf) = 0; /* rewind buffer */
 			}
+			l_unlockstream(file->stream);
 			alo_push(T, 1);
 		}
-		l_unlockstream(file->stream);
+		return 1;
 	}
-	return n;
 }
 
 /**
