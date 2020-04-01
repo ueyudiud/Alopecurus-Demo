@@ -2,4 +2,4 @@ language: C
 compiler: 
     - gcc
 script:
-    - make -C ./src all
+    - make test
