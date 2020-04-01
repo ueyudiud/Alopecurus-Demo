@@ -19,7 +19,7 @@ build:
 	cd src && $(MAKE) all
 
 test: build
-	cd src && alo -v
+	src/alo -v
 
 clean:
 	cd src && $(MAKE) clean
