@@ -12,7 +12,6 @@
 #include "aaux.h"
 #include "alibs.h"
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>

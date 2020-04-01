@@ -19,11 +19,9 @@
 #include "adebug.h"
 
 #include <inttypes.h>
-#include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <math.h>
 
 ALO_VDEF const atval_t aloO_nil = tnewnil();

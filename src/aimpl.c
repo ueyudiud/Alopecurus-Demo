@@ -24,7 +24,6 @@
 #include "aload.h"
 #include "alo.h"
 
-#include <stdarg.h>
 #include <string.h>
 
 void alo_setpanic(astate T, acfun panic) {

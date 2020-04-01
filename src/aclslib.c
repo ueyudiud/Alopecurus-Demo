@@ -14,8 +14,6 @@
 #include "aaux.h"
 #include "alibs.h"
 
-#include <string.h>
-
 /**
  ** create new class.
  ** prototype: class.meta.__new(classes, name, parents...)

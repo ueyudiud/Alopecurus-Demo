@@ -14,8 +14,8 @@
 #include "aaux.h"
 #include "alibs.h"
 
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define PI 3.1415926535897932384626433832795
 #define E 2.7182818284590452353602874713527

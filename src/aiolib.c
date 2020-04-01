@@ -133,13 +133,30 @@ static int f_line(astate T) {
 	return 1;
 }
 
+static int f_get(astate T) {
+	afile* file = self(T);
+	l_checkopen(T, file);
+	size_t l = aloL_checkinteger(T, 1);
+	aloL_usebuf(T, buf) {
+		aloL_bcheck(T, buf, l);
+		if ((buf->len = fread(aloL_braw(buf), sizeof(char), l, file->stream)) > 0 || !ferror((file->stream))) {
+			aloL_bpushstring(T, buf);
+		}
+		else {
+			alo_popbuf(T, buf); /* pop buffer before return */
+			return aloL_errresult_(T, NULL);
+		}
+	}
+	return 1;
+}
+
 static int f_put(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t l;
 	astr s = aloL_tostring(T, 1, &l);
-	fwrite(s, sizeof(char), l, file->stream);
-	return 0;
+	size_t a = fwrite(s, sizeof(char), l, file->stream);
+	return aloL_errresult(T, l == a, NULL);
 }
 
 static int f_puts(astate T) {
@@ -180,10 +197,8 @@ static int f_err(astate T) {
 static int f_close(astate T) {
 	afile* file = self(T);
 	if (file->closer) {
-		l_lockstream(file->stream);
 		file->closer(file->stream);
 		file->closer = NULL;
-		l_unlockstream(file->stream);
 	}
 	return 0;
 }
@@ -314,6 +329,7 @@ static const acreg_t cls_funcs[] = {
 	{ "eof", f_eof },
 	{ "err", f_err },
 	{ "flush", f_flush },
+	{ "get", f_get },
 	{ "getc", f_getc },
 	{ "line", f_line },
 	{ "isclosed", f_isclosed },

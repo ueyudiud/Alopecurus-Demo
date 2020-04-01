@@ -14,7 +14,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
 
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
