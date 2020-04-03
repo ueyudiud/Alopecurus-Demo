@@ -6,23 +6,23 @@ export V= 0.2
 
 ifndef (SHELL)
 	ifeq ($(OS),Windows_NT)
-		MAKE_SUB= $(MAKE) -f cmd.mk
+		MAKE_SUB= "$(MAKE)" -f cmd.mk
 		
 	else
-		MAKE_SUB= $(MAKE) -f shl.mk
+		MAKE_SUB= "$(MAKE)" -f shl.mk
 	endif
 endif
 
 default: build
 
 build:
-	cd src && $(MAKE) all
+	cd src && "$(MAKE)" all
 
 test: build
 	src/alo -v
 
 clean:
-	cd src && $(MAKE) clean
+	cd src && "$(MAKE)" clean
 
 install: build
 	$(MAKE_SUB) install

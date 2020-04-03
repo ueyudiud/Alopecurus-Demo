@@ -153,9 +153,13 @@ static int f_get(astate T) {
 static int f_put(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
-	size_t l;
-	astr s = aloL_tostring(T, 1, &l);
-	size_t a = fwrite(s, sizeof(char), l, file->stream);
+	int type = alo_typeid(T, 1);
+	if (type != ALO_TSTRING && type != ALO_TRAWDATA) {
+		aloL_argerror(T, 1, "type is not writable, got: %s", alo_typename(T, 1));
+	}
+	size_t l = alo_rawlen(T, 1);
+	const void* p = alo_rawptr(T, 1);
+	size_t a = fwrite(p, 1, l, file->stream);
 	return aloL_errresult(T, l == a, NULL);
 }
 
@@ -163,7 +167,7 @@ static int f_puts(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t l;
-	const char* s = aloL_checklstring(T, 1, &l);
+	const char* s = aloL_tostring(T, 1, &l);
 	fwrite(s, sizeof(char), l, file->stream);
 	aloL_fputln(file->stream);
 	return 0;
