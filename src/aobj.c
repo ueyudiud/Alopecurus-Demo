@@ -180,7 +180,7 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 					mfb >>= 1;
 				}
 				while (ch > mfb);
-				*p = ch & mfb; /* get first byte */
+				*p = (~mfb << 1 & 0xff) | (ch & mfb); /* get first byte */
 			}
 			write(T, writer, context, p, buf + UTF8BUFSIZE - p);
 			break;

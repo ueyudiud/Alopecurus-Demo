@@ -338,6 +338,7 @@ size_t alo_rawlen(astate T, ssize_t index) {
 	case ALO_TTUPLE  : return tgettup(o)->length;
 	case ALO_TLIST   : return tgetlis(o)->length;
 	case ALO_TTABLE  : return tgettab(o)->length;
+	case ALO_TRAWDATA: return tgetrdt(o)->length;
 	default          : return 0;
 	}
 }
