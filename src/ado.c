@@ -407,7 +407,6 @@ static void pcall_unsafe(astate T, void* context) {
 }
 
 int aloD_pcall(astate T, askid_t fun, int nres, ptrdiff_t ef) {
-	struct PCI pci = { fun, nres };
 	/* store current frame state */
 	aframe_t* const frame = T->frame;
 	uint16_t nxyield = T->nxyield;
@@ -415,7 +414,7 @@ int aloD_pcall(astate T, askid_t fun, int nres, ptrdiff_t ef) {
 	ptrdiff_t oldef = T->errfun;
 	ptrdiff_t oldtop = getstkoff(T, fun);
 	T->errfun = ef;
-	int status = aloD_prun(T, pcall_unsafe, &pci);
+	int status = aloD_prun(T, pcall_unsafe, &(struct PCI) { fun, nres });
 	if (status != ThreadStateRun) {
 		askid_t top = putstkoff(T, oldtop);
 		aloF_close(T, top);

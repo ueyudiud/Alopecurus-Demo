@@ -81,7 +81,6 @@ atable_t* aloT_getmt(const atval_t* o) {
  */
 static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* table, astring_t* name) {
 	aloE_assert(table, "meta table should not be NULL.");
-	atval_t temp = tnewstr(name);
 	const atval_t *result, *lookup;
 	Gd(T);
 	find:
@@ -103,7 +102,7 @@ static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* ta
 						result = aloH_getis(tgettab(i), name);
 						break; /* no tagged method found */
 					case ALO_TFUNCTION: { /* dynamic target */
-						callbin(T, i, self, &temp);
+						callbin(T, i, self, &tnewstr(name));
 						result = T->top;
 						break; /* no tagged method found */
 					}
@@ -118,7 +117,7 @@ static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* ta
 			break;
 		}
 		case ALO_TFUNCTION: {
-			callbin(T, lookup, self, &temp);
+			callbin(T, lookup, self, &tnewstr(name));
 			if (!ttisnil(T->top)) { /* find target? */
 				return T->top;
 			}
@@ -183,8 +182,7 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 					}
 					break; /* no tagged method found */
 				case ALO_TFUNCTION: { /* dynamic target */
-					atval_t t = tnewstr(G->stagnames[id]);
-					callbin(T, i, self, &t);
+					callbin(T, i, self, &tnewstr(G->stagnames[id]));
 					if (!ttisnil(T->top)) { /* find target? */
 						return T->top;
 					}
@@ -197,8 +195,7 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 			break;
 		}
 		case ALO_TFUNCTION: {
-			atval_t t = tnewstr(G->stagnames[id]);
-			callbin(T, lookup, self, &t);
+			callbin(T, lookup, self, &tnewstr(G->stagnames[id]));
 			if (!ttisnil(T->top)) { /* find target? */
 				return T->top;
 			}
