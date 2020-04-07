@@ -14,18 +14,29 @@ assert("\0\0\0" <= "\0\0\0")
 assert(#'' == 0)
 assert(#'alo' == 3)
 assert(#"alo\0alo" == 7)
+assert(#"\xff123" == 4)
 
 -- other function test
 
 assert('abc'->reverse() == 'cba')
 assert('abc'->repeat(3) == 'abcabcabc')
+assert("\0"->repeat(3) == "\0\0\0")
 assert("\tab c "->trim == 'ab c')
+assert(' '->trim == '')
 
 -- regular expression
 
 assert('abc'->match('abc'))
-assert('b+'->match('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
-assert('b?b?b?b?'->match('bb'))
-assert('\w+'->match('fj8eq0fjqifiqe0few'))
+assert('+b'->match('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'))
+assert('?b?b?b?b?b?b?b?b'->match('bbbbb'))
+assert('?b?b?b?b'->match('bb'))
+assert('+\w'->match('fj8eq0fjqifiqe0few'))
 assert('a|ab|abc'->match('ab'))
-assert('[abc]+'->match('abbca'))
+assert('+[abc]'->match('abbca'))
+
+assert('a*b'->matcher->replace('abababbabbb', '1') == '1111')
+assert('a*ba'->matcher->replace('cababac', 'd') == 'cdbac')
+assert('a*b'->matcher->replace('cccc', 'd') == 'cccc')
+assert('a?b'->matcher->replace('abaabb', '$0$0') == 'ababaaababb')
+
+assert('+abb|aabbb'->matcher->find('aaabbb') == 0)
