@@ -28,6 +28,9 @@
 
 #if defined(ALO_DEBUG)
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifndef alo_assert
 void alo_assert(astr msg, astr file, int line) {
 	fprintf(stderr, "%s:%d %s\n", file, line, msg);

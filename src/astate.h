@@ -95,7 +95,7 @@ typedef struct alo_Global {
 } aglobal_t;
 
 /*  get total memory used by VM. */
-#define totalmem(G) ((G)->mbase + (G)->mdebt)
+#define totalmem(G) aloE_cast(size_t, (G)->mbase + (G)->mdebt)
 
 /**
  ** function calling frame.

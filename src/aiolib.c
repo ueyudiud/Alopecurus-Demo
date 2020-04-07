@@ -246,7 +246,7 @@ static int aux_lines(astate T, __attribute__((unused)) int status, void* context
 			l_getline(T, file, buf);
 			l_unlockstream(file->stream);
 			aloL_bpushstring(T, buf);
-			aloL_blen(buf) = 0; /* rewind buffer */
+			aloL_bclean(buf); /* rewind buffer */
 			alo_push(T, 1); /* push function */
 			alo_push(T, -2); /* push string */
 			alo_callk(T, 1, 0, aux_lines, file);
@@ -274,7 +274,7 @@ static int f_lines(astate T) {
 				l_getline(T, file, buf);
 				aloL_bpushstring(T, buf);
 				alo_rawseti(T, 1, index++); /* add string to list */
-				aloL_blen(buf) = 0; /* rewind buffer */
+				aloL_bclean(buf); /* rewind buffer */
 			}
 			l_unlockstream(file->stream);
 			alo_push(T, 1);

@@ -111,7 +111,7 @@ atval_t* aloI_find(astate T, alist_t* self, const atval_t* index) {
 }
 
 void aloI_removei(__attribute__((unused)) astate T, alist_t* self, aint index, atval_t* out) {
-	aloE_assert(0 <= index && index < self->length, "list index out of bound.");
+	aloE_assert(0 <= index && index < aloE_cast(aint, self->length), "list index out of bound.");
 	if (out) {
 		tsetobj(T, out, self->array + index);
 	}

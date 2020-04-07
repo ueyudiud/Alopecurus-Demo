@@ -355,7 +355,7 @@ static int remety(atable_t* self, aentry_t* entry) {
 void aloH_rawrem(astate T, atable_t* self, ptrdiff_t* pindex, atval_t* out) {
 	aloE_void(T);
 	size_t index = *pindex;
-	aloE_assert(0 <= index && index < self->capacity, "table index out of bound.");
+	aloE_assert(index < self->capacity, "table index out of bound.");
 	aentry_t* entry = self->array + index;
 	aloE_assert(!ttisnil(entry), "no entry exist.");
 	if (out) {

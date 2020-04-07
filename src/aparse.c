@@ -976,7 +976,7 @@ static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
 		aloE_assert(current + 1 == f->freelocal, "illegal argument count");
 		f->freelocal = current + v->nchild;
 		if (v->nchild > 0) { /* placce child variables */
-			int k = 0;
+			size_t k = 0;
 			int i = index + 1;
 			do {
 				v = f->d->cv.a + i;
@@ -1072,7 +1072,7 @@ static int caseassign(alexer_t* lex, int i) {
 	ctx.fail = NO_JUMP;
 	ctx.v = f->d->cv.a;
 	int act = f->nactvar;
-	int narg = 0;
+	size_t narg = 0;
 
 	do {
 		expr(lex, &ctx.e);

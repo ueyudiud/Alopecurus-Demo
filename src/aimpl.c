@@ -1006,10 +1006,13 @@ int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* k
 	api_checkelems(T, 1 + narg);
 	api_check(T, T->g->trun == T, "thread is not running.");
 	api_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
-	api_check(T, errfun == ALO_NOERRFUN || isinstk(errfun), "error function is not in stack.");
+	api_check(T, errfun == ALO_NOERRFUN || errfun == ALO_LASTERRFUN || isinstk(errfun),
+			"illegal error function index.");
 	aframe_t* const frame = T->frame;
 	askid_t fun = T->top - (narg + 1);
-	ptrdiff_t ef = errfun == ALO_NOERRFUN ? 0 : getstkoff(T, index2addr(T, errfun));
+	ptrdiff_t ef = errfun == ALO_NOERRFUN ? 0 :
+			errfun == ALO_LASTERRFUN ? T->errfun :
+			getstkoff(T, index2addr(T, errfun));
 	int status;
 	if (kfun == NULL || T->nxyield > 0) {
 		status = aloD_pcall(T, fun, nres, ef); /* call function in protection */

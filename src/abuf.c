@@ -20,7 +20,7 @@
 #define ALO_MAX_MEMORY_STACK_SIZE 10000000
 
 static int ifill(astate T, aibuf_t* buf) {
-	aloE_assert(stack->len == 0, "not reached to end of buffer yet.");
+	aloE_assert(buf->len == 0, "not reached to end of buffer yet.");
 	return buf->reader(T, buf->context, &buf->pos, &buf->len) || buf->len == 0;
 }
 
@@ -77,8 +77,8 @@ static void growstack(astate T, size_t required) {
 }
 
 static void growbuf(astate T, ambuf_t* buf, size_t size) {
-	aloE_assert(size > stack->data.cap, "growing is not required.");
-	aloE_assert(T->memstk.top == stack, "not on the top of stack.");
+	aloE_assert(size > buf->cap, "growing is not required.");
+	aloE_assert(T->memstk.top == buf, "not on the top of stack.");
 	size_t req = size + (buf->buf - T->memstk.base.buf);
 	if (req > T->memstk.base.cap) {
 		growstack(T, req);
@@ -115,15 +115,15 @@ int aloB_bwrite(astate T, void* context, const void* src, size_t len) {
 }
 
 void aloB_bgrow_(astate T, ambuf_t* buf) {
-	aloB_check(T, b);
-	aloE_assert(stack->data.len == stack->data.cap, "buffer not full filled.");
+	aloB_check(T, buf);
+	aloE_assert(buf->len == buf->cap, "buffer not full filled.");
 	aloB_lock(stack);
 	growbuf(T, buf, buf->cap + 1);
 	aloB_unlock(stack);
 }
 
 void aloB_puts(astate T, ambuf_t* buf, const char* src) {
-	aloB_check(T, stack);
+	aloB_check(T, buf);
 	aloB_bwrite(T, buf, src, strlen(src) * sizeof(char));
 }
 
@@ -144,6 +144,7 @@ void alo_popbuf(astate T, ambuf_t* buf) {
 	aloB_lock(stack);
 	api_check(T, buf == T->memstk.top, "not the top of memory stack.");
 	aloB_close(T, *buf);
-	buf->buf = NULL; /* force to close buffer */
+	buf->buf = NULL; /* avoid released memory be visited */
+	buf->prev = NULL; /* mark buffer released */
 	aloB_unlock(buf);
 }

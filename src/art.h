@@ -154,8 +154,8 @@ extern const aver_t aloR_version;
 #define api_check(T,e,m) aloE_assert(e, m)
 #endif
 
-#define api_checkelems(T,n) api_check(T, (n) <= (T)->top - ((T)->frame->fun + 1), "arguments not enough")
-#define api_checkslots(T,n) api_check(T, (n) <= (T)->frame->top - (T)->top, "stack overflow")
+#define api_checkelems(T,n) api_check(T, aloE_cast(ptrdiff_t, n) <= (T)->top - ((T)->frame->fun + 1), "arguments not enough")
+#define api_checkslots(T,n) api_check(T, aloE_cast(ptrdiff_t, n) <= (T)->frame->top - (T)->top, "stack overflow")
 #define api_incrtop(T) (api_check(T, (T)->top < (T)->frame->top, "stack overflow"), (T)->top++)
 #define api_decrtop(T) (api_check(T, (T)->top > (T)->frame->fun, "arguments not enough"), --(T)->top)
 
