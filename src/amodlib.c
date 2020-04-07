@@ -432,11 +432,11 @@ static int mod_import(astate T) {
 		alo_push(T, 0); /* push name */
 		alo_push(T, 1); /* push path */
 		alo_push(T, 3); /* push fail back message list */
-		if (alo_pcall(T, 3, 1, ALO_NOERRFUN) != ThreadStateRun) {
+		if (alo_pcall(T, 3, 1, ALO_LASTERRFUN) != ThreadStateRun) {
 			/* caught error */
 			astr msg = alo_tostring(T, -1);
-			alo_pushfstring(T, "module '%s' failed to load: %s", name, msg);
-			alo_error(T);
+			alo_pushfstring(T, "fail to load module '%s': %s", name, msg);
+			alo_throw(T);
 		}
 		if (alo_isnonnil(T, 4)) /* load success? */
 			goto success;

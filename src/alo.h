@@ -56,6 +56,7 @@
 #define ALO_CAPTURE_INDEX(x) (-ALO_MAXSTACKSIZE - 150000 + (x))
 
 #define ALO_NOERRFUN (-ALO_MAXSTACKSIZE - 50000)
+#define ALO_LASTERRFUN (-ALO_MAXSTACKSIZE - 100000)
 
 /**
  * state manipulation
@@ -229,6 +230,7 @@ ALO_API int alo_isyieldable(astate);
  */
 
 ALO_API anoret alo_error(astate);
+ALO_API anoret alo_throw(astate);
 
 /**
  ** miscellaneous functions.

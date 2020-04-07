@@ -68,46 +68,61 @@ static int compilec(astate T, astr name, int strict) {
 	return false;
 }
 
-#define MAXINPUT 1024
+#define MAXINPUT 1023
 
 /**
  ** read line from standard input stream.
  */
-static char* readline(astate T) {
-	static char buf[MAXINPUT + 1];
-	char* p = fgets(buf, MAXINPUT + 1, stdin);
-	if (p == NULL) {
-		if (feof(stdin)) {
-			alo_deletestate(T);
-			exit(EXIT_SUCCESS);
+static int readline(astate T, ambuf_t* buf) {
+	size_t l;
+	do {
+		aloL_bcheck(T, buf, MAXINPUT + 1);
+		char* p = fgets(aloL_btop(buf, char), MAXINPUT + 1, stdin);
+		if (p == NULL) {
+			/* read failed */
+			if (feof(stdin)) {
+				alo_deletestate(T);
+				exit(EXIT_SUCCESS);
+			}
+			l_err("fail to read line: %s", strerror(errno));
+			return false;
 		}
-		alo_pushstring(T, strerror(errno));
-		alo_error(T);
+		l = strlen(p);
+		aloL_blen(buf) += l * sizeof(char);
 	}
-	size_t l = strlen(p);
-	if (l == MAXINPUT + 1 && buf[MAXINPUT] != '\n') {
-		alo_pushstring(T, "script too long.");
-		alo_error(T);
-	}
-	buf[l - 1] = '\0';
-	return p;
+	while (l == MAXINPUT && /* reach to end of buffer? */
+			aloL_bgetc(buf, (aloL_blen(buf) - 1) / sizeof(char)) != '\n'); /* not read to end? */
+
+	return true;
 }
 
-static void loadscript(astate T, astr s) {
-	alo_pushstring(T, s);
-	alo_pushfstring(T, "return %s;", s);
-	if (!compilec(T, "main", false)) { /* try add return statement */
-		alo_push(T, 0);
-		while (!compilec(T, "main", true)) { /* unclosed statement, try multi-line statement */
-			alo_pushstring(T, "\n");
-			l_msg(">> ");
-			alo_pushstring(T, readline(T));
-			alo_rawcat(T, 3);
-			alo_push(T, 0);
+static int loadscript(astate T) {
+	int succ = false;
+	l_msg("> ");
+	aloL_usebuf(T, buf) {
+		if (readline(T, buf)) {
+			alo_pushfstring(T, "return %s;", aloL_b2str(T, buf));
+			if (!compilec(T, "main", false)) { /* try add return statement */
+				aloL_blen(buf) -= 1; /* remove '\0' character */
+				succ = true;
+				aloL_bpushstring(T, buf);
+				while (!compilec(T, "main", true)) { /* unclosed statement, attempt to read more */
+					l_msg(">> ");
+					if (!readline(T, buf)) {
+						succ = false;
+						break;
+					}
+					aloL_bpushstring(T, buf);
+				}
+			}
+			else {
+				succ = true;
+			}
+			alo_pop(T, 0);
+			alo_settop(T, 1);
 		}
 	}
-	alo_pop(T, 0);
-	alo_settop(T, 1);
+	return succ;
 }
 
 static void runscript(astate T) {
@@ -123,15 +138,14 @@ static void runscript(astate T) {
 }
 
 /**
- ** run script in console
+ ** do REPL in console
  */
 static int runc(astate T) {
 	while (true) {
-		l_msg("> ");
-		astr s = readline(T);
 		/* load and run run script */
-		loadscript(T, s);
-		runscript(T);
+		if (loadscript(T)) {
+			runscript(T);
+		}
 		alo_settop(T, 0);
 	}
 	return 0;
@@ -170,9 +184,12 @@ static int movedir(astr f) {
 	return chdir(path);
 }
 
+#define DEFAULT_LOG_DEPTH 5
+
 static astr prog;
 static astr srcpath;
 static astr rtpath;
+static int logdepth = DEFAULT_LOG_DEPTH;
 
 static void prtusage() {
 	l_msg(
@@ -181,13 +198,15 @@ static void prtusage() {
 			"  -h       show usage information\n"
 			"  -l name  import library 'name' into global scope\n"
 			"  -r dir   change working directory to 'dir'\n"
-			"  -v       show version information\n", prog);
+			"  -v       show version information\n"
+			"  -d depth set the max log stack trace depth (default is %d)\n", prog, DEFAULT_LOG_DEPTH);
 }
 
 #define has_err	0x0001 /* error */
 #define has_h	0x0002 /* -h */
 #define has_v	0x0004 /* -v */
 #define has_l	0x0008 /* -l exists */
+#define has_d	0x0010 /* -d level */
 
 static int check_args(int argc, const astr argv[]) {
 	prog = argv[0];
@@ -235,6 +254,22 @@ static int check_args(int argc, const astr argv[]) {
 			}
 			rtpath = argv[i];
 			break;
+		case 'd': {
+			if (argv[i][2] != '\0')
+				goto unknown;
+			if (mask & has_d) {
+				l_err("max stack trace depth already settled.");
+				return has_err;
+			}
+			mask |= has_d;
+			char* s;
+			logdepth = strtol(argv[++i], &s, 10);
+			if (*s || errno || logdepth < 0) {
+				l_err("illegal max stack trace depth: '%s'", argv[i]);
+				return has_err;
+			}
+			break;
+		}
 		default:
 			unknown:
 			l_err("unknown option '%s', insert '%s -h' to get more information.", argv[i], prog);
@@ -289,7 +324,10 @@ static int ferrmsg(astate T) {
 			break;
 		}
 	}
-	aloL_where(T, 16);
+	if (logdepth > 0) {
+		alo_pushfstring(T, "%s\nstack trace:", alo_tostring(T, -1));
+		aloL_where(T, logdepth);
+	}
 	return 1;
 }
 

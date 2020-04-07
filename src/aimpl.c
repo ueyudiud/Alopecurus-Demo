@@ -1083,6 +1083,11 @@ anoret alo_error(astate T) {
 	aloU_error(T, ThreadStateErrRuntime);
 }
 
+anoret alo_throw(astate T) {
+	api_checkelems(T, 1);
+	aloD_throw(T, ThreadStateErrRuntime);
+}
+
 size_t alo_memused(astate T) {
 	return totalmem(T->g);
 }
