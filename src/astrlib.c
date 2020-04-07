@@ -16,6 +16,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /**
@@ -181,60 +182,29 @@ static int str_char(astate T) {
 /* max match group number */
 #define MAX_GROUP_SIZE 64
 
-#define SIZE_i 4
-#define SIZE_A 14
-#define SIZE_B 14
-#define SIZE_Ax (SIZE_A + SIZE_B)
-
-#define POS_i 0
-#define POS_A (POS_i + SIZE_i)
-#define POS_B (POS_A + SIZE_A)
-#define POS_Ax POS_A
-
-#define GetVal(t,x) (((x) >> POS##t) & ((1ULL << SIZE##t) - 1))
-#define MaskVal(t,x) (((x) & ((1ULL << SIZE##t) - 1)) << POS##t)
-#define SetVal(s,t,x) ((s) = ((s) & ~(((1ULL << SIZE##t) - 1) << POS##t)) | MaskVal(t, x))
-
-#define u2s(x) ({ uint32_t $x = (x); ($x & (1ULL << (SIZE_A - 1))) ? aloE_cast(int32_t, $x) - (1LL << SIZE_A) : aloE_cast(int32_t, $x); })
-#define s2u(x) ({ typeof(x) $x = (x); $x < 0 ? (1ULL << SIZE_A) + aloE_cast(uint32_t, $x) : aloE_cast(uint32_t, $x); })
-
-#define geti(x)  GetVal(_i, x)
-#define getA(x)  GetVal(_A, x)
-#define getB(x)  GetVal(_B, x)
-#define getAx(x) GetVal(_Ax, x)
-
-#define seti(s,x)  SetVal(s, _i, x)
-#define setA(s,x)  SetVal(s, _A, x)
-#define setB(s,x)  SetVal(s, _B, x)
-#define setAx(s,x) SetVal(s, _Ax, x)
-
-#define maski(x)  MaskVal(_i, x)
-#define maskA(x)  MaskVal(_A, x)
-#define maskB(x)  MaskVal(_B, x)
-#define maskAx(x) MaskVal(_Ax, x)
-
-#define createi(i) maski(i)
-#define createiAx(i,Ax) (maski(i) | maskAx(Ax))
-#define createisAsB(i,A,B) (maski(i) | maskA(s2u(A)) | maskB(s2u(B)))
-
 /* matching group */
 typedef struct alo_MatchGroup {
 	astr begin, end; /* begin and end of matched string */
 } amgroup_t;
 
 enum {
-	MOP_NONE, /*     | do nothing */
-	MOP_RET,  /*     | return matching result */
-	MOP_PUSH, /* Ax  | push matching stack */
-	MOP_POP,  /* Ax  | pop matching stack */
-	MOP_TSTB, /*     | test begin of line */
-	MOP_TSTE, /*     | test end of line */
-	MOP_TSTC, /* Ax  | test a character */
-	MOP_TSTS, /* Ax  | test by character set */
-	MOP_TSTX, /* Ax  | test by negative character set */
-	MOP_TSTQ, /* Ax  | test character sequence */
-	MOP_SPT,  /* A B | split into two pattern, push B into jump stack then jump to A */
-	MOP_JMP,  /* A _ | jump to A */
+	RE_RET,
+	RE_CHKC,
+	RE_CHKS,
+	RE_CHKXS,
+	RE_CHKQ,
+	RE_CHKF,
+	RE_CHKL,
+	RE_REP,
+	RE_REPX,
+	RE_REPY,
+	RE_SPT,
+	RE_BEG,
+	RE_END,
+	RE_JMP,
+	RE_CNT,
+
+	RE_C_JMP
 };
 
 /* match state */
@@ -245,16 +215,24 @@ typedef struct alo_MatchState {
 	ambuf_t js; /* jump stack */
 } amstat_t;
 
+typedef struct {
+	int kind;
+	int arga;
+	int argb;
+} aminsn_t;
+
 typedef struct alo_MatchLabel {
-	uint32_t* to;
-	astr s;
+	aminsn_t* to;
+	int pos; /* position of string */
+	int cnt; /* counter */
 } amlabel_t;
 
-typedef struct alo_MatchFun {
-	uint32_t* codes;
+typedef struct {
+	aminsn_t* codes;
 	char* seq;
 	size_t len;
 	int ngroup;
+	int ncounter;
 	int ncode;
 } amfun_t;
 
@@ -263,16 +241,7 @@ typedef struct alo_MatchFun {
 
 #define sgetc(M,s) ((M)->send == (s) ? EOS : *((s)++))
 
-#define pushlabel(M) ({ \
-		aloL_bcheck((M)->T, &(M)->js, sizeof(amlabel_t) * 4); \
-		amlabel_t* $label = aloE_cast(amlabel_t*, aloL_braw(&(M)->js) + aloL_blen(&(M)->js)); \
-		aloL_blen(&(M)->js) += sizeof(amlabel_t); \
-		$label; })
-
-#define poplabel(M) \
-	(aloL_blen(&(M)->js) -= sizeof(amlabel_t), aloE_cast(amlabel_t*, aloL_braw(&(M)->js) + aloL_blen(&(M)->js)))
-
-static int match_class(int ch, int cl) {
+static int match_class(int cl, int ch) {
 	int res;
 	switch (cl | ('a' ^ 'A')) {
 	case 'a': res = isalpha(ch); break;
@@ -290,157 +259,202 @@ static int match_class(int ch, int cl) {
 	return ((cl) & ~('a' ^ 'A') ? res : !res);
 }
 
-static int match(amstat_t* M, amfun_t* f, const char* start, int full) {
-	alo_pushbuf(M->T, &M->js);
-	uint32_t* pc = f->codes;
-	const char* s = start;
-	mcheck:
-	switch (geti(*pc)) {
-	case MOP_NONE:
-		pc++;
-		goto mcheck;
-	case MOP_RET:
-		if (full && s != M->send)
-			goto mthrow;
-		alo_popbuf(M->T, &M->js);
-		return true;
-	case MOP_PUSH: {
-		M->groups[getAx(*pc)].begin = s;
-		pc++;
-		goto mcheck;
-	}
-	case MOP_POP: {
-		M->groups[getAx(*pc)].end = s;
-		pc++;
-		goto mcheck;
-	}
-	case MOP_TSTB:
-		if (s == M->sbegin || s[-1] == '\r' || s[-1] == '\n') {
-			pc++;
-			goto mcheck;
+#define MASK_FULL 0x0001
+
+static int match_set(astr p, int ch) {
+	if (ch != EOS) {
+		while (*p == '-') {
+			if (p[1] <= ch && ch <= p[2])
+				return true;
+			p += 3;
 		}
-		else
-			goto mthrow;
-	case MOP_TSTE: {
-		if (s == M->send || s[0] == '\r' || s[0] == '\n') {
-			pc++;
-			goto mcheck;
-		}
-		else
-			goto mthrow;
-	}
-	case MOP_TSTC: {
-		if (*(s++) != aloE_byte(getAx(*pc)))
-			goto mthrow;
-		pc++;
-		goto mcheck;
-	}
-	case MOP_TSTS: case MOP_TSTX: {
-		int mode = geti(*pc) == MOP_TSTS;
-		astr p = f->seq + getAx(*pc);
-		int ch = sgetc(M, s);
-		if (ch != EOS) {
-			while (*p) {
-				if (*p == '\\') {
-					if (match_class(*(p + 1), ch) == mode) {
-						pc++;
-						goto mcheck;
-					}
-					p += 1;
-				}
-				if (*(p + 1) == '-') {
-					if ((*p <= ch && ch <= *(p + 2)) == mode) {
-						pc++;
-						goto mcheck;
-					}
-					p += 3;
-				}
-				else {
-					if ((*p == ch) != mode) {
-						pc++;
-						goto mcheck;
-					}
-					p += 1;
-				}
-			}
-		}
-		goto mthrow;
-	}
-	case MOP_TSTQ: {
-		astr p = f->seq + getAx(*pc);
-		while (true) {
-			switch (*p) {
-			case '\0': {
-				pc++;
-				goto mcheck; /* end of string */
-			}
-			case '\\': {
-				if (!match_class(sgetc(M, s), *(p + 1))) {
-					goto mthrow;
-				}
-				p += 2;
-				break;
-			}
-			default: {
-				if (sgetc(M, s) != *p) {
-					goto mthrow;
-				}
+		while (*p) {
+			if (*p == '\\') {
 				p += 1;
-				break;
+				while (*p) {
+					if (match_class(*p, ch)) {
+						return true;
+					}
+					p += 1;
+				}
+				return false;
 			}
+			if (*p == ch) {
+				return true;
 			}
+			p += 1;
 		}
-		/* unreachable code */
+	}
+	return false;
+}
+
+static int match_seq(amstat_t* M, astr p, astr* ps) {
+	while (true) {
+		switch (*p) {
+		case '\0': {
+			return true; /* end of string */
+		}
+		case '\\': {
+			if (!match_class(*(p + 1), sgetc(M, *ps))) {
+				return false;
+			}
+			p += 2;
+			break;
+		}
+		default: {
+			if (sgetc(M, *ps) != *p) {
+				return false;
+			}
+			p += 1;
+			break;
+		}
+		}
+	}
+}
+
+static int match_lim(amstat_t* M, int p, astr s) {
+	switch (p) {
+	case '^':
+		return M->sbegin == s || s[-1] == '\n' || s[-1] == '\r';
+	case '$':
+		return M->send == s || s[0] == '\n' || s[0] == '\r';
+	default:
 		return false;
 	}
-	case MOP_SPT: {
-		amlabel_t* label = pushlabel(M);
-		label->s = s;
-		label->to = pc + u2s(getB(*pc));
-		pc += u2s(getA(*pc));
-		goto mcheck;
-	}
-	case MOP_JMP: {
-		pc += u2s(getA(*pc));
-		goto mcheck;
-	}
-	default:
-		aloE_assert(false, "");
+}
+
+#define pushlabel(M,s,n,c) aloL_bpush((M)->T, &(M)->js, ((amlabel_t) { n, (s) - (M)->sbegin, c }))
+#define toplabel(M) aloL_btop(&(M)->js, amlabel_t)
+
+static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
+	alo_pushbuf(M->T, &M->js);
+	aminsn_t* pc = f->codes;
+	const char* s = start;
+	int failed = false;
+	int counter[f->ncounter];
+	for (int i = 0; i < f->ncounter; counter[i++] = 0);
+	mcheck:
+	while (true) {
+		switch (pc->kind) {
+		case RE_RET: {
+			if ((mask & MASK_FULL) && s != M->send)
+				goto mthrow;
+			alo_popbuf(M->T, &M->js);
+			return true;
+		}
+		case RE_BEG: {
+			M->groups[pc->arga].begin = s;
+			pc++;
+			break;
+		}
+		case RE_END: {
+			M->groups[pc->arga].end = s;
+			pc++;
+			break;
+		}
+		case RE_CHKC: {
+			if (aloE_byte(*(s++)) != aloE_byte(pc->arga))
+				goto mthrow;
+			pc++;
+			break;
+		}
+		case RE_CHKS: case RE_CHKXS: {
+			if (!match_set(f->seq + pc->arga, sgetc(M, s)) == (pc->kind == RE_CHKS))
+				goto mthrow;
+			pc++;
+			break;
+		}
+		case RE_CHKQ: {
+			if (!match_seq(M, f->seq + pc->arga, &s))
+				goto mthrow;
+			pc++;
+			break;
+		}
+		case RE_CHKF: {
+			if (!match_class(pc->arga, sgetc(M, s)))
+				goto mthrow;
+			pc++;
+			break;
+		}
+		case RE_CHKL: {
+			if (!match_lim(M, pc->arga, s))
+				goto mthrow;
+			pc++;
+			break;
+		}
+		case RE_REP: {
+			if (failed) {
+				counter[(pc - 1)->arga] = toplabel(M)->cnt;
+				goto mthrow;
+			}
+			if (counter[(pc - 1)->arga] == pc->arga) {
+				pc += pc->argb;
+			}
+			else {
+				pushlabel(M, s, pc, counter[(pc - 1)->arga]++);
+				pc++;
+			}
+			break;
+		}
+		case RE_REPX: {
+			aloE_xassert(!failed);
+			if (counter[(pc - 1)->arga] == pc->arga) {
+				pc += pc->argb;
+			}
+			else {
+				pushlabel(M, s, pc + pc->argb, 0);
+				pc++;
+			}
+			break;
+		}
+		case RE_REPY: {
+			if (failed) {
+				counter[(pc - 1)->arga] = toplabel(M)->cnt;
+				if (counter[(pc - 1)->arga] == pc->arga)
+					goto mthrow;
+				counter[(pc - 1)->arga]++;
+				pc++;
+			}
+			else
+			{
+				pushlabel(M, s, pc, counter[(pc - 1)->arga]);
+				pc += pc->argb;
+			}
+			break;
+		}
+		case RE_SPT: {
+			pushlabel(M, s, pc + pc->arga, 0);
+			pc += pc->argb;
+			break;
+		}
+		case RE_JMP: {
+			pc += pc->argb;
+			break;
+		}
+		case RE_CNT: {
+			counter[pc->arga] = 0;
+			pc++;
+			break;
+		}
+		default:
+			aloE_assert(false, "");
+		}
+		failed = false;
 	}
 
 	mthrow:
 	if (M->js.len > 0) {
 		/* recover through match stack */
-		amlabel_t* label = poplabel(M);
+		amlabel_t* label = aloL_bpop(&M->js, amlabel_t);
 		pc = label->to;
-		s = label->s;
+		s = M->sbegin + label->pos;
+		failed = true;
 		goto mcheck;
 	}
 	/* not recoverable, match failed */
 	alo_popbuf(M->T, &M->js);
 	return false;
 }
-
-enum {
-	T_END, /* end of pattern */
-	T_BOL, /* begin of line */
-	T_EOL, /* end of line */
-	T_CHR, /* single character, data = char in UTF-32 */
-	T_STR, /* string, data = pattern length, str = pattern, extra = group index */
-	T_SET, /* set, extra = negative set, data = pattern length, str = set  */
-	T_SUB, /* union of pattern, extra = group index, data = union node length, arr = union nodes */
-	T_SEQ, /* pattern sequence, data = structure node length, arr = children nodes */
-};
-
-enum {
-	M_NORMAL= 0x0, /* S -> a */
-	M_MORE	= 0x1, /* S -> aS */
-	M_MOREG	= 0x9, /* S -> aS (greedy mode) */
-	M_ANY	= 0x2, /* S -> aS | epsilon */
-	M_ANYG	= 0xA, /* S -> aS | epsilon (greedy mode) */
-	M_OPT	= 0x3, /* S -> a | epsilon */
-	M_OPTG	= 0xB  /* S -> a | epsilon (greedy mode) */
-};
 
 /* compile state */
 typedef struct alo_CompileState {
@@ -451,7 +465,8 @@ typedef struct alo_CompileState {
 	size_t ncs; /* number of char sequence */
 	astr pos; /* current position */
 	astr end; /* end of source */
-	int index; /* group index */
+	int ngroup; /* number of group */
+	int ncount; /* number of counter */
 	int ncode; /* number of code */
 	struct {
 		size_t length;
@@ -468,13 +483,13 @@ static void minit(amstat_t* M, astate T, astr src, size_t len, amgroup_t* groups
 
 #define cerror(C,msg,args...) aloL_error((C)->T, msg, ##args)
 
-static int c_insn(acstat_t* C) {
+static int c_node(acstat_t* C) {
 	if (C->ncode == C->f->ncode) {
 		size_t newlen = C->f->ncode * 2;
 		if (newlen < 16) {
 			newlen = 16;
 		}
-		void* newbuf = C->alloc(C->context, C->f->codes, C->f->ncode * sizeof(uint32_t), newlen * sizeof(uint32_t));
+		void* newbuf = C->alloc(C->context, C->f->codes, C->f->ncode * sizeof(aminsn_t), newlen * sizeof(aminsn_t));
 		if (newbuf == NULL)
 			cerror(C, "no enough memory.");
 		C->f->codes = newbuf;
@@ -484,8 +499,8 @@ static int c_insn(acstat_t* C) {
 }
 
 static void c_erase(acstat_t* C, int id) {
-	uint32_t* p = C->f->codes + id + 1;
-	uint32_t* const e = C->f->codes + C->ncode;
+	aminsn_t* p = C->f->codes + id + 1;
+	aminsn_t* const e = C->f->codes + C->ncode;
 	while (p < e) {
 		*(p - 1) = *p;
 		p++;
@@ -493,10 +508,10 @@ static void c_erase(acstat_t* C, int id) {
 	C->ncode--;
 }
 
-static uint32_t c_str(acstat_t* C) {
+static int c_str(acstat_t* C) {
 	int length = C->length;
 	C->length = 0;
-	if (length + C->ncs > C->f->len) {
+	if (length + C->ncs >= C->f->len) {
 		size_t newlen = C->f->len * 2;
 		if (newlen < sizeof(C->array) / sizeof(char)) {
 			newlen = sizeof(C->array) / sizeof(char); /* at lease full fill the array */
@@ -507,11 +522,12 @@ static uint32_t c_str(acstat_t* C) {
 		C->f->seq = newseq;
 		C->f->len = newlen;
 	}
-	uint32_t off = C->ncs;
-	char* s = C->f->seq + off;
+	char* s = C->f->seq + C->ncs;
 	l_strcpy(s, C->array, length);
 	s[length] = '\0';
+	int off = C->ncs;
 	C->ncs += length + 1;
+	C->length = 0;
 	return off;
 }
 
@@ -525,285 +541,340 @@ static void cput(acstat_t* C, int ch) {
 /* character used in class */
 #define CLASS_CHAR "acdglpsuwx"
 
-/* character used for modifier */
-#define MODIFIER_CHAR "+*?"
+#define c_set(C,id,k,a,b) ({ int $id = id; (C)->f->codes[$id] = (aminsn_t) { k, a, b }; })
+#define c_put(C,k,a,b) c_set(C, c_node(C), k, a, b)
 
-#define c_setinsn(C,id,insn) aloE_void((C)->f->codes[id] = (insn))
-#define c_putinsn(C,insn) ({ int $id = c_insn(C); c_setinsn(C, $id, insn); })
-#define c_putsinsn(C,op) c_putinsn(C, createiAx(op, c_str(C)))
+static void p_chr(acstat_t* C) {
+	int kind = RE_CHKC;
+	int ch;
+	if (*C->pos == '\\') {
+		switch (C->pos[1]) {
+		case '0': ch = '\0'; break;
+		case 'b': ch = '\b'; break;
+		case 'f': ch = '\f'; break;
+		case 'n': ch = '\n'; break;
+		case 'r': ch = '\r'; break;
+		case 't': ch = '\t'; break;
+		case '\'': ch = '\''; break;
+		case '\"': ch = '\"'; break;
+		case '\\': ch = '\\'; break;
+		default:
+			kind = RE_CHKF;
+			ch = C->pos[1];
+			break;
+		}
+		C->pos += 2;
+	}
+	else {
+		ch = *(C->pos++);
+	}
+	c_put(C, kind, ch, 0);
+}
 
 static void p_str(acstat_t* C) {
-	int flag = (*C->pos == '\\') && strchr(CLASS_CHAR, *(C->pos + 1));
 	next:
 	switch (*C->pos) {
 	case '+': case '*': case '?':
-		aloE_assert(false, "unexpected character.");
+	case '(': case ')': case '|':
+	case '[': case '^': case '$':
+	case '\0':
 		break;
 	case ']':
 		cerror(C, "illegal character.");
 		break;
-	case '(': case ')': case '[':
-	case '^': case '$': case '|':
-		break;
-	case '\0': {
-		if (C->pos == C->end) {
-			break;
-		}
-		goto single;
-	}
 	case '\\': {
 		if (C->pos + 1 == C->end) {
 			cerror(C, "illegal escape character.");
 		}
-		if (C->length > 0) {
-			switch (C->pos[2]) {
-			case '+': case '*': case '?':
-				goto end; /* modifier found, skip */
-			}
+		switch (C->pos[1]) {
+		case '0': cput(C, '\0'); break;
+		case 'b': cput(C, '\b'); break;
+		case 'f': cput(C, '\f'); break;
+		case 'n': cput(C, '\n'); break;
+		case 'r': cput(C, '\r'); break;
+		case 't': cput(C, '\t'); break;
+		case '\\': cput(C, '\\'); break;
+		case '\'': cput(C, '\''); break;
+		case '\"': cput(C, '\"'); break;
+		default:
+			cput(C, '\\');
+			cput(C, C->pos[1]);
+			break;
 		}
-		cput(C, '\\');
-		cput(C, C->pos[1]);
 		C->pos += 2;
 		goto next;
 	}
-	single: default: {
-		if (C->length > 0) {
-			switch (C->pos[1]) {
-			case '+': case '*': case '?':
-				goto end; /* modifier found, skip */
-			}
-		}
+	default: {
 		cput(C, *C->pos);
 		C->pos += 1;
 		goto next;
 	}
 	}
-	end:
-	if (flag || C->length > 1) {
-		c_putsinsn(C, MOP_TSTQ);
+	if (C->length == 1) {
+		c_put(C, RE_CHKC, aloE_byte(C->array[0]), 0);
+		C->length = 0;
+	}
+	else if (C->array[0] == '\\' && C->length == 2) {
+		c_put(C, RE_CHKF, aloE_byte(C->array[1]), 0);
+		C->length = 0;
 	}
 	else {
-		c_putinsn(C, createiAx(MOP_TSTC, aloE_byte(C->array[0])));
-		C->length = 0;
+		c_put(C, RE_CHKQ, c_str(C), 0);
 	}
 }
 
 static void p_chset(acstat_t* C) {
-	int type;
-	if (*C->pos == '^') {
-		type = MOP_TSTX;
-		C->pos += 1;
-	}
-	else {
-		type = MOP_TSTS;
-	}
+	int type = *C->pos == '^' ? (C->pos++, RE_CHKXS) : RE_CHKS;
+	astr s = C->pos;
 	while (*C->pos != ']') {
-		if (*C->pos == '\\' && strchr(CLASS_CHAR, *(C->pos + 1))) { /* is class marker */
-			cput(C, '\\');
+		if (*C->pos == '\0')
+			cerror(C, "unclosed character set.");
+		else if (*C->pos == '\\')
+			C->pos += 2;
+		else if (*(C->pos + 1) == '-') {
+			if (C->pos + 2 < C->end || C->pos[0] > C->pos[2])
+				cerror(C, "illegal character bound.");
+			cput(C, '-');
+			cput(C, C->pos[0]);
+			cput(C, C->pos[2]);
+			C->pos += 3;
+		}
+		else
+			C->pos += 1;
+	}
+	C->pos = s;
+	int hascls = false;
+	while (*C->pos != ']') {
+		if (*(C->pos + 1) == '-') {
+			C->pos += 3;
+			continue;
+		}
+		if (*C->pos == '\\') {
+			if (strchr(CLASS_CHAR, *(C->pos + 1))) { /* is class marker */
+				C->pos += 2;
+				hascls = true;
+				continue;
+			}
 			C->pos += 1;
 		}
-		if (C->pos == C->end) {
-			cerror(C, "illegal pattern.");
-		}
-		cput(C, *C->pos);
-		C->pos += 1;
-		if (*C->pos == '-') {
-			if (C->pos + 1 == C->end) {
-				cerror(C, "illegal pattern.");
+		cput(C, *(C->pos++));
+	}
+	if (hascls) {
+		cput(C, '\\');
+		C->pos = s;
+		while (*C->pos != ']') {
+			if (*(C->pos + 1) == '-')
+				C->pos += 3;
+			else if (*C->pos == '\\') {
+				if (strchr(CLASS_CHAR, *(C->pos + 1))) { /* is class marker */
+					cput(C, *(C->pos + 1));
+				}
+				C->pos += 2;
 			}
-			cput(C, '-');
-			cput(C, *(C->pos + 1));
-			C->pos += 2;
+			else
+				C->pos += 1;
 		}
 	}
-	c_putsinsn(C, type);
+	c_put(C, type, c_str(C), 0);
 }
 
 static void p_expr(acstat_t*);
 
-static void p_atom(acstat_t* C) {
-	/* atom -> '(' expr ')' | '[' chset ']' */
+static void p_prefix(acstat_t*);
+
+static void p_atom(acstat_t* C, int multi) {
+	/* atom -> '(' expr ')' | '[' chset ']' | char */
 	switch (*C->pos) {
 	case '(': {
-		int index = C->index++;
-		C->pos += 1;
-		c_putinsn(C, createiAx(MOP_PUSH, index));
+		int index = C->ngroup++;
+		C->pos++;
+		c_put(C, RE_BEG, index, 0);
 		p_expr(C);
 		if (*(C->pos++) != ')') {
 			cerror(C, "illegal pattern.");
 		}
-		c_putinsn(C, createiAx(MOP_POP, index));
+		c_put(C, RE_END, index, 0);
 		break;
 	}
 	case '[': {
-		C->pos += 1;
+		C->pos++;
 		p_chset(C);
-		C->pos += 1;
+		aloE_xassert(*C->pos == ']');
+		C->pos++;
 		break;
 	}
 	case '^': {
-		c_putinsn(C, createi(MOP_TSTB));
-		C->pos += 1;
+		c_put(C, RE_CHKL, '^', 0);
+		C->pos++;
 		break;
 	}
 	case '$': {
-		c_putinsn(C, createi(MOP_TSTE));
-		C->pos += 1;
+		c_put(C, RE_CHKL, '$', 0);
+		C->pos++;
+		break;
+	}
+	case '+': case '*': case '?': case '{': {
+		p_prefix(C);
+		break;
+	}
+	case ']': case '}': {
+		cerror(C, "unexpected '%c' in pattern.", *C->pos);
+		break;
+	}
+	case ')': {
 		break;
 	}
 	default: {
-		p_str(C);
+		(multi ? p_str : p_chr)(C);
 		break;
 	}
 	}
 }
 
-static void p_suffix(acstat_t* C) {
-	/* suffix -> atom [ ('+'|'*'|'?'|'{' [int] ',' [int] '}') ['?'] ] */
-	int id1 = c_insn(C), id2;
-	p_atom(C);
+static void p_prefix(acstat_t* C) {
+	/* prefix -> [ ('+'|'*'|'?'|'{' [int] ',' [int] '}') ['?'] ] atom */
 	switch (*C->pos) {
-	/* TODO: '{}' is not supported yet. */
-//	case '{': {
-//		int min = 0, max = INT32_MAX;
-//		switch (*C->pos) {
-//		case '0' ... '9': {
-//			errno = 0;
-//			min = strtol(C->pos, aloE_cast(char**, &C->pos), 10);
-//			if (errno)
-//				cerror(C, "illegal range size.");
-//			if (*C->pos != ',') {
-//				max = min;
-//				goto merge;
-//			}
-//			break;
-//		}
-//		}
-//		if (*(C->pos++) != ',')
-//			cerror(C, "illegal pattern.");
-//		switch (*C->pos) {
-//		case '0' ... '9': {
-//			errno = 0;
-//			max = strtol(C->pos, aloE_cast(char**, &C->pos), 10);
-//			if (errno || min > max)
-//				cerror(C, "illegal range size.");
-//			break;
-//		}
-//		}
-//		merge:
-//		if (*(C->pos++) != '}')
-//			cerror(C, "illegal pattern.");
-//		int greedy = *C->pos == '?'? (C->pos++, false) : true;
-//		if (max == min) {
-//			switch (min) {
-//			case 0: /* 0 length of pattern? */
-//				C->ncode = id1;
-//				break;
-//			case 1: /* itself? */
-//				c_erase(C, id1);
-//				break;
-//			default:
-//
-//			}
-//		}
-//		break;
-//	}
+	case '{': {
+		int min = 0, max = INT32_MAX;
+		switch (*(++C->pos)) {
+		case '0' ... '9': {
+			errno = 0;
+			min = strtol(C->pos, aloE_cast(char**, &C->pos), 10);
+			if (errno)
+				cerror(C, "illegal range size.");
+			if (*C->pos != ',') {
+				max = min;
+				goto merge;
+			}
+			break;
+		}
+		}
+		if (*(C->pos++) != ',')
+			cerror(C, "illegal pattern.");
+		switch (*C->pos) {
+		case '0' ... '9': {
+			errno = 0;
+			max = strtol(C->pos, aloE_cast(char**, &C->pos), 10);
+			if (errno || min > max)
+				cerror(C, "illegal range size.");
+			break;
+		}
+		}
+		merge:
+		if (*(C->pos++) != '}')
+			cerror(C, "illegal pattern.");
+		int greedy = *C->pos == '?' ? (C->pos++, false) : true;
+		int cnt = C->ncount++;
+		c_put(C, RE_CNT, cnt, 0);
+		int id1 = c_node(C);
+		astr s = C->pos; /* store source position */
+		p_atom(C, false);
+		int id2 = c_node(C);
+		c_set(C, id1, RE_REP, min, C->ncode - id1);
+		c_set(C, id2, RE_C_JMP, 0, id1 - id2);
+		if (max != min) {
+			c_put(C, RE_CNT, cnt, 0);
+			C->pos = s; /* revert position */
+			id1 = c_node(C);
+			p_atom(C, false);
+			id2 = c_node(C);
+			c_set(C, id1, greedy ? RE_REPX : RE_REPY, max - min, C->ncode - id1);
+			c_set(C, id2, RE_C_JMP, 0, id1 - id2);
+		}
+		break;
+	}
 	case '?': {
+		int id1 = c_node(C);
 		if (*(++C->pos) == '?') {
 			C->pos++;
-			c_setinsn(C, id1, createisAsB(MOP_SPT, C->ncode - id1, 1));
+			p_atom(C, false);
+			c_set(C, id1, RE_SPT, 1, C->ncode - id1);
 		}
 		else {
-			c_setinsn(C, id1, createisAsB(MOP_SPT, 1, C->ncode - id1));
+			p_atom(C, false);
+			c_set(C, id1, RE_SPT, C->ncode - id1, 1);
 		}
-		return;
+		break;
 	}
 	case '+': {
-		c_erase(C, id1);
-		id2 = c_insn(C);
+		int id1 = C->ncode;
 		if (*(++C->pos) == '?') {
 			C->pos++;
-			c_setinsn(C, id2, createisAsB(MOP_SPT, 1, id1 - id2));
+			p_atom(C, false);
+			int id2 = c_node(C);
+			c_set(C, id2, RE_SPT, id1 - id2, 1);
 		}
 		else {
-			c_setinsn(C, id2, createisAsB(MOP_SPT, id1 - id2, 1));
+			p_atom(C, false);
+			int id2 = c_node(C);
+			c_set(C, id2, RE_SPT, 1, id1 - id2);
 		}
 		break;
 	}
 	case '*': {
+		int id1 = c_node(C);
 		if (*(++C->pos) == '?') {
 			C->pos++;
-			id2 = c_insn(C);
-			c_setinsn(C, id1, createisAsB(MOP_SPT, id2 + 1 - id1, 1));
-			c_setinsn(C, id2, createisAsB(MOP_SPT, 1, id1 + 1 - id2));
+			p_atom(C, false);
+			int id2 = c_node(C);
+			c_set(C, id1, RE_SPT, 1, id2 + 1 - id1);
+			c_set(C, id2, RE_SPT, id1 + 1 - id2, 1);
 		}
 		else {
-			id2 = c_insn(C);
-			c_setinsn(C, id1, createisAsB(MOP_SPT, 1, id2 + 1 - id1));
-			c_setinsn(C, id2, createisAsB(MOP_SPT, id1 + 1 - id2, 1));
+			p_atom(C, false);
+			int id2 = c_node(C);
+			c_set(C, id1, RE_SPT, id2 + 1 - id1, 1);
+			c_set(C, id2, RE_SPT, 1, id1 + 1 - id2);
 		}
-		return;
+		break;
 	}
 	default: {
-		c_erase(C, id1);
+		p_atom(C, true);
 		break;
 	}
 	}
 }
 
 static void p_mono(acstat_t* C) {
-	/* mono -> { suffix } */
-	p_suffix(C);
+	/* mono -> { prefix } */
+	p_prefix(C);
 	next:
 	switch (*C->pos) {
 	case '\0':
-		if (C->pos == C->end) { /* end of string */
-			break;
-		}
-		goto single;
-	single: default:
-		p_suffix(C);
-		goto next;
+		break; /* end of string */
 	case ']': case '}':
 		cerror(C, "illegal pattern.");
 		break;
 	case ')': case '|':
 		break;
+	default:
+		p_prefix(C);
+		goto next;
 	}
 }
 
 static void p_expr(acstat_t* C) {
 	/* expr -> mono { '|' mono } */
-	int id1 = c_insn(C);
+	int id1 = c_node(C);
 	p_mono(C);
 	if (*C->pos == '|') {
-		int id3, id4 = -1;
+		int id2;
 		do {
-			id3 = c_insn(C);
-			c_setinsn(C, id3, createisAsB(MOP_JMP, id4 == -1 ? 0 : id4 - id3, 0));
-			id4 = id3;
-			c_setinsn(C, id1, createisAsB(MOP_SPT, 1, C->ncode - id1));
-			id1 = c_insn(C);
 			C->pos++;
+			id2 = c_node(C);
+			c_set(C, id1, RE_SPT, C->ncode - id1, 1);
+			id1 = c_node(C);
 			p_mono(C);
+			c_set(C, id2, RE_C_JMP, 0, C->ncode - id2);
 		}
 		while (*C->pos == '|');
-		c_erase(C, id1);
-		uint32_t* p = C->f->codes + id3;
-		while (getA(*p)) {
-			uint32_t* q = p + u2s(getA(*p));
-			setA(*p, s2u(C->ncode - (p - C->f->codes)));
-			p = q;
-		}
-		setA(*p, s2u(C->ncode - (p - C->f->codes)));
+		C->f->codes[id2].argb--;
 	}
-	else {
-		c_erase(C, id1);
-	}
+	c_erase(C, id1);
 }
 
 static void c_trim(acstat_t* C) {
-	C->f->codes = C->alloc(C->context, C->f->codes, C->f->ncode * sizeof(uint32_t), C->ncode * sizeof(uint32_t));
+	C->f->codes = C->alloc(C->context, C->f->codes, C->f->ncode * sizeof(aminsn_t), C->ncode * sizeof(aminsn_t));
 	C->f->ncode = C->ncode;
 	C->f->seq = C->alloc(C->context, C->f->seq, C->f->len * sizeof(char), C->ncs * sizeof(char));
 	C->f->len = C->ncs;
@@ -815,19 +886,43 @@ static void compile(amfun_t* f, astate T, const char* src, size_t len) {
 	C.f = f;
 	C.alloc = alo_getalloc(T, &C.context);
 	C.length = 0;
-	C.index = 1;
+	C.ngroup = 1;
+	C.ncount = 0;
 	C.pos = src;
 	C.end = src + len;
 	C.ncode = 0;
 	C.ncs = 0;
-	c_putinsn(&C, createiAx(MOP_PUSH, 0));
+	c_put(&C, RE_BEG, 0, 0);
 	p_expr(&C);
 	if (C.end != C.pos) {
 		cerror(&C, "illegal pattern.");
 	}
-	c_putinsn(&C, createiAx(MOP_POP, 0));
-	c_putinsn(&C, createi(MOP_RET));
-	f->ngroup = C.index;
+	/* jump folding */
+	for (int i = 0; i < C.ncode; ++i) {
+		aminsn_t* insn = &C.f->codes[i];
+		if (insn->kind == RE_C_JMP) {
+			aminsn_t* insn1 = insn;
+			do {
+				insn1 = insn1 + insn1->argb;
+			}
+			while (insn1->kind == RE_C_JMP);
+			if (insn1->kind == RE_JMP)
+				insn1 += insn1->argb;
+			aminsn_t* insn2;
+			aminsn_t* insn3 = insn;
+			do {
+				insn2 = insn3;
+				insn3 += insn3->argb;
+				insn2->kind = RE_JMP;
+				insn2->argb = insn1 - insn2;
+			}
+			while (insn3->kind == RE_C_JMP);
+		}
+	}
+	c_put(&C, RE_END, 0, 0);
+	c_put(&C, RE_RET, 0, 0);
+	f->ngroup = C.ngroup;
+	f->ncounter = C.ncount;
 	c_trim(&C);
 }
 
@@ -835,7 +930,7 @@ static void destory(astate T, amfun_t* f) {
 	aalloc alloc;
 	void* context;
 	alloc = alo_getalloc(T, &context);
-	alloc(context, f->codes, f->ncode * sizeof(uint32_t), 0);
+	alloc(context, f->codes, f->ncode * sizeof(aminsn_t), 0);
 	alloc(context, f->seq, f->len * sizeof(char), 0);
 }
 
@@ -845,6 +940,7 @@ static void initialize(amfun_t* f) {
 	f->seq = NULL;
 	f->len = 0;
 	f->ngroup = 0;
+	f->ncounter = 0;
 }
 
 static int str_match(astate T) {
@@ -953,7 +1049,7 @@ static void aux_replaces(astate T, amfun_t* f, amstat_t* M, ambuf_t* buf) {
 				s1++;
 			format:
 				if (index >= f->ngroup) {
-					aloL_error(T, "replacement index out of bound.");
+					aloL_error(T, "replacement ngroup out of bound.");
 				}
 				amgroup_t* group = &M->groups[index];
 				aloL_bputls(T, buf, group->begin, group->end - group->begin);
@@ -1025,7 +1121,7 @@ static int matcher_replace(astate T) {
 
 static int mmatch(amstat_t* M, amfun_t* nodes, const char* begin, const char* end) {
 	for (const char* s = begin; s <= end; ++s) {
-		if (match(M, nodes, s, false)) {
+		if (match(M, nodes, s, 0)) {
 			return true;
 		}
 	}
@@ -1059,64 +1155,126 @@ static int matcher_split(astate T) {
 	return 1;
 }
 
+/** used to debug the generate code.
 static const astr opnames[] = {
-		[MOP_NONE] = "none",
-		[MOP_RET] = "ret",
-		[MOP_PUSH] = "push",
-		[MOP_POP] = "pop",
-		[MOP_TSTB] = "begin",
-		[MOP_TSTE] = "end",
-		[MOP_TSTC] = "char",
-		[MOP_TSTS] = "set",
-		[MOP_TSTX] = "xset",
-		[MOP_TSTQ] = "str",
-		[MOP_SPT] = "split",
-		[MOP_JMP] = "jmp"
+		[RE_RET] = "ret",
+		[RE_CHKC] = "test",
+		[RE_CHKS] = "test",
+		[RE_CHKXS] = "test",
+		[RE_CHKQ] = "test",
+		[RE_CHKF] = "test",
+		[RE_CHKL] = "test",
+		[RE_SPT] = "split",
+		[RE_REP] = "rep",
+		[RE_REPX] = "repx",
+		[RE_REPY] = "repy",
+		[RE_BEG] = "begin",
+		[RE_END] = "end",
+		[RE_JMP] = "jmp",
+		[RE_CNT] = "count"
 };
 
 static void addcodes(astate T, ambuf_t* buf, amfun_t* f) {
 	for (int i = 0; i < f->ncode; ++i) {
-		uint32_t insn = f->codes[i];
+		aminsn_t* insn = &f->codes[i];
 		char s[64];
-		int n = sprintf(s, "\n\t%3d %-5s ", i, opnames[geti(insn)]);
+		int n = sprintf(s, "\n\t%3d %-5s ", i, opnames[insn->kind]);
 		aloL_bputls(T, buf, s, n);
-		switch (geti(insn)) {
-		case MOP_PUSH: case MOP_POP: {
-			aloL_bputf(T, buf, "%d", aloE_cast(int, getAx(insn)));
+		switch (insn->kind) {
+		case RE_BEG: case RE_END: case RE_CNT: {
+			aloL_bputf(T, buf, "%d", insn->arga);
 			break;
 		}
-		case MOP_TSTC: {
-			char ch = getAx(insn);
-			aloL_bputf(T, buf, "'%\"'", &ch, 1);
+		case RE_CHKC: case RE_CHKL: {
+			char ch = insn->arga;
+			aloL_bputf(T, buf, "%\"", &ch, 1);
 			break;
 		}
-		case MOP_TSTS: case MOP_TSTX: case MOP_TSTQ: {
-			aloL_bputf(T, buf, "\"%s\"", f->seq + getAx(insn));
+		case RE_CHKF: {
+			char ch = insn->arga;
+			aloL_bputf(T, buf, "\\%\"", &ch, 1);
 			break;
 		}
-		case MOP_SPT: {
-			aloL_bputf(T, buf, "%d %d",
-					i + aloE_cast(int, u2s(getA(insn))),
-					i + aloE_cast(int, u2s(getB(insn))));
+		case RE_CHKQ: {
+			aloL_bputs(T, buf, f->seq + insn->arga);
 			break;
 		}
-		case MOP_JMP: {
-			aloL_bputf(T, buf, "%d",
-					i + aloE_cast(int, u2s(getA(insn))));
+		case RE_CHKS: {
+			astr st = f->seq + insn->arga;
+			aloL_bputs(T, buf, "[");
+			while (*st == '-') {
+				aloL_bputc(T, buf, st[1]);
+				aloL_bputc(T, buf, '-');
+				aloL_bputc(T, buf, st[2]);
+				st += 3;
+			}
+			while (*st) {
+				if (*st == '\\') {
+					do {
+						aloL_bputc(T, buf, '\\');
+						aloL_bputc(T, buf, *(++st));
+					}
+					while (*st);
+				}
+				else {
+					aloL_bputc(T, buf, *(st++));
+				}
+			}
+			aloL_bputs(T, buf, "]");
+			break;
+		}
+		case RE_CHKXS: {
+			astr st = f->seq + insn->arga;
+			aloL_bputs(T, buf, "[^");
+			while (*st == '-') {
+				aloL_bputc(T, buf, st[1]);
+				aloL_bputc(T, buf, '-');
+				aloL_bputc(T, buf, st[2]);
+				st += 3;
+			}
+			while (*st) {
+				if (*st == '\\') {
+					do {
+						aloL_bputc(T, buf, '\\');
+						aloL_bputc(T, buf, *(++st));
+					}
+					while (*st);
+				}
+				else {
+					aloL_bputc(T, buf, *(st++));
+				}
+			}
+			aloL_bputs(T, buf, "]");
+			break;
+		}
+		case RE_REP: case RE_REPX: case RE_REPY: {
+			aloL_bputf(T, buf, "%d %d", insn->arga, i + insn->argb);
+			break;
+		}
+		case RE_SPT: {
+			aloL_bputf(T, buf, "%d %d", i + insn->arga, i + insn->argb);
+			break;
+		}
+		case RE_JMP: {
+			aloL_bputf(T, buf, "%d", i + insn->argb);
 			break;
 		}
 		}
 	}
 }
+ */
 
 static int matcher_tostr(astate T) {
 	amfun_t* f = self(T);
+	/*
 	aloL_usebuf(T, buf) {
 		aloL_bputf(T, buf, "__matcher: { ngroup: %d, addr: %p, opcodes:", (int) f->ngroup, f);
 		addcodes(T, buf, f);
 		aloL_bputxs(T, buf, "\n}");
 		aloL_bpushstring(T, buf);
 	}
+	*/
+	alo_pushfstring(T, "__matcher: { address: %p }", f);
 	return 1;
 }
 
@@ -1132,7 +1290,7 @@ static int matcher_find(astate T) {
 		off += len;
 	}
 	if (off > aloE_cast(aint, len) || off < 0) {
-		aloL_argerror(T, 2, "index out of bound.");
+		aloL_argerror(T, 2, "ngroup out of bound.");
 	}
 	minit(&M, T, src, len, groups);
 	if (mmatch(&M, f, src + off, M.send)) {
