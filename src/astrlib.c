@@ -15,6 +15,7 @@
 #include "alibs.h"
 
 #include <ctype.h>
+#include <error.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -359,7 +360,7 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 			break;
 		}
 		case RE_CHKS: case RE_CHKXS: {
-			if (!match_set(f->seq + pc->arga, sgetc(M, s)) == (pc->kind == RE_CHKS))
+			if (match_set(f->seq + pc->arga, sgetc(M, s)) != (pc->kind == RE_CHKS))
 				goto mthrow;
 			pc++;
 			break;
