@@ -15,6 +15,7 @@
 #include "alibs.h"
 
 #include <ctype.h>
+#include <limits.h>
 #include <error.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -732,6 +733,19 @@ static void p_atom(acstat_t* C, int multi) {
 	}
 }
 
+static int p_limit(acstat_t* C) {
+	int n = *(C->pos++) - '0';
+	while ('0' <= *C->pos && *C->pos <= '9') {
+		int d = *C->pos - '0';
+		if (n > INT_MAX / 10 || (n == INT_MAX / 10 && d > INT_MAX % 10)) {
+			cerror(C, "range out of bound.");
+		}
+		n = n * 10 + d;
+		C->pos++;
+	}
+	return n;
+}
+
 static void p_prefix(acstat_t* C) {
 	/* prefix -> [ ('+'|'*'|'?'|'{' [int] ',' [int] '}') ['?'] ] atom */
 	switch (*C->pos) {
@@ -739,10 +753,7 @@ static void p_prefix(acstat_t* C) {
 		int min = 0, max = INT32_MAX;
 		switch (*(++C->pos)) {
 		case '0' ... '9': {
-			errno = 0;
-			min = strtol(C->pos, aloE_cast(char**, &C->pos), 10);
-			if (errno)
-				cerror(C, "illegal range size.");
+			min = p_limit(C);
 			if (*C->pos != ',') {
 				max = min;
 				goto merge;
@@ -754,9 +765,8 @@ static void p_prefix(acstat_t* C) {
 			cerror(C, "illegal pattern.");
 		switch (*C->pos) {
 		case '0' ... '9': {
-			errno = 0;
-			max = strtol(C->pos, aloE_cast(char**, &C->pos), 10);
-			if (errno || min > max)
+			max = p_limit(C);
+			if (min > max)
 				cerror(C, "illegal range size.");
 			break;
 		}
