@@ -16,26 +16,26 @@
 /**
  ** create uninitialized Alopecurus closure.
  */
-aclosure_t* aloF_new(astate T, size_t size, aproto_t* proto) {
-	aclosure_t* value = aloE_cast(aclosure_t*, aloM_malloc(T, aclosizel(size)));
+aacl_t* aloF_new(astate T, size_t size, aproto_t* proto) {
+	aacl_t* value = aloE_cast(aacl_t*, aloM_malloc(T, acclsizel(size)));
 	aloG_register(T, value, ALO_TACL);
-	value->length = aloE_byte(size);
-	value->a.proto = proto;
+	value->base.length = aloE_byte(size);
+	value->base.a.proto = proto;
 	/* clean delegate and captures */
-	tsetnil(&value->delegate);
-	for (size_t i = 0; i < size; tsetnil(value->array + i++));
+	tsetnil(&value->base.delegate);
+	for (size_t i = 0; i < size; value->array[i++] = NULL);
 	return value;
 }
 
 /**
  ** create new C closure.
  */
-aclosure_t* aloF_newc(astate T, acfun handle, size_t size) {
-	aclosure_t* value = aloE_cast(aclosure_t*, aloM_malloc(T, aclosizel(size)));
+accl_t* aloF_newc(astate T, acfun handle, size_t size) {
+	accl_t* value = aloE_cast(accl_t*, aloM_malloc(T, acclsizel(size)));
 	aloG_register(T, value, ALO_TCCL);
-	value->c.handle = handle;
-	value->length = aloE_byte(size);
-	tsetobj(T, &value->delegate, aloT_getreg(T));
+	value->base.c.handle = handle;
+	value->base.length = aloE_byte(size);
+	tsetobj(T, &value->base.delegate, aloT_getreg(T));
 	return value;
 }
 
@@ -67,15 +67,9 @@ aproto_t* aloF_newp(astate T) {
 	return value;
 }
 
-atval_t* aloF_get(aclosure_t* self, size_t index) {
-	aloE_assert(index < self->length, "index out of bound.");
-	atval_t* slot = self->array + index;
-	return ttiscap(slot) ? tgetcap(slot)->p : slot;
-}
-
-acap* aloF_find(astate T, askid_t id) {
-	acap** p = &T->captures;
-	acap* c;
+acap_t* aloF_find(astate T, askid_t id) {
+	acap_t** p = &T->captures;
+	acap_t* c;
 	while ((c = *p) && c->p >= id) { /* try to find capture already created */
 		if (c->p == id) { /* find capture? */
 			c->counter++; /* increase reference count */
@@ -83,7 +77,7 @@ acap* aloF_find(astate T, askid_t id) {
 		}
 		p = &c->prev; /* move to previous capture */
 	}
-	c = aloM_newo(T, acap); /* capture not exist, create a new one */
+	c = aloM_newo(T, acap_t); /* capture not exist, create a new one */
 	c->counter = 1;
 	c->mark = 0; /* settle capture untouched yet. */
 	c->p = id;
@@ -94,8 +88,8 @@ acap* aloF_find(astate T, askid_t id) {
 }
 
 void aloF_close(astate T, askid_t id) {
-	acap* c;
-	acap* n = T->captures;
+	acap_t* c;
+	acap_t* n = T->captures;
 	while ((c = n) && c->p >= id) {
 		n = c->prev; /* move to previous */
 		if (c->counter > 0) { /* is still has reference of capture? */

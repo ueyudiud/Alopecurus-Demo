@@ -12,14 +12,16 @@
 
 #include "aobj.h"
 
-#define aclosizel(l) (sizeof(aclosure_t) + (l) * sizeof(atval_t))
-#define aclosize(o) aclosizel((o)->length)
+#define acclsizel(l) (sizeof(aclosure_t) + (l) * sizeof(atval_t))
+#define acclsize(o) acclsizel((o)->base.length)
 
-ALO_IFUN aclosure_t* aloF_new(astate, size_t, aproto_t*);
-ALO_IFUN aclosure_t* aloF_newc(astate, acfun, size_t);
+#define aaclsizel(l) (sizeof(aclosure_t) + (l) * sizeof(acap_t))
+#define aaclsize(o) aaclsizel((o)->base.length)
+
+ALO_IFUN aacl_t* aloF_new(astate, size_t, aproto_t*);
+ALO_IFUN accl_t* aloF_newc(astate, acfun, size_t);
 ALO_IFUN aproto_t* aloF_newp(astate);
-ALO_IFUN atval_t* aloF_get(aclosure_t*, size_t);
-ALO_IFUN acap* aloF_find(astate, askid_t);
+ALO_IFUN acap_t* aloF_find(astate, askid_t);
 ALO_IFUN void aloF_close(astate, askid_t);
 ALO_IFUN void aloF_deletep(astate, aproto_t*);
 

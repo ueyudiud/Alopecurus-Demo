@@ -190,7 +190,7 @@ static void destory_thread(astate T, athread_t* v, int close) {
 		aloF_close(T, T->stack);
 	}
 	else {
-		acap *c, *n = T->captures;
+		acap_t *c, *n = T->captures;
 		while ((c = n)) {
 			n = c->prev;
 			aloM_delo(T, c); /* delete capture */

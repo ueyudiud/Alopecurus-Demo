@@ -88,8 +88,7 @@ enum { /* type tags */
 	ALO_TRAWDATA,
 
 	/* non-value type */
-	ALO_TPROTO,
-	ALO_TCAPTURE
+	ALO_TPROTO
 };
 
 enum { /* operation tags */

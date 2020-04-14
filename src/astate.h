@@ -154,7 +154,7 @@ struct alo_Thread {
 	aglobal_t* g; /* global state */
 	athread_t* caller;
 	aframe_t* frame;
-	acap* captures; /* captures */
+	acap_t* captures; /* captures */
 	askid_t stack; /* stack base */
 	askid_t top; /* top of stack */
 	size_t stacksize; /* current stack size */

@@ -46,7 +46,7 @@ typedef struct alo_GCHead *agct;
 
 typedef union alo_Value aval_t;
 typedef struct alo_TagValue atval_t;
-typedef struct alo_Capture acap;
+typedef struct alo_Capture acap_t;
 
 /* index in stack */
 typedef atval_t *askid_t;
@@ -111,13 +111,14 @@ typedef atval_t *askid_t;
 #define tgetnum(o) aloE_check(ttisnum(o), "'"#o"' is not number value", ttisint(o) ? aloE_flt(tgetint(o)) : tgetflt(o))
 #define tgetlcf(o) aloE_check(ttislcf(o), "'"#o"' is not light C function value", (o)->v.f)
 #define tgetptr(o) aloE_check(ttisptr(o), "'"#o"' is not integer value", tgetrptr(o))
-#define tgetcap(o) aloE_check(ttiscap(o), "'"#o"' is not capture", (o)->v.c)
 #define tgetref(o) aloE_check(ttisref(o), "'"#o"' is not reference value", (o)->v.g)
 #define tgetstr(o) aloE_check(ttisstr(o), "'"#o"' is not string value", g2s(tgetref(o)))
 #define tgettup(o) aloE_check(ttistup(o), "'"#o"' is not tuple value", g2a(tgetref(o)))
 #define tgetlis(o) aloE_check(ttislis(o), "'"#o"' is not list value", g2l(tgetref(o)))
 #define tgettab(o) aloE_check(ttistab(o), "'"#o"' is not table value", g2m(tgetref(o)))
 #define tgetclo(o) aloE_check(ttisfun(o), "'"#o"' is not closure value", g2c(tgetref(o)))
+#define tgetacl(o) aloE_check(ttisacl(o), "'"#o"' is not Alopecurus closure value", g2ac(tgetref(o)))
+#define tgetccl(o) aloE_check(ttisccl(o), "'"#o"' is not C closure value", g2cc(tgetref(o)))
 #define tgetthr(o) aloE_check(ttisthr(o), "'"#o"' is not thread value", g2t(tgetref(o)))
 #define tgetrdt(o) aloE_check(ttisrdt(o), "'"#o"' is not raw data value", g2r(tgetref(o)))
 
@@ -137,7 +138,6 @@ typedef atval_t *askid_t;
 #define tnewflt(x) (atval_t) { { .n = (x) }, ALO_TFLOAT }
 #define tnewlcf(x) (atval_t) { { .f = (x) }, ALO_TLCF }
 #define tnewptr(x) (atval_t) { { .p = (x) }, ALO_TPOINTER }
-#define tnewcap(x) (atval_t) { { .c = (x) }, ALO_TCAPTURE }
 #define tnewref(x,t) (atval_t) { { .g = r2g(x) }, wrf(t) }
 #define tnewrefx(x) tnewref(x, rttype(x))
 #define tnewstr tnewrefx
@@ -152,13 +152,14 @@ typedef atval_t *askid_t;
 #define tsetflt(o,x)   trsetval(o, tnewflt(x))
 #define tsetlcf(o,x)   trsetval(o, tnewlcf(x))
 #define tsetptr(o,x)   trsetval(o, tnewptr(x))
-#define tsetcap(o,x)   trsetval(o, tnewcap(x))
 #define tsetref(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
 #define tsetstr(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
 #define tsettup(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTUPLE))
 #define tsetlis(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TLIST))
 #define tsettab(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTABLE))
 #define tsetclo(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
+#define tsetacl(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TACL))
+#define tsetccl(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TCCL))
 #define tsetthr(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTHREAD))
 #define tsetrdt(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TRAWDATA))
 
@@ -184,6 +185,9 @@ typedef atval_t *askid_t;
 #define g2r(g) aloE_check(ttisrdt(g), "'"#g"' is not raw data value", aloE_cast(arawdata_t*, g))
 #define g2p(g) aloE_check(ttispro(g), "'"#g"' is not prototype"     , aloE_cast(aproto_t*  , g))
 
+#define g2ac(g) aloE_check(ttisacl(g), "'"#g"' is not closure value" , aloE_cast(aacl_t*, g))
+#define g2cc(g) aloE_check(ttisccl(g), "'"#g"' is not closure value" , aloE_cast(accl_t*, g))
+
 #define r2g(g) aloE_cast(agct, g)
 #define wrf(t) ((t) | ALO_REFERENCE)
 
@@ -208,7 +212,6 @@ union alo_Value {
 	acfun f;
 	amem p;
 	agct g;
-	acap* c;
 };
 
 /**
@@ -318,7 +321,7 @@ struct alo_Capture {
 	union {
 		atval_t slot;
 		struct {
-			acap* prev;
+			acap_t* prev;
 			int mark; /* capture GC marker, true when can be traced. */
 		};
 	};
@@ -340,8 +343,23 @@ typedef struct alo_Closure {
 		} c;
 	};
 	atval_t delegate; /* for Alopecurus closure, real begin of capture array */
-	atval_t array[];
 } aclosure_t;
+
+/**
+ ** Alopecurus closure value.
+ */
+typedef struct alo_AClosure {
+	aclosure_t base;
+	acap_t* array[];
+} aacl_t;
+
+/**
+ ** C closure value.
+ */
+typedef struct alo_CClosure {
+	aclosure_t base;
+	atval_t array[];
+} accl_t;
 
 typedef struct alo_LocalVariable {
 	astring_t* name;
@@ -390,7 +408,7 @@ struct alo_Proto {
 	alocvar_t* locvars; /* local variable informations (debug) */
 	acapinfo_t* captures; /* capture informations */
 	aproto_t** children;
-	aclosure_t* cache; /* closure cache */
+	aacl_t* cache; /* closure cache */
 	astring_t* src; /* (debug) */
 };
 

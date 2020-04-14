@@ -21,6 +21,7 @@
 #include "ameta.h"
 #include "adebug.h"
 #include "ado.h"
+#include "avm.h"
 #include "aeval.h"
 #include "alo.h"
 
@@ -114,19 +115,14 @@ static aint vm_shr(__attribute__((unused)) astate T, aint a, aint b) {
 /**
  ** check cached closure is available prototype.
  */
-static aclosure_t* getcached(aproto_t* p, aclosure_t* en, askid_t base) {
-	aclosure_t* c = p->cache;
+static aacl_t* getcached(aproto_t* p, aacl_t* en, askid_t base) {
+	aacl_t* c = p->cache;
 	if (c == NULL)
 		return NULL;
 	acapinfo_t* infos = p->captures;
-	for (int insn = 0; insn < p->ncap; ++insn) {
-		if (!ttiscap(c->array + insn)) {
-			return NULL;
-		}
-		atval_t* t = infos[insn].finstack ?
-				base + infos[insn].index :
-				tgetcap(en->array + infos[insn].index)->p;
-		if (t != tgetcap(c->array + insn)->p)
+	for (int i = 0; i < p->ncap; ++i) {
+		atval_t* t = infos[i].finstack ? base + infos[i].index : en->array[infos[i].index]->p;
+		if (t != c->array[i]->p)
 			return NULL;
 	}
 	return c;
@@ -135,25 +131,23 @@ static aclosure_t* getcached(aproto_t* p, aclosure_t* en, askid_t base) {
 /**
  ** load prototype.
  */
-static aclosure_t* aloV_nloadproto(astate T, aproto_t* p, aclosure_t* en, askid_t base) {
-	aclosure_t* c = getcached(p, en, base);
+static aacl_t* aloV_nloadproto(astate T, aproto_t* p, aacl_t* en, askid_t base) {
+	aacl_t* c = getcached(p, en, base);
 	if (c != NULL) {
 		return c;
 	}
 	c = aloF_new(T, p->ncap, p);
-	tsetclo(T, T->top++, c);
-	trsetvalx(T, &c->delegate, en->delegate);
+	tsetacl(T, T->top++, c);
+	trsetvalx(T, &c->base.delegate, en->base.delegate);
 	acapinfo_t* infos = p->captures;
 	for (int i = 0; i < p->ncap; ++i) {
-		if (infos[i].finstack) {
-			tsetcap(c->array + i, aloF_find(T, base + infos[i].index));
+		if (infos[i].finstack) { /* load capture from stack */
+			c->array[i] = aloF_find(T, base + infos[i].index);
 		}
-		else {
-			atval_t* t = en->array + infos[i].index;
-			if (ttiscap(t)) {
-				tgetcap(t)->counter++; /* increase counter */
-			}
-			tsetobj(T, c->array + i, t); /* move enclosed capture */
+		else { /* load capture from parent closure */
+			acap_t* cap = en->array[infos[i].index];
+			cap->counter++; /* increase reference counter */
+			c->array[i] = cap; /* move enclosed capture */
 		}
 	}
 	return c;
@@ -512,7 +506,7 @@ int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in
 void aloV_invoke(astate T, int dofinish) {
 	aframe_t* frame = T->frame;
 	const atval_t* consts;
-	aclosure_t* closure;
+	aacl_t* closure;
 	askid_t base;
 	aproto_t* proto;
 	const ainsn_t** ppc;
@@ -522,14 +516,16 @@ void aloV_invoke(astate T, int dofinish) {
 
 #define R(op) (base + GET_##op(I))
 #define K(op) (consts + GET_##op(I))
-#define S(op) ({ ainsn_t _id = GET_##op(I); aloK_iscapture(_id) ? decapture(&closure->delegate + aloK_getcapture(_id)) : base + aloK_getstack(_id); })
+#define S(op) ({ ainsn_t _id = GET_##op(I); \
+	aloK_iscapture(_id) ? aloK_getcapture(_id) == 0 ? &closure->base.delegate : \
+			closure->array[aloK_getcapture(_id) - 1]->p : base + aloK_getstack(_id); })
 #define X(op) (GET_x##op(I) ? K(op) : S(op))
 
 	invoke: {
 		aloE_assert(frame == T->frame, "frame should be current frame.");
-		closure = tgetclo(frame->fun);
+		closure = tgetacl(frame->fun);
 		ppc = &frame->a.pc;
-		proto = closure->a.proto;
+		proto = closure->base.a.proto;
 		consts = proto->consts;
 
 /* macros for main interpreting */
@@ -580,8 +576,8 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_LDP: {
 			aproto_t* p = proto->children[GET_Bx(I)];
-			aclosure_t* c = aloV_nloadproto(T, p, closure, base);
-			tsetclo(T, S(A), c);
+			aacl_t* c = aloV_nloadproto(T, p, closure, base);
+			tsetacl(T, S(A), c);
 			T->top = frame->top; /* adjust top */
 			checkGC(T, T->top);
 			break;

@@ -259,23 +259,21 @@ static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 	return sizeof(athread_t) + v->nframe * sizeof(aframe_t) + v->stacksize * sizeof(atval_t) + v->memstk.base.cap;
 }
 
-static size_t propagate_closure(aglobal_t* G, aclosure_t* v) {
-	abyte wb = aloG_whitebit(G);
-	markt(G, &v->delegate);
-	for (size_t i = 0; i < v->length; ++i) {
-		atval_t* o = &v->array[i];
-		if (ttiscap(o)) { /* for captured value, handle in special */
-			acap* c = tgetcap(o);
-			if (c->mark != wb) { /* mark capture only once */
-				markt(G, c->p);
-				c->mark = wb;
-			}
-		}
-		else {
-			markt(G, o);
-		}
+static size_t propagate_acl(aglobal_t* G, aacl_t* v) {
+	marknpg(G, v->base.a.proto);
+	markt(G, &v->base.delegate);
+	for (size_t i = 0; i < v->base.length; ++i) { /* for captured value, handle in special */
+		markt(G, v->array[i]->p);
 	}
-	return aclosize(v);
+	return aaclsize(v);
+}
+
+static size_t propagate_ccl(aglobal_t* G, accl_t* v) {
+	markt(G, &v->base.delegate);
+	for (size_t i = 0; i < v->base.length; ++i) {
+		markt(G, &v->array[i]);
+	}
+	return acclsize(v);
 }
 
 static size_t propagate_proto(aglobal_t* G, aproto_t* v) {
@@ -334,13 +332,11 @@ static void propagate(aglobal_t* G) {
 		break;
 	}
 	case ALO_TCCL: {
-		G->mtraced += propagate_closure(G, g2c(g));
+		G->mtraced += propagate_ccl(G, g2cc(g));
 		break;
 	}
 	case ALO_TACL: {
-		aclosure_t* v = g2c(g);
-		marknpg(G, v->a.proto);
-		G->mtraced += propagate_closure(G, v);
+		G->mtraced += propagate_acl(G, g2ac(g));
 		break;
 	}
 	case ALO_TPROTO: {
@@ -526,8 +522,7 @@ static void keeptbfwhite(aglobal_t* G) {
 /**
  ** decrease capture reference counter, and delete capture if no reference remain.
  */
-static inline void decaprefcnt(astate T, atval_t* o) {
-	acap* c = tgetcap(o);
+static inline void decaprefcnt(astate T, acap_t* c) {
 	if (--c->counter == 0 && aloO_isclosed(c)) {
 		aloM_delo(T, c);
 	}
@@ -570,24 +565,20 @@ static void sweepobj(astate T, agct g) {
 		aloR_deletethread(T, g2t(g));
 		break;
 	}
-	{
-		aclosure_t* v;
-	case ALO_TACL:
-		v = g2c(g);
-		if (v->a.proto && v->a.proto->cache == v) { /* if prototype cache is it self. */
-			v->a.proto->cache = NULL; /* remove prototype cache. */
+	case ALO_TACL: {
+		aacl_t* v = g2ac(g);
+		if (v->base.a.proto && v->base.a.proto->cache == v) { /* if prototype cache is it self. */
+			v->base.a.proto->cache = NULL; /* remove prototype cache. */
 		}
-		for (int i = 0; i < v->length; ++i) {
-			atval_t* t = &v->array[i];
-			if (ttiscap(t)) {
-				decaprefcnt(T, t);
-			}
+		for (int i = 0; i < v->base.length; ++i) {
+			decaprefcnt(T, v->array[i]);
 		}
-		goto closure;
-	case ALO_TCCL:
-		v = g2c(g);
-		closure:
-		aloM_free(T, v, aclosize(v));
+		aloM_free(T, v, aaclsize(v));
+		break;
+	}
+	case ALO_TCCL: {
+		accl_t* v = g2cc(g);
+		aloM_free(T, v, acclsize(v));
 		break;
 	}
 	case ALO_TRAWDATA: {

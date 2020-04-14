@@ -54,7 +54,7 @@ void aloD_growstack(astate T, size_t need) {
 
 static void correct_stack(astate T, ptrdiff_t off) {
 	T->top += off;
-	acap* cap = T->captures;
+	acap_t* cap = T->captures;
 	while (cap) {
 		cap->p += off;
 		cap = cap->prev;

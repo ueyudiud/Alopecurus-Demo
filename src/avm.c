@@ -236,8 +236,8 @@ int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
 			break;
 		}
 		case ALO_TLCF    : return tgetlcf(t1) == tgetlcf(t2);
-		case ALO_TCCL    : return tgetclo(t1) == tgetclo(t2);
-		case ALO_TACL    : return tgetclo(t1) == tgetclo(t2);
+		case ALO_TCCL    : return tgetccl(t1) == tgetccl(t2);
+		case ALO_TACL    : return tgetacl(t1) == tgetacl(t2);
 		case ALO_TTHREAD : return tgetthr(t1) == tgetthr(t2);
 		default:
 			aloE_xassert(false);
@@ -260,7 +260,7 @@ int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
 }
 
 static int tuple_iterator(astate T) {
-	aclosure_t* c = tgetclo(T->frame->fun);
+	accl_t* c = tgetccl(T->frame->fun);
 	const atval_t* result = aloA_next(tgettup(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
 	if (result) {
 		tsetobj(T, api_incrtop(T), result);
@@ -270,7 +270,7 @@ static int tuple_iterator(astate T) {
 }
 
 static int list_iterator(astate T) {
-	aclosure_t* c = tgetclo(T->frame->fun);
+	accl_t* c = tgetccl(T->frame->fun);
 	const atval_t* result = aloI_next(tgetlis(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
 	if (result) {
 		tsetobj(T, api_incrtop(T), result);
@@ -280,7 +280,7 @@ static int list_iterator(astate T) {
 }
 
 static int table_iterator(astate T) {
-	aclosure_t* c = tgetclo(T->frame->fun);
+	accl_t* c = tgetccl(T->frame->fun);
 	const aentry_t* result = aloH_next(tgettab(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
 	if (result) {
 		tsetobj(T, api_incrtop(T), amkey(result));
@@ -302,8 +302,8 @@ void aloV_iterator(astate T, const atval_t* in, atval_t* out) {
 	default:
 		aloU_rterror(T, "the value is not iterable.");
 	}
-	aclosure_t* c = aloF_newc(T, handle, 2);
+	accl_t* c = aloF_newc(T, handle, 2);
 	tsetobj(T, c->array, in);
 	tsetint(c->array + 1, ALO_ITERATE_BEGIN);
-	tsetclo(T, out, c);
+	tsetccl(T, out, c);
 }
