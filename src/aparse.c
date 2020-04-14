@@ -1440,7 +1440,7 @@ static void forstat(alexer_t* lex) {
 	testnext(lex, '(');
 	ablock_t b;
 	afstat_t* f = lex->f;
-	int index = pushcv(f);
+	int index = pushcv(f); /* push case variable */
 	f->d->cv.a[index].name = testident(lex);
 	while (checknext(lex, ',')) {
 		f->d->cv.a[pushcv(f)].name = testident(lex);
@@ -1449,19 +1449,18 @@ static void forstat(alexer_t* lex) {
 	aestat_t e;
 	expr(lex, &e);
 	testnext(lex, ')');
-	aloK_newitr(f, &e);
+	int lastfree = f->freelocal;
+	aloK_newitr(f, &e); /* push iterator */
 	enterblock(f, &b, true, lname);
-	regloc(f, lex->T->g->sempty);
 	aloE_assert(f->nactvar == f->freelocal, "variable number mismatched");
-	int nvar =  f->d->cv.l - index;
+	int nvar = f->d->cv.l - index;
 	aloK_checkstack(f, nvar);
-	aloK_iABC(f, OP_ICALL, 0, 0, 0, e.v.g, 0, nvar + 1);
 	for (int i = 0; i < nvar; ++i) {
 		regloc(f, f->d->cv.a[index + i].name);
 	}
+	aloK_iABC(f, OP_ICALL, 0, 0, 0, e.v.g, 0, nvar + 1);
+	f->freelocal = f->nactvar;
 	f->d->cv.l = index;
-	int lastfree = f->freelocal;
-	f->freelocal += nvar;
 	int label = aloK_jumpforward(f, NO_JUMP);
 	stat(lex, false); /* THEN block */
 	aloK_jumpbackward(f, b.lcon);
@@ -1545,6 +1544,8 @@ static void normstat(alexer_t* lex) {
 			lerror(lex, "call expression expected.");
 		}
 		SET_C(getinsn(lex->f, &a.e), 1);
+		aloE_assert(lex->f->freelocal == lex->f->nactvar + 1, "unexpected free local variable count.");
+		lex->f->freelocal = oldfreeloc; /* clear function result */
 		break;
 	}
 	}
