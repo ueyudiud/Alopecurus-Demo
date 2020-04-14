@@ -26,7 +26,7 @@
 #define checknext(l,id) (check(l, id) ? (poll(l), true) : false)
 #define testnext(l,id) { test(l, id); poll(l); }
 #define poll aloX_poll
-#define foward aloX_forward
+#define forward aloX_forward
 #define lerror aloX_error
 #define literal(l,s) aloX_getstr(l, ""s, (sizeof(s) / sizeof(char)) - 1)
 #define checklimit(l,n,lim,msg) { if ((n) > (lim)) lerror(l, msg); }
