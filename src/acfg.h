@@ -41,16 +41,21 @@
 
 #else
 
+#define ALO_ROOT "/usr/local/"
+#define ALO_LDIR ALO_ROOT "share/alo/"
+#define ALO_CDIR ALO_ROOT "lib/alo/"
+
 #define ALO_SEARCH_LPATH \
-	"~/mod/?.alo;" \
-	"~/?/mod.alo;" \
+	ALO_LDIR "mod/?.alo;" \
+	ALO_LDIR "?/mod.alo;" \
 	"./?.alo;" \
 	"./?/mod.alo;"
 #define ALO_SEARCH_CPATH \
-	"~/lib/?.dll;" \
+	ALO_CDIR "lib/?.dll;" \
 	"./?.dll;"
 
 #endif
+
 #endif
 
 /* max stack size of each thread */
