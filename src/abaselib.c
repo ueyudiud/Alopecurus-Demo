@@ -311,7 +311,7 @@ static const acreg_t mod_funcs[] = {
 	{ "rawset", base_rawset },
 	{ "setmeta", base_setmeta },
 	{ "toint", base_toint },
-	{ "tonumber", base_tonum },
+	{ "tonum", base_tonum },
 	{ "tostring", base_tostring },
 	{ "throw", base_throw },
 	{ "try", base_try },
@@ -334,7 +334,7 @@ int aloopen_base(astate T) {
 	alo_bind(T, "base.rawrem", base_rawrem);
 	alo_bind(T, "base.setmeta", base_setmeta);
 	alo_bind(T, "base.toint", base_toint);
-	alo_bind(T, "base.tonumber", base_tonum);
+	alo_bind(T, "base.tonum", base_tonum);
 	alo_bind(T, "base.tostring", base_tostring);
 	alo_bind(T, "base.try", base_try);
 	alo_bind(T, "base.throw", base_throw);
