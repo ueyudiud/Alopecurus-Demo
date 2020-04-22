@@ -86,12 +86,12 @@ extern const aver_t aloR_version;
 #define ALO_MAX_BUFSIZE 100000000
 #endif
 
-#if !defined(ALO_GCSTEPMUL)
-#define ALO_GCSTEPMUL 200
+#if !defined(ALO_DEFAULT_GCSTEPMUL)
+#define ALO_DEFAULT_GCSTEPMUL 200
 #endif
 
-#if !defined(ALO_GCPAUSEMUL)
-#define ALO_GCPAUSEMUL 200
+#if !defined(ALO_DEFAULT_GCPAUSEMUL)
+#define ALO_DEFAULT_GCPAUSEMUL 200
 #endif
 
 /* minimum working cost each GC step */

@@ -1098,15 +1098,47 @@ anoret alo_throw(astate T) {
 	aloD_throw(T, ThreadStateErrRuntime);
 }
 
-size_t alo_memused(astate T) {
-	return totalmem(T->g);
+size_t alo_gcconf(astate T, int what, size_t data) {
+	Gd(T);
+	size_t result = 0;
+	switch (what) {
+	case ALO_GCRUNNING: {
+		result = G->fgc;
+		break;
+	}
+	case ALO_GCSTOP: {
+		G->fgc = false;
+		break;
+	}
+	case ALO_GCRERUN: {
+		G->fgc = true;
+		aloD_setdebt(G, 0);
+		break;
+	}
+	case ALO_GCUSED: {
+		result = totalmem(G);
+		break;
+	}
+	case ALO_GCSTEPMUL: {
+		result = G->gcstepmul;
+		G->gcstepmul = data;
+		break;
+	}
+	case ALO_GCPAUSEMUL: {
+		result = G->gcpausemul;
+		G->gcpausemul = data;
+		break;
+	}
+	default: {
+		aloE_assert(false, "unknown GC configuration option.");
+		break;
+	}
+	}
+	return result;
 }
 
 void alo_fullgc(astate T) {
-	Gd(T);
-	if (!G->gcrunning) { /* only take action when GC is not running */
-		aloG_fullgc(T, GCKindNormal);
-	}
+	aloG_fullgc(T, GCKindNormal);
 }
 
 void alo_checkgc(astate T) {

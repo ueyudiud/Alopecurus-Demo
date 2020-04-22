@@ -121,8 +121,8 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	G->mestimate = sizeof(TG);
 	G->mtraced = 0;
 	G->gnormal = G->gfixed = G->gfnzable = G->gtobefnz = NULL;
-	G->gcstepmul = ALO_GCSTEPMUL;
-	G->gcpausemul = ALO_GCPAUSEMUL;
+	G->gcstepmul = ALO_DEFAULT_GCSTEPMUL;
+	G->gcpausemul = ALO_DEFAULT_GCPAUSEMUL;
 	G->panic = NULL;
 	G->tmain = T;
 	G->trun = T;
