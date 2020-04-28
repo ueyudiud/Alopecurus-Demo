@@ -414,7 +414,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		int line = lex->cl;
 		poll(lex);
 		if (checknext(lex, ')')) { /* enclosed directly? */
-			e->t = E_VOID;
+			initexp(e, E_VOID);
 		}
 		else {
 			int n = varexpr(lex, e);
@@ -1718,7 +1718,10 @@ static int stat(alexer_t* lex, int assign) {
 	case '{': { /* stat -> '{' stats '}' */
 		int line = lex->cl;
 		poll(lex);
+		ablock_t block;
+		enterblock(lex->f, &block, false, NULL);
 		int flag = stats(lex);
+		leaveblock(lex->f);
 		testenclose(lex, '{', '}', line);
 		return flag;
 	}

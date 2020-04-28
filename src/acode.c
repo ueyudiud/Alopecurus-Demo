@@ -338,6 +338,10 @@ void aloK_evalk(afstat_t* f, aestat_t* e) {
 	case E_STRING:
 		index = aloK_kstr(f, e->v.s);
 		break;
+	case E_VOID:
+		e->t = E_ALLOC;
+		e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, e->v.g + 1, 1);
+		return;
 	default:
 		return;
 	}
@@ -454,7 +458,7 @@ void aloK_member(afstat_t* f, aestat_t* o, aestat_t* k) {
 
 static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int base) {
 	asymbol* ss = f->d->ss.a + f->firstlocal;
-	for (int i = 0; i < f->nlocvar; ++i) {
+	for (int i = f->nactvar - 1; i >= 0; --i) {
 		aloE_assert(ss[i].type == SYMBOL_LOC, "unexpected variable type.");
 		if (ss[i].name == name) { /* find symbol in table */
 			e->t = E_LOCAL;
