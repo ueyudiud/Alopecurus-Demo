@@ -131,12 +131,12 @@ static atval_t* index2addr(astate T, ssize_t index) {
 		switch (ttype(fun)) {
 		case ALO_TACL: {
 			aacl_t* v = tgetacl(fun);
-			api_check(T, index < v->length, "capture index out of bound.");
+			api_check(T, index < v->base.length, "capture index out of bound.");
 			return v->array[index]->p;
 		}
 		case ALO_TCCL: {
 			accl_t* v = tgetccl(fun);
-			api_check(T, index < v->length, "capture index out of bound.");
+			api_check(T, index < v->base.length, "capture index out of bound.");
 			return v->array + index;
 		}
 		default: {
@@ -1046,13 +1046,13 @@ int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* k
  ** create a new closure and push into top of stack, used to avoid memory error.
  */
 static void pnewclosure(astate T, void* context) {
-	aclosure_t** p = aloE_cast(aclosure_t**, context);
-	*p = aloE_cast(aclosure_t*, aloF_new(T, 0, NULL));
-	tsetclo(T, api_incrtop(T), *p); /* put closure into stack to avoid GC */
+	aacl_t** p = aloE_cast(aacl_t**, context);
+	*p = aloF_new(T, 0);
+	tsetacl(T, api_incrtop(T), *p); /* put closure into stack to avoid GC */
 }
 
 int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
-	aclosure_t* c = NULL;
+	aacl_t* c = NULL;
 	int status = aloD_prun(T, pnewclosure, &c);
 	if (status != ThreadStateRun) {
 		return status;
@@ -1060,10 +1060,11 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 	astring_t* s;
 	aibuf_t buf;
 	aloB_iopen(&buf, reader, context);
-	status = aloP_parse(T, src, &buf, &c->a.proto, &s);
+	status = aloP_parse(T, src, &buf, &c->base.a.proto, &s);
 	if (status == ThreadStateRun) { /* compile success */
-		c->a.proto->name = aloS_of(T, name);
-		tsetobj(T, &c->delegate, aloT_getreg(T));
+		c->base.a.proto->name = aloS_of(T, name);
+		c->base.a.proto->cache = c;
+		tsetobj(T, &c->base.delegate, aloT_getreg(T));
 	}
 	else { /* failed */
 		tsetstr(T, T->top - 1, s); /* move error message into top of stack */
@@ -1073,7 +1074,7 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 }
 
 int alo_load(astate T, astr src, areader reader, void* context) {
-	aacl_t* c = aloF_new(T, 0, NULL);
+	aacl_t* c = aloF_new(T, 0);
 	tsetacl(T, api_incrtop(T), c);
 	int status = aloZ_load(T, &c->base.a.proto, src, reader, context);
 	if (status != ThreadStateRun) {
@@ -1083,8 +1084,8 @@ int alo_load(astate T, astr src, areader reader, void* context) {
 }
 
 int alo_save(astate T, awriter writer, void* context, int debug) {
-	aloE_assert(ttisacl(c), "not a Alopecurus closure");
 	aclosure_t* c = tgetclo(T->top - 1);
+	aloE_assert(ttisacl(c), "not a Alopecurus closure");
 	return aloZ_save(T, c->a.proto, writer, context, debug);
 }
 

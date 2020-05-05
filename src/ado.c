@@ -104,7 +104,7 @@ static void shrinkframe(astate T) {
 		/* shrink to half of frame */
 		aframe_t* frame = T->frame;
 		while (frame->next && frame->next->next) { /* has two extra frame? */
-			aframe_t* next = frame->next->next->next;
+			aframe_t* next = frame->next->next;
 			aloM_delo(T, frame->next);
 			frame->next = next;
 			if (next == NULL)
@@ -116,13 +116,7 @@ static void shrinkframe(astate T) {
 }
 
 void aloD_shrinkstack(astate T) {
-	ambuf_t* buf = basembuf(T);
-	if (buf->cap >= (sizeof(char) * 256 * 2) && T->memstk.top->buf + T->memstk.top->len <= basembuf(T)->buf + buf->cap / 4) { /* memory buffer too big? */
-		size_t newcap = buf->cap / 2;
-		void* newmem = aloM_realloc(T, buf->buf, buf->cap, newcap);
-		aloE_xassert(newmem == buf->buf);
-		aloE_void(newmem);
-	}
+	aloB_shrink(T);
 	shrinkframe(T);
 	size_t inuse = usedstackcount(T);
 	size_t estimate = inuse + (inuse / 8) + 1 + 2 * EXTRA_STACK;
@@ -143,7 +137,7 @@ void aloD_shrinkstack(astate T) {
 int aloD_prun(astate T, apfun fun, void* ctx) {
 	/* store current thread state */
 	uint16_t nccall = T->nccall;
-	ambuf_t* mbuf = T->memstk.top; /* store memory buffer */
+	amstack_t* mbuf = T->memstk.top; /* store memory buffer */
 	/* initialize jump label */
 	ajmp_t label;
 	label.prev = T->label;
@@ -425,6 +419,9 @@ int aloD_pcall(astate T, askid_t fun, int nres, ptrdiff_t ef) {
 		T->nxyield = nxyield;
 		aloD_shrinkstack(T);
 	}
+	else {
+		aloE_assert(T->frame == frame, "frame changed");
+	}
 	T->errfun = oldef;
 	return status;
 }
@@ -592,9 +589,11 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 		frame->name = "<yield>";
 		frame->c.kfun = NULL;
 		frame->c.ctx = NULL;
+		frame->c.oef = 0;
 		frame->fun = T->top - nres;
 		frame->top = T->top;
 		frame->flags = 0;
+		T->frame = frame;
 		aloi_yield(T, *T->label);
 	}
 }

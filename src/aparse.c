@@ -1789,17 +1789,18 @@ int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out, astring_t** msg)
 	aloX_open(T, &context.lex, src, in);
 
 	int status = aloD_prun(T, pparse, &context);
-	*out = !status ? context.data.p : NULL;
-	*msg = status ? tgetstr(T->top - 1) : NULL;
-
-	destory_context(T, &context.data);
-	aloX_close(&context.lex);
-	if (status) {
-		aloZ_delete(T, context.data.p);
+	if (status == ThreadStateRun) {
+		registerproto(T, context.data.p);
+		*out = context.data.p;
+		*msg = NULL;
 	}
 	else {
-		registerproto(T, context.data.p);
+		aloZ_delete(T, context.data.p);
+		*msg = tgetstr(T->top - 1);
 	}
+	destory_context(T, &context.data);
+	aloX_close(&context.lex);
+
 	T->top = top;
 	return status;
 }

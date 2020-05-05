@@ -277,6 +277,9 @@ static size_t propagate_ccl(aglobal_t* G, accl_t* v) {
 }
 
 static size_t propagate_proto(aglobal_t* G, aproto_t* v) {
+	if (v->cache && aloG_iswhite(&v->cache->base)) {
+		v->cache = NULL; /* unlink cache and prototype */
+	}
 	markng(G, v->name);
 	markng(G, v->src);
 	int i;
@@ -520,15 +523,6 @@ static void keeptbfwhite(aglobal_t* G) {
 #define isdeadm(o,gb) ((o)->mark & (gb))
 
 /**
- ** decrease capture reference counter, and delete capture if no reference remain.
- */
-static inline void decaprefcnt(astate T, acap_t* c) {
-	if (--c->counter == 0 && aloO_isclosed(c)) {
-		aloM_delo(T, c);
-	}
-}
-
-/**
  ** sweep object 'g'
  */
 static void sweepobj(astate T, agct g) {
@@ -567,11 +561,13 @@ static void sweepobj(astate T, agct g) {
 	}
 	case ALO_TACL: {
 		aacl_t* v = g2ac(g);
-		if (v->base.a.proto && v->base.a.proto->cache == v) { /* if prototype cache is it self. */
-			v->base.a.proto->cache = NULL; /* remove prototype cache. */
-		}
 		for (int i = 0; i < v->base.length; ++i) {
-			decaprefcnt(T, v->array[i]);
+			acap_t* c = v->array[i];
+			/* decrease capture reference counter */
+			if (--c->counter == 0 && aloO_isclosed(c)) {
+				/* delete capture if no reference remain */
+				aloM_delo(T, c);
+			}
 		}
 		aloM_free(T, v, aaclsize(v));
 		break;
