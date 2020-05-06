@@ -18,16 +18,16 @@ typedef struct alo_ModInfo {
 
 const amodinfo_t stdmods[] = {
 	{ "_G", aloopen_base },
-	{ "@", aloopen_cls },
-	{ "math", aloopen_math },
-	{ "io", aloopen_io },
-	{ "string", aloopen_str },
-	{ "list", aloopen_lis },
-	{ "table", aloopen_tab },
-	{ "sys", aloopen_sys },
-	{ "mod", aloopen_mod },
-	{ "gc", aloopen_gc },
-	{ "thread", aloopen_coro },
+	{ ALO_CLSLIB_NAME, aloopen_cls },
+	{ ALO_MATHLIB_NAME, aloopen_math },
+	{ ALO_IOLIB_NAME, aloopen_io },
+	{ ALO_STRLIB_NAME, aloopen_str },
+	{ ALO_LISTLIB_NAME, aloopen_lis },
+	{ ALO_TABLELIB_NAME, aloopen_tab },
+	{ ALO_SYSLIB_NAME, aloopen_sys },
+	{ ALO_MODLIB_NAME, aloopen_mod },
+	{ ALO_GCLIB_NAME, aloopen_gc },
+	{ ALO_COROLIB_NAME, aloopen_coro },
 	{ NULL, NULL }
 };
 
