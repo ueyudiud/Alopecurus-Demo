@@ -16,11 +16,11 @@
 /**
  ** create uninitialized Alopecurus closure.
  */
-aacl_t* aloF_new(astate T, size_t size, aproto_t* proto) {
+aacl_t* aloF_new(astate T, size_t size) {
 	aacl_t* value = aloE_cast(aacl_t*, aloM_malloc(T, acclsizel(size)));
 	aloG_register(T, value, ALO_TACL);
 	value->base.length = aloE_byte(size);
-	value->base.a.proto = proto;
+	value->base.a.proto = NULL;
 	/* clean delegate and captures */
 	tsetnil(&value->base.delegate);
 	for (size_t i = 0; i < size; value->array[i++] = NULL);
