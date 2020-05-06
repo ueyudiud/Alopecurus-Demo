@@ -24,5 +24,6 @@ ALO_IFUN anoret aloU_ererror(astate, astr, ...);
 #define aloU_mnotfound(T,o,n) aloU_rterror(T, "method '%s.__%s' not found", aloV_typename(T, o), n);
 #define aloU_outofrange(T,idx,len) aloU_rterror(T, "index out of bound, len: %i, index: %i", aloE_int(len), aloE_int(idx));
 #define aloU_invalidkey(T) aloU_rterror(T, "invalid key")
+#define aloU_szoutoflim(T) aloU_rterror(T, "size out of limit")
 
 #endif /* ADEBUG_H_ */

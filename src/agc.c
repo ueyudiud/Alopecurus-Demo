@@ -14,6 +14,7 @@
 #include "atab.h"
 #include "afun.h"
 #include "astate.h"
+#include "abuf.h"
 #include "adebug.h"
 #include "ameta.h"
 #include "agc.h"
@@ -255,8 +256,9 @@ static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 	}
 	else if (G->gckind == GCKindNormal) {
 		aloD_shrinkstack(v);
+		aloB_shrink(v);
 	}
-	return sizeof(athread_t) + v->nframe * sizeof(aframe_t) + v->stacksize * sizeof(atval_t) + v->memstk.base.cap;
+	return sizeof(athread_t) + v->nframe * sizeof(aframe_t) + v->stacksize * sizeof(atval_t) + v->memstk.cap;
 }
 
 static size_t propagate_acl(aglobal_t* G, aacl_t* v) {

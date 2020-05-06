@@ -76,7 +76,7 @@ struct alo_Lexer {
 	atoken_t ct, nt; /* current token and next token */
 	int pl, cl; /* previous and current line number */
 	afstat_t* f; /* current function state */
-	ambuf_t buf;
+	ambuf_t buf[1];
 };
 
 #endif /* ALEX_H_ */

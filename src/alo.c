@@ -77,7 +77,7 @@ static int readline(astate T, ambuf_t* buf) {
 	size_t l;
 	do {
 		aloL_bcheck(T, buf, MAXINPUT + 1);
-		char* p = fgets(aloL_btop(buf, char), MAXINPUT + 1, stdin);
+		char* p = fgets(aloL_btop(buf), MAXINPUT + 1, stdin);
 		if (p == NULL) {
 			/* read failed */
 			if (feof(stdin)) {

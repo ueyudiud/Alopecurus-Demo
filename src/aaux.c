@@ -6,9 +6,7 @@
  */
 
 #define AAUX_C_
-#define ALO_CORE
-
-#define _GNU_SOURCE
+#define ALO_LIB
 
 #include "aaux.h"
 #include "alibs.h"
@@ -525,7 +523,7 @@ void aloL_newclass_(astate T, astr name, ...) {
 
 void aloL_bputm(astate T, ambuf_t* buf, const void* src, size_t len) {
 	aloL_bcheck(T, buf, len);
-	memcpy(buf->buf + buf->len, src, len);
+	memcpy(aloL_btop(buf), src, len);
 	aloL_blen(buf) += len;
 }
 
@@ -536,7 +534,7 @@ void aloL_bputs(astate T, ambuf_t* buf, astr src) {
 void aloL_breptc(astate T, ambuf_t* buf, astr src, int tar, int rep) {
 	size_t len = strlen(src);
 	aloL_bcheck(T, buf, len);
-	abyte* d = aloL_braw(buf);
+	char* d = aloL_braw(buf);
 	astr p = src;
 	astr q;
 	while ((q = strchr(p, tar))) {

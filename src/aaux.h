@@ -96,31 +96,34 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 /** the minimum heaped memory buffer capacity */
 #define ALOL_MBUFSIZE (256 * __SIZEOF_POINTER__)
 
-#define aloL_usebuf(T,n) for (alo_newbuf(T, n); n->prev; alo_popbuf(T, n))
+#define aloL_newbuf(T,n) ambuf_t n[1] = { (alo_bufpush(T, n), n[0]) }
+#define aloL_usebuf(T,n) for (aloL_newbuf(T, n); n->prev; alo_bufpop(T, n))
 
 /* buffer field getter */
 #define aloL_blen(b) ((b)->len) /* readable and writable */
-#define aloL_braw(b) aloE_cast(abyte* const, (b)->buf) /* read-only */
+#define aloL_braw(b) aloE_cast(char* const, (b)->ptr) /* read-only */
 
 /* basic buffer operation */
-#define aloL_bclean(b) aloE_void(aloL_blen(b) = 0)
-#define aloL_bempty(b) (aloL_blen(b) == 0)
-#define aloL_bcheck(T,b,l) ({ size_t $req = (b)->len + (l); if ($req > (b)->cap) alo_growbuf(T, b, $req); })
+#define aloL_bclean(b) aloE_void((b)->len = 0)
+#define aloL_bempty(b) ((b)->len == 0)
+#define aloL_bcheck(T,b,l) ({ size_t $req = (b)->len + (l); if ($req > (b)->cap) alo_bufgrow(T, b, $req); })
+#define aloL_btop(b) ((b)->ptr + (b)->len)
 
 /* buffer as string builder */
-#define aloL_bgetc(b,i) aloE_cast(astr, aloL_braw(b))[i]
-#define aloL_bputc(T,b,ch) (aloE_cast(void, aloL_blen(b) < (b)->cap || (aloL_bcheck(T, b, 1), true)), aloL_bputcx(b, ch))
+#define aloL_bgetc(b,i) ((b)->ptr[i])
+#define aloL_bputc(T,b,ch) (aloE_cast(void, (b)->len < (b)->cap || (aloL_bcheck(T, b, 1), true)), aloL_bputcx(b, ch))
 #define aloL_bputls(T,b,s,l) aloL_bputm(T, b, s, (l) * sizeof(char))
 #define aloL_bputxs(T,b,s) aloL_bputls(T, b, ""s, sizeof(s) / sizeof(char) - 1)
-#define aloL_bsetc(b,i,ch) (aloL_braw(b)[i] = aloE_byte(ch))
-#define aloL_bputcx(b,ch) aloL_bsetc(b, aloL_blen(b)++, ch)
+#define aloL_bsetc(b,i,ch) ((b)->ptr[i] = aloE_cast(char, ch))
+#define aloL_bputcx(b,ch) aloL_bsetc(b, (b)->len++, ch)
 #define aloL_b2str(T,b) aloE_cast(astr, (aloL_bputc(T, b, '\0'), aloL_braw(b))) /* read-only, not alive till memory buffer pop */
 
 /* buffer as object stack */
-#define aloL_bpush(T,b,o) aloL_bputm(T, b, &(o), sizeof(o))
-#define aloL_bpop(b,t) \
+#define aloL_btpush(T,b,o) \
+	aloE_void(aloL_bcheck(T, b, sizeof(o)), *aloL_bttop(b, o) = (o), aloL_blen(b) += sizeof(o))
+#define aloL_btpop(b,t) \
 	aloE_check(aloL_blen(b) >= sizeof(t), "no "#t" in buffer.", aloE_cast(typeof(t)*, aloL_braw(b) + (aloL_blen(b) -= sizeof(t))))
-#define aloL_btop(b,t) aloE_cast(typeof(t)*, aloL_braw(b) + aloL_blen(b))
+#define aloL_bttop(b,t) aloE_cast(typeof(t)*, aloL_btop(b))
 
 ALO_API void aloL_bputm(astate, ambuf_t*, const void*, size_t);
 ALO_API void aloL_bputs(astate, ambuf_t*, astr);

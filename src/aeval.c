@@ -136,7 +136,8 @@ static aacl_t* aloV_nloadproto(astate T, aproto_t* p, aacl_t* en, askid_t base) 
 	if (c != NULL) {
 		return c;
 	}
-	c = aloF_new(T, p->ncap, p);
+	c = aloF_new(T, p->ncap);
+	c->base.a.proto = p;
 	tsetacl(T, T->top++, c);
 	trsetvalx(T, &c->base.delegate, en->base.delegate);
 	acapinfo_t* infos = p->captures;

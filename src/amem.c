@@ -42,18 +42,14 @@ void aloM_free(astate T, amem oldblock, size_t oldsize) {
 	G->mdebt -= oldsize;
 }
 
-static anoret throwsol(astate T) {
-	aloU_rterror(T, "array size over limit.");
-}
-
 size_t aloM_adjsize(astate T, size_t capacity, size_t require, size_t limit) {
 	if (require > limit) {
-		throwsol(T);
+		aloU_szoutoflim(T);
 	}
 	size_t newcap = capacity * 2;
 	if (newcap > limit) {
 		if (capacity >= limit) {
-			throwsol(T);
+			aloU_szoutoflim(T);
 		}
 		return limit;
 	}
@@ -72,7 +68,7 @@ size_t aloM_growsize(astate T, size_t capacity, size_t limit) {
 	size_t newcap = capacity * 2;
 	if (newcap > limit) {
 		if (capacity >= limit) {
-			throwsol(T);
+			aloU_szoutoflim(T);
 		}
 		return limit;
 	}

@@ -83,7 +83,7 @@ static int str_repeat(astate T) {
 	else { /* for long string, use buffer on heap */
 		aloL_usebuf(T, buf) {
 			aloL_bcheck(T, buf, nlen * sizeof(char));
-			abyte* p = aloL_braw(buf);
+			char* p = aloL_braw(buf);
 			for (size_t i = 0; i < time; ++i) {
 				memcpy(p, src, len);
 				p += len * sizeof(char);
@@ -113,17 +113,7 @@ static int str_trim(astate T) {
 		alo_settop(T, 1);
 	}
 	else {
-		len = j - i;
-		if (len <= MAX_STACKBUF_LEN) {
-			char buf[len];
-			l_strcpy(buf, src + i, len);
-			alo_pushlstring(T, buf, len);
-		}
-		else aloL_usebuf(T, buf) {
-			aloL_bcheck(T, buf, len * sizeof(char));
-			aloL_bputls(T, buf, src + i, len);
-			aloL_bpushstring(T, buf);
-		}
+		alo_pushlstring(T, src + i, j - i);
 	}
 	return 1;
 }
@@ -325,14 +315,15 @@ static int match_lim(amstat_t* M, int p, astr s) {
 	}
 }
 
-#define pushlabel(M,s,n,c) aloL_bpush((M)->T, &(M)->js, ((amlabel_t) { n, (s) - (M)->sbegin, c }))
-#define toplabel(M) aloL_btop(&(M)->js, amlabel_t)
+#define pushlabel(M,s,n,c) aloL_btpush((M)->T, &(M)->js, ((amlabel_t) { n, (s) - (M)->sbegin, c }))
+#define toplabel(M) aloL_bttop(&(M)->js, amlabel_t)
 
 static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
-	alo_pushbuf(M->T, &M->js);
+	alo_bufpush(M->T, &M->js);
 	aminsn_t* pc = f->codes;
 	const char* s = start;
 	int failed = false;
+	aloL_newbuf(M->T, buf);
 	int counter[f->ncounter];
 	for (int i = 0; i < f->ncounter; counter[i++] = 0);
 	mcheck:
@@ -341,7 +332,8 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 		case RE_RET: {
 			if ((mask & MASK_FULL) && s != M->send)
 				goto mthrow;
-			alo_popbuf(M->T, &M->js);
+			alo_bufpop(M->T, buf);
+			alo_bufpop(M->T, &M->js);
 			return true;
 		}
 		case RE_BEG: {
@@ -447,14 +439,15 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 	mthrow:
 	if (M->js.len > 0) {
 		/* recover through match stack */
-		amlabel_t* label = aloL_bpop(&M->js, amlabel_t);
+		amlabel_t* label = aloL_btpop(&M->js, amlabel_t);
 		pc = label->to;
 		s = M->sbegin + label->pos;
 		failed = true;
 		goto mcheck;
 	}
 	/* not recoverable, match failed */
-	alo_popbuf(M->T, &M->js);
+	alo_bufpop(M->T, buf);
+	alo_bufpop(M->T, &M->js);
 	return false;
 }
 

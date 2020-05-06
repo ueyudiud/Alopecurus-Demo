@@ -39,12 +39,13 @@ typedef struct {
  */
 typedef struct {
 	ambuf_t* top; /* top of buffer stack */
-	ambuf_t base; /* the head of buffer stack,
-	                 which stores the memory stack size and base pointer. */
+	abyte* ptr; /* the memory pointer of buffer */
+	size_t cap; /* the capacity of buffer */
+	size_t len; /* always be zero */
 } amstack_t;
 
 /* get base memory buffer */
-#define basembuf(T) (&(T)->memstk.base)
+#define basembuf(T) aloE_cast(ambuf_t*, &(T)->memstk.ptr)
 
 /**
  ** global state, shared by each thread.

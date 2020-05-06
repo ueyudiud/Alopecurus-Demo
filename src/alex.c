@@ -41,22 +41,22 @@ static inline int lgetc(alexer_t* lex) {
 }
 
 static void lstore(alexer_t* lex, int ch) {
-	aloB_putc(lex->T, &lex->buf, ch);
+	aloB_putc(lex->T, lex->buf, ch);
 }
 
 static inline void lrewind(alexer_t* lex) {
-	lex->buf.len = 0;
+	lex->buf->len = 0;
 }
 
 static inline astring_t* lload(alexer_t* lex) {
-	astring_t* s = aloX_getstr(lex, aloE_cast(char*, lex->buf.buf), lex->buf.len);
+	astring_t* s = aloX_getstr(lex, aloE_cast(char*, lex->buf->ptr), lex->buf->len);
 	lrewind(lex);
 	return s;
 }
 
 static inline astr lmake(alexer_t* lex) {
 	lstore(lex, '\0'); /* make a zero terminated string */
-	return aloE_cast(astr, lex->buf.buf);
+	return aloE_cast(astr, lex->buf->ptr);
 }
 
 /**
@@ -78,7 +78,6 @@ void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
 	lex->T = T;
 	lex->in = in;
 	aloB_open(T, lex->buf);
-	lex->buf.len = 0;
 	lex->ch = aloB_ifill_(T, lex->in); /* get fist character */
 	lex->ct = lex->nt = undef;
 	lex->pl = -1;

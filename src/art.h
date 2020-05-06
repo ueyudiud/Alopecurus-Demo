@@ -13,6 +13,10 @@
 #include "acfg.h"
 #include "adef.h"
 
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901
+#error "C99 or newer standard required"
+#endif
+
 /**
  ** the ALO_IFUN marked for inner function which will not exported to outside module.
  */
@@ -46,6 +50,18 @@ struct alo_JumpBuf {
 	ajmp_t* prev;
 	jmp_buf buf;
 };
+
+#if defined(ALO_CORE)
+
+/* the implement for memory buffer */
+struct alo_MemBuf {
+	abyte* ptr;
+	size_t cap;
+	size_t len;
+	ambuf_t* prev; /* the previous memory buffer in linked list */
+};
+
+#endif
 
 /**
  ** limits and constants.

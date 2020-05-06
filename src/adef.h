@@ -39,12 +39,14 @@ typedef struct alo_Version {
 
 typedef struct alo_MemBuf ambuf_t;
 
+#if !defined(ALO_CORE)
 struct alo_MemBuf {
-	abyte* buf; /* the start pointer of buffer */
-	size_t cap; /* the capacity of buffer */
+	char* const ptr; /* the start pointer of buffer */
+	size_t const cap; /* the capacity of buffer */
 	size_t len; /* the length filled in buffer */
-	ambuf_t* prev; /* the previous memory buffer in linked list */
+	const void* const prev;
 };
+#endif
 
 /**
  ** Alopecurus state and handle types

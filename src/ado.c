@@ -116,7 +116,6 @@ static void shrinkframe(astate T) {
 }
 
 void aloD_shrinkstack(astate T) {
-	aloB_shrink(T);
 	shrinkframe(T);
 	size_t inuse = usedstackcount(T);
 	size_t estimate = inuse + (inuse / 8) + 1 + 2 * EXTRA_STACK;
@@ -137,7 +136,7 @@ void aloD_shrinkstack(astate T) {
 int aloD_prun(astate T, apfun fun, void* ctx) {
 	/* store current thread state */
 	uint16_t nccall = T->nccall;
-	amstack_t* mbuf = T->memstk.top; /* store memory buffer */
+	ambuf_t* buf = T->memstk.top; /* store memory buffer */
 	/* initialize jump label */
 	ajmp_t label;
 	label.prev = T->label;
@@ -147,7 +146,7 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
 	/* restore old thread state */
 	T->label = label.prev;
 	T->nccall = nccall;
-	T->memstk.top = mbuf; /* revert memory buffer */
+	T->memstk.top = buf; /* revert memory buffer */
 	return status;
 }
 

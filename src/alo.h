@@ -251,15 +251,12 @@ ALO_API void alo_checkgc(astate);
 ALO_API int alo_format(astate, awriter, void*, astr, ...);
 ALO_API int alo_vformat(astate, awriter, void*, astr, va_list);
 
-ALO_API void alo_pushbuf(astate, ambuf_t*);
-ALO_API void alo_growbuf(astate, ambuf_t*, size_t);
-ALO_API void alo_popbuf(astate, ambuf_t*);
+ALO_API void alo_bufpush(astate, ambuf_t*);
+ALO_API void alo_bufgrow(astate, ambuf_t*, size_t);
+ALO_API void alo_bufpop(astate, ambuf_t*);
 
 #define alo_isgcrunning(T) aloE_cast(int, alo_gcconf(T, ALO_GCRUNNING, 0))
 #define alo_memused(T) alo_gcconf(T, ALO_GCUSED, 0)
-
-#define alo_newbuf(T,n) \
-	ambuf_t n##$data, *n = (alo_pushbuf(T, &n##$data), &n##$data)
 
 /**
  ** debugger

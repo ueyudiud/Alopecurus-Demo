@@ -112,7 +112,7 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 				return;
 			aloL_bputcx(buf, ch);
 		}
-		alo_growbuf(T, buf, buf->len + SHTBUFSIZE); /* grow buffer capacity */
+		alo_bufgrow(T, buf, buf->len + SHTBUFSIZE); /* grow buffer capacity */
 	}
 }
 
@@ -143,7 +143,7 @@ static int f_get(astate T) {
 			aloL_bpushstring(T, buf);
 		}
 		else {
-			alo_popbuf(T, buf); /* pop buffer before return */
+			alo_bufpop(T, buf); /* pop buffer before return */
 			return aloL_errresult_(T, NULL);
 		}
 	}

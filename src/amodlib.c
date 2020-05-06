@@ -353,19 +353,19 @@ static int loader_c(astate T) {
 	adlbox_t* box;
 	for (int i = n - 1; i >= 0; --i) {
 		alo_rawgeti(T, 3, i);
-		alo_newbuf(T, buf); /* push string buffer */
+		aloL_newbuf(T, buf); /* push string buffer */
 		aloL_brepts(T, buf, alo_tostring(T, 4), "?", path);
 		astr actual = aloL_b2str(T, buf);
 		if (l_readable(actual)) {
 			box = loaddl(T, actual, false);
-			alo_popbuf(T, buf); /* pop string buffer */
+			alo_bufpop(T, buf); /* pop string buffer */
 			if (box == NULL) {
 				alo_error(T); /* throw error message */
 			}
 			goto initialize;
 		}
 		alo_pushfstring(T, "\n\tno file '%s'", actual);
-		alo_popbuf(T, buf); /* pop string buffer */
+		alo_bufpop(T, buf); /* pop string buffer */
 		alo_add(T, 2);
 		alo_settop(T, 4);
 	}
