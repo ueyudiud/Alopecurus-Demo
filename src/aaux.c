@@ -52,6 +52,14 @@ void aloL_newstringlist_(astate T, size_t size, ...) {
 	va_end(varg);
 }
 
+void aloL_newweaktable(astate T, astr prop, size_t size) {
+	alo_newtable(T, size);
+	alo_newtable(T, 1);
+	alo_pushstring(T, prop);
+	alo_rawsets(T, -2, "__mode");
+	alo_setmetatable(T, -2);
+}
+
 anoret aloL_argerror(astate T, ssize_t i, astr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);

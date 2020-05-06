@@ -100,6 +100,7 @@ ALO_API int alo_israwdata(astate, ssize_t);
 
 #define alo_isboolean(T,index) (alo_typeid(T, index) == ALO_TBOOL)
 #define alo_isstring(T,index) (alo_typeid(T, index) == ALO_TSTRING)
+#define alo_isreference(T,index) (alo_typeid(T, index) >= ALO_TTUPLE)
 #define alo_isnothing(T,index) (alo_typeid(T, index) <= ALO_TNIL)
 #define alo_isnone(T,index) (alo_typeid(T, index) == ALO_TUNDEF)
 #define alo_isnonnil(T,index) (alo_typeid(T, index) > ALO_TNIL)

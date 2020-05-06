@@ -379,14 +379,14 @@ static int scan_wtable(aglobal_t* G, atable_t* v) {
 	for (size_t i = 0; i < v->capacity; ++i) {
 		aentry_t* entry = &v->array[i];
 		if (!ttisnil(entry)) {
-			if (checkmark(G, &entry->key)) {
+			if (checkmark(G, amkey(entry))) {
 				clears = true;
-				if (tiswhite(&entry->value)) {
+				if (tiswhite(amval(entry))) {
 					unknown = true;
 				}
 			}
-			else if (tiswhite(entry)) {
-				markg_(G, tgetref(entry));
+			else if (tiswhite(amval(entry))) {
+				markg_(G, tgetref(amval(entry)));
 				marked = true;
 			}
 		}

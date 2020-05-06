@@ -16,6 +16,7 @@ ALO_API astate aloL_newstate(void);
 
 ALO_API void aloL_pushscopedcfunction(astate, acfun);
 ALO_API void aloL_newstringlist_(astate, size_t, ...);
+ALO_API void aloL_newweaktable(astate, astr, size_t);
 
 #define aloL_newstringlist(T,args...) aloL_newstringlist_(T, sizeof((astr[]) { args }) / sizeof(astr), ##args)
 
