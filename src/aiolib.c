@@ -120,12 +120,12 @@ static int f_line(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	if (!feof(file->stream)) {
-		aloL_usebuf(T, buf) {
+		aloL_usebuf(T, buf,
 			l_lockstream(file->stream);
 			l_getline(T, file, buf);
 			l_unlockstream(file->stream);
 			aloL_bpushstring(T, buf);
-		}
+		)
 	}
 	else {
 		alo_pushnil(T); /* return nil read to end of file */
@@ -137,7 +137,7 @@ static int f_get(astate T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t l = aloL_checkinteger(T, 1);
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		aloL_bcheck(T, buf, l);
 		if ((buf->len = fread(aloL_braw(buf), sizeof(char), l, file->stream)) > 0 || !ferror((file->stream))) {
 			aloL_bpushstring(T, buf);
@@ -146,7 +146,7 @@ static int f_get(astate T) {
 			alo_bufpop(T, buf); /* pop buffer before return */
 			return aloL_errresult_(T, NULL);
 		}
-	}
+	)
 	return 1;
 }
 
@@ -240,7 +240,7 @@ static int f_setbuf(astate T) {
 
 static int aux_lines(astate T, __attribute__((unused)) int status, void* context) {
 	afile* file = aloE_cast(afile*, context);
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		while (!feof(file->stream)) {
 			l_lockstream(file->stream);
 			l_getline(T, file, buf);
@@ -251,7 +251,7 @@ static int aux_lines(astate T, __attribute__((unused)) int status, void* context
 			alo_push(T, -2); /* push string */
 			alo_callk(T, 1, 0, aux_lines, file);
 		}
-	}
+	)
 	return 0;
 }
 
@@ -268,7 +268,7 @@ static int f_lines(astate T) {
 	else {
 		alo_newlist(T, 0); /* create new line list */
 		int index = 0;
-		aloL_usebuf(T, buf) {
+		aloL_usebuf(T, buf,
 			l_lockstream(file->stream);
 			while (!feof(file->stream)) {
 				l_getline(T, file, buf);
@@ -277,8 +277,8 @@ static int f_lines(astate T) {
 				aloL_bclean(buf); /* rewind buffer */
 			}
 			l_unlockstream(file->stream);
-			alo_push(T, 1);
-		}
+		)
+		alo_push(T, 1);
 		return 1;
 	}
 }

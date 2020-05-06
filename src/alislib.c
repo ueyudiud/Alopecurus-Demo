@@ -457,7 +457,7 @@ static int list_mkstr(astate T) {
 		break;
 	}
 	size_t n = alo_rawlen(T, 0);
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		if (n == 0) {
 			aloL_bputls(T, buf, s2, l2);
 			aloL_bputls(T, buf, s3, l3);
@@ -480,7 +480,7 @@ static int list_mkstr(astate T) {
 			aloL_bputls(T, buf, s3, l3);
 		}
 		aloL_bpushstring(T, buf);
-	}
+	)
 	return 1;
 }
 

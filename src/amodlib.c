@@ -326,7 +326,7 @@ static int loader_l(astate T) {
 
 static acfun getopenf(astate T, void* library, astr name) {
 	acfun fun = NULL;
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		aloL_bputxs(T, buf, ALO_POF); /* put prefix */
 		astr p = name;
 		astr q;
@@ -337,7 +337,7 @@ static acfun getopenf(astate T, void* library, astr name) {
 		}
 		aloL_bputs(T, buf, p);
 		fun = l_get(T, library, aloL_b2str(T, buf));
-	}
+	)
 	return fun;
 }
 
@@ -474,24 +474,23 @@ static void l_createsp(astate T, astr search) {
 		if ((s3 = l_strchr(s1, '~', s2 - s1))) { /* environmental path? */
 			if (path) { /* has path? */
 				s4 = path;
-				while ((s5 = strchr(s4, ';'))) {
-					aloL_usebuf(T, buf) {
+				aloL_usebuf(T, buf,
+					while ((s5 = strchr(s4, ';'))) {
 						aloL_bputls(T, buf, s1, s3 - s1);
 						aloL_bputls(T, buf, s4, s5 - s4);
 						s3 += 1;
 						aloL_bputls(T, buf, s3, s2 - s3);
 						s5 = s4 + 1;
 						aloL_bpushstring(T, buf);
+						aloL_bclean(buf);
+						alo_add(T, -2);
 					}
-					alo_add(T, -2);
-				}
-				aloL_usebuf(T, buf) {
 					aloL_bputls(T, buf, s1, s3 - s1);
 					aloL_bputs(T, buf, s4);
 					s3 += 1;
 					aloL_bputls(T, buf, s3, s2 - s3);
 					aloL_bpushstring(T, buf);
-				}
+				)
 				alo_add(T, -2);
 			}
 		}

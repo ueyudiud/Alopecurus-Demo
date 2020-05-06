@@ -96,8 +96,8 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 /** the minimum heaped memory buffer capacity */
 #define ALOL_MBUFSIZE (256 * __SIZEOF_POINTER__)
 
-#define aloL_newbuf(T,n) ambuf_t n[1] = { (alo_bufpush(T, n), n[0]) }
-#define aloL_usebuf(T,n) for (aloL_newbuf(T, n); n->prev; alo_bufpop(T, n))
+#define aloL_newbuf(T,n) ambuf_t n[1]; alo_bufpush(T, n)
+#define aloL_usebuf(T,n,s...) { aloL_newbuf(T, n); s; alo_bufpop(T, n); }
 
 /* buffer field getter */
 #define aloL_blen(b) ((b)->len) /* readable and writable */
@@ -117,6 +117,7 @@ ALO_API void aloL_newclass_(astate, astr, ...);
 #define aloL_bsetc(b,i,ch) ((b)->ptr[i] = aloE_cast(char, ch))
 #define aloL_bputcx(b,ch) aloL_bsetc(b, (b)->len++, ch)
 #define aloL_b2str(T,b) aloE_cast(astr, (aloL_bputc(T, b, '\0'), aloL_braw(b))) /* read-only, not alive till memory buffer pop */
+#define aloL_bpushstring(T,b) alo_pushlstring(T, aloL_braw(b), aloL_blen(buf) / sizeof(char))
 
 /* buffer as object stack */
 #define aloL_btpush(T,b,o) \
@@ -132,7 +133,6 @@ ALO_API void aloL_brepts(astate, ambuf_t*, astr, astr, astr);
 ALO_API void aloL_bputf(astate, ambuf_t*, astr, ...);
 ALO_API void aloL_bputvf(astate, ambuf_t*, astr, va_list);
 ALO_API void aloL_bwrite(astate, ambuf_t*, ssize_t);
-ALO_API astr aloL_bpushstring(astate, ambuf_t*);
 
 ALO_API int aloL_bwriter(astate, void*, const void*, size_t);
 

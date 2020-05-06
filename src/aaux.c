@@ -207,10 +207,10 @@ const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
  */
 astr aloL_sreplace(astate T, astr s, astr t, astr m) {
 	astr result = NULL;
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		aloL_brepts(T, buf, s, t, m);
 		result = aloL_bpushstring(T, buf);
-	}
+	)
 	return result;
 }
 
@@ -428,7 +428,7 @@ void aloL_where(astate T, int level) {
 	aframeinfo_t info;
 	int n = level;
 	alo_getframe(T, "", &info); /* skip first frame */
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		aloL_bwrite(T, buf, -1);
 		while (alo_prevframe(T, "nsl", &info)) {
 			if (n-- == 0) {
@@ -445,7 +445,7 @@ void aloL_where(astate T, int level) {
 			aloL_bputc(T, buf, ')');
 		}
 		aloL_bpushstring(T, buf);
-	}
+	)
 }
 
 /**
@@ -576,10 +576,6 @@ void aloL_bwrite(astate T, ambuf_t* buf, ssize_t index) {
 	size_t len;
 	const char* src = alo_tolstring(T, index, &len);
 	aloL_bputls(T, buf, src, len);
-}
-
-astr aloL_bpushstring(astate T, ambuf_t* buf) {
-	return alo_pushlstring(T, aloE_cast(char*, aloL_braw(buf)), aloL_blen(buf) / sizeof(char));
 }
 
 int aloL_bwriter(astate T, void* buf, const void* src, size_t len) {

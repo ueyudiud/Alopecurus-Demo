@@ -44,14 +44,14 @@ static int str_reverse(astate T) {
 		alo_pushlstring(T, buf, len);
 	}
 	else { /* or use memory buffer instead */
-		aloL_usebuf(T, buf) {
+		aloL_usebuf(T, buf,
 			aloL_bcheck(T, buf, len * sizeof(char));
 			for (size_t i = 0; i < len; ++i) {
 				aloL_bsetc(buf, i, src[len - 1 - i]);
 			}
 			aloL_blen(buf) = len * sizeof(char);
 			aloL_bpushstring(T, buf);
-		}
+		)
 	}
 	return 1;
 }
@@ -81,7 +81,7 @@ static int str_repeat(astate T) {
 		alo_pushlstring(T, buf, nlen);
 	}
 	else { /* for long string, use buffer on heap */
-		aloL_usebuf(T, buf) {
+		aloL_usebuf(T, buf,
 			aloL_bcheck(T, buf, nlen * sizeof(char));
 			char* p = aloL_braw(buf);
 			for (size_t i = 0; i < time; ++i) {
@@ -90,7 +90,7 @@ static int str_repeat(astate T) {
 			}
 			aloL_blen(buf) = nlen * sizeof(char);
 			aloL_bpushstring(T, buf);
-		}
+		)
 	}
 	return 1;
 }
@@ -152,7 +152,7 @@ static int str_byte(astate T) {
  */
 static int str_char(astate T) {
 	ssize_t n = alo_gettop(T);
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		aloL_bcheck(T, buf, n);
 		for (ssize_t i = 0; i < n; ++i) {
 			aint ch = aloL_checkinteger(T, i);
@@ -163,7 +163,7 @@ static int str_char(astate T) {
 		}
 		aloL_blen(buf) = n;
 		aloL_bpushstring(T, buf);
-	}
+	)
 	return 1;
 }
 
@@ -1097,7 +1097,7 @@ static int matcher_replace(astate T) {
 	src = aloL_checklstring(T, 1, &len);
 	minit(&M, T, src, len, groups);
 	alo_settop(T, 3);
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		const char* s1 = M.sbegin;
 		const char* s0 = s1;
 		while (s1 <= M.send) {
@@ -1119,7 +1119,7 @@ static int matcher_replace(astate T) {
 			aloL_bputls(T, buf, s0, s1 - s0);
 		}
 		aloL_bpushstring(T, buf);
-	}
+	)
 	return 1;
 }
 
@@ -1416,7 +1416,7 @@ static int str_replace(astate T) {
 		}
 
 		s3 = alo_tolstring(T, 2, &l3);
-		aloL_usebuf(T, buf) {
+		aloL_usebuf(T, buf,
 			do
 			{
 				aloL_bputls(T, buf, s1, st - s1);
@@ -1429,7 +1429,7 @@ static int str_replace(astate T) {
 				aloL_bputls(T, buf, s1, l1);
 			}
 			aloL_bpushstring(T, buf);
-		}
+		)
 		return 1;
 
 		norep:

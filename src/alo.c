@@ -99,7 +99,7 @@ static int readline(astate T, ambuf_t* buf) {
 static int loadscript(astate T) {
 	int succ = false;
 	l_msg("> ");
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		if (readline(T, buf)) {
 			alo_pushfstring(T, "return %s;", aloL_b2str(T, buf));
 			if (!compilec(T, "main", false)) { /* try add return statement */
@@ -121,7 +121,7 @@ static int loadscript(astate T) {
 			alo_pop(T, 0);
 			alo_settop(T, 1);
 		}
-	}
+	)
 	return succ;
 }
 
