@@ -22,7 +22,7 @@
 #include <time.h>
 #include <inttypes.h>
 
-const aver_t aloR_version = { ALO_VERSION_NUM };
+ALO_VDEF const aver_t aloR_version = { ALO_VERSION_NUM };
 
 /**
  ** the real thread allocated for each thread.

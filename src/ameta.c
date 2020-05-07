@@ -19,12 +19,12 @@
 
 #define TM(id,name) "__"#name
 
-const astr aloT_typenames[ALO_NUMTYPE] = {
+ALO_VDEF const astr aloT_typenames[ALO_NUMTYPE] = {
 	"nil", "bool", "int", "float", "pointer", "string", "tuple",
 	"list", "table", "function", "thread", "rawdata"
 };
 
-const astr aloT_tmnames_[TM_N] = {
+ALO_VDEF const astr aloT_tmnames_[TM_N] = {
 	TM_LIST
 };
 

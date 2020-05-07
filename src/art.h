@@ -78,7 +78,7 @@ struct alo_MemBuf {
 #define ALO_SPRIFLT(b,v) sprintf(b, ALO_FLT_FORMAT, v)
 
 /* the environment version, defined in astate.c */
-extern const aver_t aloR_version;
+ALO_VDEC const aver_t aloR_version;
 
 /**
  ** interned limits and size macros.

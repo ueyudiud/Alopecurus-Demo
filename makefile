@@ -27,7 +27,7 @@ clean:
 install: build
 	$(MAKE_SUB) install
 
-uninstall: build
+uninstall:
 	$(MAKE_SUB) uninstall
 
 .PHONY: default build clean install uninstall

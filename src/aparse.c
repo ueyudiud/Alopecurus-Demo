@@ -818,7 +818,7 @@ struct context_pattern {
 };
 
 /* get next case variable */
-acasevar_t* nextcv(alexer_t* lex, int type, astring_t* name, struct context_pattern* ctx) {
+static acasevar_t* nextcv(alexer_t* lex, int type, astring_t* name, struct context_pattern* ctx) {
 	afstat_t* f = lex->f;
 	*(ctx->parent != NO_CASEVAR ? &f->d->cv.a[ctx->parent].nchild : &f->d->cv.nchild) += 1;
 	if (ctx->previous != NO_CASEVAR) {
@@ -838,14 +838,14 @@ acasevar_t* nextcv(alexer_t* lex, int type, astring_t* name, struct context_patt
 }
 
 /* enter case variable */
-void entercv(alexer_t* lex, struct context_pattern* ctx) {
+static void entercv(alexer_t* lex, struct context_pattern* ctx) {
 	afstat_t* f = lex->f;
 	ctx->previous = NO_CASEVAR;
 	ctx->parent = f->d->cv.l - 1;
 }
 
 /* leave case variable */
-void leavecv(alexer_t* lex, struct context_pattern* ctx) {
+static void leavecv(alexer_t* lex, struct context_pattern* ctx) {
 	acasevar_t* var = lex->f->d->cv.a + ctx->parent;
 	switch (var->type) {
 	case CV_UNBOX:
@@ -1758,7 +1758,7 @@ struct alo_ParseContext {
 	apdata_t data;
 };
 
-void pparse(astate T, void* raw) {
+static void pparse(astate T, void* raw) {
 	struct alo_ParseContext* ctx = aloE_cast(struct alo_ParseContext*, raw);
 	ctx->data.p = aloF_newp(T);
 	ablock_t b;
@@ -1774,7 +1774,7 @@ void pparse(astate T, void* raw) {
 	closeproto(T, &f);
 }
 
-void destory_context(astate T, apdata_t* data) {
+static void destory_context(astate T, apdata_t* data) {
 	aloM_dela(T, data->ss.a, data->ss.c);
 	aloM_dela(T, data->jp.a, data->jp.c);
 	aloM_dela(T, data->lb.a, data->lb.c);

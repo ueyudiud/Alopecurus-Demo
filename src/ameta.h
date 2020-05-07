@@ -116,7 +116,7 @@ typedef enum {
 #define aloT_vmput4(T,o1,o2,o3,o4) \
 	{ tsetobj(T, T->top, o1); tsetobj(T, T->top + 1, o2); tsetobj(T, T->top + 2, o3); tsetobj(T, T->top + 3, o4); T->top += 4; }
 
-extern const astr aloT_typenames[ALO_NUMTYPE];
+ALO_VDEC const astr aloT_typenames[ALO_NUMTYPE];
 
 ALO_IFUN void aloT_init(astate);
 ALO_IFUN atable_t* aloT_getmt(const atval_t*);

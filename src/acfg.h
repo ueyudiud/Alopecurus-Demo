@@ -51,8 +51,8 @@
 	"./?.alo;" \
 	"./?/mod.alo;"
 #define ALO_SEARCH_CPATH \
-	ALO_CDIR "lib/?.dll;" \
-	"./?.dll;"
+	ALO_CDIR "lib/?.so;" \
+	"./?.so;"
 
 #endif
 

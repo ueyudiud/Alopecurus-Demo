@@ -373,7 +373,9 @@ static int aloV_nbxor(astate T, atval_t* A, const atval_t* B, const atval_t* C) 
 	return true;
 }
 
-int (* const aloV_nbinary[])(astate, atval_t*, const atval_t*, const atval_t*) = {
+typedef int (*abifunptr)(astate, atval_t*, const atval_t*, const atval_t*);
+
+static const abifunptr aloV_nbinary[] = {
 	aloV_nadd,
 	aloV_nsub,
 	aloV_nmul,
@@ -432,19 +434,21 @@ static int aloV_nbnot(astate T, atval_t* A, const atval_t* B) {
 	return true;
 }
 
-int (* const aloV_nunary[])(astate, atval_t*, const atval_t*) = {
+typedef int (*aunfunptr)(astate, atval_t*, const atval_t*);
+
+static const aunfunptr aloV_nunary[] = {
 	aloV_npnm,
 	aloV_nunm,
 	aloV_nlen,
 	aloV_nbnot
 };
 
-int aloV_neq(__attribute__((unused)) astate T, int* A, const atval_t* B, const atval_t* C) {
+static int aloV_neq(__attribute__((unused)) astate T, int* A, const atval_t* B, const atval_t* C) {
 	*A = aloV_equal(NULL, B, C); /* use 'aloV_equal' to compare */
 	return true;
 }
 
-int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
+static int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
 	aloE_void(T);
 	if (ttisint(B) && ttisint(C)) {
 		*A = tgetint(B) < tgetint(C);
@@ -461,7 +465,7 @@ int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
 	return true;
 }
 
-int aloV_nle(astate T, int* A, const atval_t* B, const atval_t* C) {
+static int aloV_nle(astate T, int* A, const atval_t* B, const atval_t* C) {
 	aloE_void(T);
 	if (ttisint(B) && ttisint(C)) {
 		*A = tgetint(B) <= tgetint(C);
@@ -478,7 +482,9 @@ int aloV_nle(astate T, int* A, const atval_t* B, const atval_t* C) {
 	return true;
 }
 
-int (* const aloV_ncompare[])(astate, int*, const atval_t*, const atval_t*) = {
+typedef int (*acmpfunptr)(astate, int*, const atval_t*, const atval_t*);
+
+static const acmpfunptr aloV_ncompare[] = {
 	aloV_neq,
 	aloV_nlt,
 	aloV_nle
