@@ -38,7 +38,7 @@ enum {
 	TK_IDENT, TK_INTEGER, TK_FLOAT, TK_STRING
 };
 
-extern const astr aloX_tokenid[];
+ALO_VDEC const astr aloX_tokenid[];
 
 #define ALO_NUMRESERVED (TK_WHILE - TK_OFFSET)
 
