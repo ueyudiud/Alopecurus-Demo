@@ -12,6 +12,7 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -60,8 +61,13 @@ typedef int (*acfun)(astate);
 /* context based function type, the function is used to recover yielded function */
 typedef int (*akfun)(astate, int, void*);
 
+/* allocation function handle type, used for memory allocation */
 typedef amem (*aalloc)(void*, amem, size_t, size_t);
+
+/* reader function, use to read data, return 0 if read success and non 0 otherwise */
 typedef int (*areader)(astate, void*, const char**, size_t*);
+
+/* writer function, use to write data, return 0 if write success and non 0 otherwise */
 typedef int (*awriter)(astate, void*, const void*, size_t);
 
 typedef struct alo_CRegistry {
@@ -185,6 +191,10 @@ extern void alo_log(astr, astr, int, ...);
 #define aloE_xcheck(exp,ret...) aloE_check(exp, #exp, ret)
 
 #define aloE_log(what,fmt...) ALO_LOG(what, ##fmt)
+
+/**
+ ** type castion macros.
+ */
 
 #define aloE_void(exp...) ((void) (exp))
 #define aloE_cast(type,exp) ((type) (exp))

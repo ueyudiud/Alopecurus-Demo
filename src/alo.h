@@ -58,6 +58,10 @@
 #define ALO_NOERRFUN (-ALO_MAXSTACKSIZE - 50000)
 #define ALO_LASTERRFUN (-ALO_MAXSTACKSIZE - 100000)
 
+#if defined(ALO_USER_H_)
+#include ALO_USER_H_
+#endif
+
 /**
  * state manipulation
  */
