@@ -299,6 +299,9 @@ void aloV_iterator(astate T, const atval_t* in, atval_t* out) {
 	case ALO_TTUPLE: handle = tuple_iterator; break;
 	case ALO_TLIST : handle = list_iterator;  break;
 	case ALO_TTABLE: handle = table_iterator; break;
+	case ALO_TFUNCTION:
+		tsetobj(T, out, in);
+		return;
 	default:
 		aloU_rterror(T, "the value is not iterable.");
 	}
