@@ -9,6 +9,7 @@
 #define ALO_CORE
 
 #include "aop.h"
+#include "astr.h"
 #include "afun.h"
 #include "agc.h"
 #include "avm.h"
@@ -640,7 +641,6 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		}
 	}
 }
-
 
 static void funcarg(alexer_t*);
 
@@ -1588,11 +1588,45 @@ static void fistat(alexer_t* lex) {
 	}
 }
 
+static astring_t* defname(alexer_t* lex, aestat_t* e) {
+	/* defname -> IDENT
+	 *          | defname '.' IDENT */
+	aestat_t e2;
+	astring_t* name;
+	afstat_t* f = lex->f;
+	size_t l = 0;
+	do {
+		name = testident(lex);
+		if (l == 0) {
+			aloK_fromreg(f, e, name);
+		}
+		else {
+			initexp(&e2, E_STRING);
+			e2.v.s = name;
+			aloK_member(f, e, &e2);
+		}
+		aloM_chkb(lex->T, f->d->fn.a, f->d->fn.c, l, 256);
+		f->d->fn.a[l++] = name;
+	}
+	while (checknext(lex, '.'));
+	if (l > 1) {
+		lex->buf->len = 0;
+		aloB_puts(lex->T, lex->buf, f->d->fn.a[0]->array);
+		for (size_t i = 1; i < l; ++i) {
+			aloB_putc(lex->T, lex->buf,  '.');
+			aloB_puts(lex->T, lex->buf, f->d->fn.a[i]->array);
+		}
+		name = aloX_getstr(lex, aloE_cast(char*, lex->buf->ptr), lex->buf->len);
+	}
+	return name;
+}
+
 static void defstat(alexer_t* lex) {
-	/* defstat -> 'def' IDENT { '(' funcarg ')' } fistat */
+	/* defstat -> 'def' defname { '(' funcarg ')' } fistat */
 	afstat_t* f = lex->f;
 	int line = lex->cl;
-	astring_t* name = testident(lex);
+	aestat_t e1, e2;
+	astring_t* name = defname(lex, &e1);
 	afstat_t f2;
 	ablock_t b;
 	enterfunc(&f2, f, &b);
@@ -1605,13 +1639,11 @@ static void defstat(alexer_t* lex) {
 	}
 	fistat(lex);
 	leavefunc(&f2);
-	aestat_t e1, e2;
-	aloK_loadproto(f, &e1);
+	aloK_loadproto(f, &e2);
 	aloK_fixline(lex->f, line); /* fix line to function */
-	aloK_fromreg(f, &e2, name);
-	aloK_assign(f, &e2, &e1);
+	aloK_assign(f, &e1, &e2);
 	aloK_fixline(lex->f, line); /* fix line to function */
-	aloK_drop(f, &e2);
+	aloK_drop(f, &e1);
 }
 
 static void localstat(alexer_t* lex) {
@@ -1779,6 +1811,7 @@ static void destory_context(astate T, apdata_t* data) {
 	aloM_dela(T, data->jp.a, data->jp.c);
 	aloM_dela(T, data->lb.a, data->lb.c);
 	aloM_dela(T, data->cv.a, data->cv.c);
+	aloM_dela(T, data->fn.a, data->fn.c);
 }
 
 int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out, astring_t** msg) {
@@ -1804,4 +1837,3 @@ int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out, astring_t** msg)
 	T->top = top;
 	return status;
 }
-

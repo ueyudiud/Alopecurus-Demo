@@ -67,6 +67,10 @@ struct alo_PData {
 		size_t l;
 		size_t nchild;
 	} cv;
+	struct { /* function name cache */
+		astring_t** a;
+		size_t c;
+	} fn;
 	altable_t jp; /* list of pending jump instruction */
 	altable_t lb; /* list of active labels */
 	aproto_t* p; /* root prototype */
