@@ -110,7 +110,7 @@ typedef atval_t *askid_t;
 #define tgetflt(o) aloE_check(ttisflt(o), "'"#o"' is not float value", (o)->v.n)
 #define tgetnum(o) aloE_check(ttisnum(o), "'"#o"' is not number value", ttisint(o) ? aloE_flt(tgetint(o)) : tgetflt(o))
 #define tgetlcf(o) aloE_check(ttislcf(o), "'"#o"' is not light C function value", (o)->v.f)
-#define tgetptr(o) aloE_check(ttisptr(o), "'"#o"' is not integer value", tgetrptr(o))
+#define tgetptr(o) aloE_check(ttisptr(o), "'"#o"' is not pointer value", tgetrptr(o))
 #define tgetref(o) aloE_check(ttisref(o), "'"#o"' is not reference value", (o)->v.g)
 #define tgetstr(o) aloE_check(ttisstr(o), "'"#o"' is not string value", g2s(tgetref(o)))
 #define tgettup(o) aloE_check(ttistup(o), "'"#o"' is not tuple value", g2a(tgetref(o)))
@@ -329,27 +329,14 @@ struct alo_Capture {
 
 #define aloO_isclosed(c) ((c)->p == &(c)->slot)
 
-/**
- ** closure value.
- */
-typedef struct alo_Closure {
-	RefHeader(abyte length);
-	union {
-		struct {
-			aproto_t* proto;
-		} a;
-		struct {
-			acfun handle;
-		} c;
-	};
-	atval_t delegate; /* for Alopecurus closure, real begin of capture array */
-} aclosure_t;
+#define ClosureHeader RefHeader(abyte length; abyte fenv : 1)
 
 /**
  ** Alopecurus closure value.
  */
 typedef struct alo_AClosure {
-	aclosure_t base;
+	ClosureHeader;
+	aproto_t* proto;
 	acap_t* array[];
 } aacl_t;
 
@@ -357,9 +344,21 @@ typedef struct alo_AClosure {
  ** C closure value.
  */
 typedef struct alo_CClosure {
-	aclosure_t base;
+	ClosureHeader;
+	acfun handle;
 	atval_t array[];
 } accl_t;
+
+/**
+ ** closure value.
+ */
+typedef struct {
+	union {
+		struct { ClosureHeader; };
+		aacl_t a;
+		accl_t c;
+	};
+} aclosure_t;
 
 typedef struct alo_LocalVariable {
 	astring_t* name;

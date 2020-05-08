@@ -108,6 +108,7 @@ struct alo_Frame {
 	askid_t top; /* top index */
 	aframe_t *prev, *next; /* linked list for frames */
 	astr name; /* calling function name (might be null if it is unknown sources) */
+	atval_t* env; /* the environment of current frame */
 	union { /* specific data for different functions */
 		struct { /* for Alopecurus functions */
 			askid_t base;

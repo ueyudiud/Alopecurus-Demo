@@ -294,7 +294,7 @@ void aloK_eval(afstat_t* f, aestat_t* e) {
 	}
 	case E_CAPTURE: {
 		e->t = E_FIXED;
-		e->v.g = aloK_setcapture(e->v.g + 1);
+		e->v.g = aloK_setcapture(e->v.g);
 		break;
 	}
 	case E_INDEXED: {
@@ -456,6 +456,17 @@ void aloK_member(afstat_t* f, aestat_t* o, aestat_t* k) {
 	}
 }
 
+int aloK_newcap(afstat_t* f, astring_t* name, int instack, int index) {
+	astate T = f->l->T;
+	aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
+	int i = f->ncap++;
+	acapinfo_t* info = f->p->captures + i;
+	info->name = name;
+	info->finstack = instack;
+	info->index = index;
+	return i;
+}
+
 static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int base) {
 	asymbol* ss = f->d->ss.a + f->firstlocal;
 	for (int i = f->nactvar - 1; i >= 0; --i) {
@@ -488,14 +499,7 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 		if (e->t == E_VARARG) {
 			aloX_error(f->l, "vararg as capture is not support yet."); //TODO
 		}
-		aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
-		int index = f->ncap++;
-		acapinfo_t* info = f->p->captures + index;
-		info->finstack = e->t == E_LOCAL;
-		info->index = e->v.g;
-		info->name = name;
-		e->t = E_CAPTURE;
-		e->v.g = index;
+		e->v.g = aloK_newcap(f, name, e->t == E_LOCAL, e->v.g);
 		return true;
 	}
 	return false;
@@ -841,7 +845,7 @@ void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
 		break;
 	}
 	case E_CAPTURE: {
-		index = aloK_setcapture(r->v.g + 1);
+		index = aloK_setcapture(r->v.g);
 		aloK_move(f, v, index);
 		r->t = E_FIXED;
 		r->v.g = index;
@@ -1128,7 +1132,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		break;
 	}
 	case E_CAPTURE: {
-		index = aloK_setcapture(l->v.g + 1);
+		index = aloK_setcapture(l->v.g);
 		aloK_anyRK(f, r);
 		aloK_fixline(f, line);
 		aloK_iABC(f, op, false, r->t == E_CONST, false, index, r->v.g, 0);

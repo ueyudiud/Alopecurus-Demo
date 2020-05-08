@@ -262,24 +262,24 @@ static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 }
 
 static size_t propagate_acl(aglobal_t* G, aacl_t* v) {
-	marknpg(G, v->base.a.proto);
-	markt(G, &v->base.delegate);
-	for (size_t i = 0; i < v->base.length; ++i) { /* for captured value, handle in special */
-		markt(G, v->array[i]->p);
+	marknpg(G, v->proto);
+	for (size_t i = 0; i < v->length; ++i) { /* for captured value, handle in special */
+		if (v->array[i]) {
+			markt(G, v->array[i]->p);
+		}
 	}
 	return aaclsize(v);
 }
 
 static size_t propagate_ccl(aglobal_t* G, accl_t* v) {
-	markt(G, &v->base.delegate);
-	for (size_t i = 0; i < v->base.length; ++i) {
+	for (size_t i = 0; i < v->length; ++i) {
 		markt(G, &v->array[i]);
 	}
 	return acclsize(v);
 }
 
 static size_t propagate_proto(aglobal_t* G, aproto_t* v) {
-	if (v->cache && aloG_iswhite(&v->cache->base)) {
+	if (v->cache && aloG_iswhite(v->cache)) {
 		v->cache = NULL; /* unlink cache and prototype */
 	}
 	markng(G, v->name);
@@ -563,10 +563,10 @@ static void sweepobj(astate T, agct g) {
 	}
 	case ALO_TACL: {
 		aacl_t* v = g2ac(g);
-		for (int i = 0; i < v->base.length; ++i) {
+		for (int i = 0; i < v->length; ++i) {
 			acap_t* c = v->array[i];
 			/* decrease capture reference counter */
-			if (--c->counter == 0 && aloO_isclosed(c)) {
+			if (c && --c->counter == 0 && aloO_isclosed(c)) {
 				/* delete capture if no reference remain */
 				aloM_delo(T, c);
 			}

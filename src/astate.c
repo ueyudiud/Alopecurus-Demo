@@ -94,6 +94,7 @@ static void preinit(astate T, aglobal_t* G) {
 	T->base_frame.next = T->base_frame.prev = NULL;
 	T->base_frame.fun = T->base_frame.top = NULL;
 	T->base_frame.flags = 0;
+	T->base_frame.env = &G->registry;
 	T->base_frame.c.kfun = NULL;
 	T->base_frame.c.ctx = NULL;
 	T->captures = NULL;

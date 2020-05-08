@@ -129,7 +129,6 @@ ALO_IFUN const atval_t* aloT_lookup(astate, const atval_t*, const atval_t*);
 ALO_IFUN void aloT_callunr(astate, const atval_t*, const atval_t*, atval_t*);
 ALO_IFUN void aloT_callbin(astate, const atval_t*, const atval_t*, const atval_t*, atval_t*);
 ALO_IFUN int aloT_callcmp(astate, const atval_t*, const atval_t*, const atval_t*);
-ALO_IFUN const atval_t* aloT_getreg(astate);
 ALO_IFUN int aloT_tryunr(astate, const atval_t*, atmi);
 ALO_IFUN int aloT_trybin(astate, const atval_t*, const atval_t*, atmi);
 

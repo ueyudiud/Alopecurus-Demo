@@ -123,7 +123,7 @@ static atval_t* index2addr(astate T, ssize_t index) {
 		return &G->registry; /* place global registry into stack. */
 	}
 	else if (index == ALO_REGISTRY_INDEX) {
-		return aloE_cast(atval_t*, aloT_getreg(T)); /* place current registry into stack. */
+		return T->frame->env; /* place current registry into stack. */
 	}
 	else if (index >= ALO_CAPTURE_INDEX(0)) { /* capture mode. */
 		askid_t fun = T->frame->fun;
@@ -131,12 +131,12 @@ static atval_t* index2addr(astate T, ssize_t index) {
 		switch (ttype(fun)) {
 		case ALO_TACL: {
 			aacl_t* v = tgetacl(fun);
-			api_check(T, index < v->base.length, "capture index out of bound.");
+			api_check(T, index < v->length, "capture index out of bound.");
 			return v->array[index]->p;
 		}
 		case ALO_TCCL: {
 			accl_t* v = tgetccl(fun);
-			api_check(T, index < v->base.length, "capture index out of bound.");
+			api_check(T, index < v->length, "capture index out of bound.");
 			return v->array + index;
 		}
 		default: {
@@ -439,21 +439,24 @@ astr alo_pushvfstring(astate T, astr fmt, va_list varg) {
 	return result;
 }
 
-void alo_pushlightcfunction(astate T, acfun value) {
-	askid_t t = api_incrtop(T);
-	tsetlcf(t, value);
-}
-
-void alo_pushcclosure(astate T, acfun handle, size_t ncapture) {
+void alo_pushcfunction(astate T, acfun handle, size_t ncapture, int hasenv) {
 	api_checkelems(T, ncapture);
-	accl_t* c = aloF_newc(T, handle, ncapture);
-	T->top -= ncapture;
-	for (size_t i = 0; i < ncapture; ++i) { /* move captures */
-		tsetobj(T, c->array + i, T->top + i);
+	api_check(T, ncapture > 0 || !hasenv, "a closure has environment size must greater than 0.");
+	if (ncapture == 0) {
+		askid_t t = api_incrtop(T);
+		tsetlcf(t, handle);
 	}
-	askid_t t = api_incrtop(T);
-	tsetccl(T, t, c);
-	aloG_check(T);
+	else {
+		accl_t* c = aloF_newc(T, handle, ncapture);
+		c->fenv = hasenv;
+		T->top -= ncapture;
+		for (size_t i = 0; i < ncapture; ++i) { /* move captures */
+			tsetobj(T, c->array + i, T->top + i);
+		}
+		askid_t t = api_incrtop(T);
+		tsetccl(T, t, c);
+		aloG_check(T);
+	}
 }
 
 void alo_pushpointer(astate T, void* value) {
@@ -704,11 +707,16 @@ int alo_getmeta(astate T, ssize_t index, astr name, int lookup) {
 int alo_getdelegate(astate T, ssize_t index) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, index);
-	if (ttisccl(o) || ttisacl(o)) {
-		tsettab(T, api_incrtop(T), &tgetclo(o)->delegate);
+	switch (ttype(o)) {
+	case ALO_TACL:
+		tsetobj(T, api_incrtop(T), tgetacl(o)->array[0]->p);
 		return true;
+	case ALO_TCCL:
+		tsetobj(T, api_incrtop(T), tgetccl(o)->array);
+		return true;
+	default:
+		return false;
 	}
-	return false;
 }
 
 amem alo_newdata(astate T, size_t size) {
@@ -979,18 +987,27 @@ int alo_setmetatable(astate T, ssize_t index) {
 int alo_setdelegate(astate T, ssize_t index) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, index);
-	if (ttisccl(o) || ttisacl(o)) {
-		aclosure_t* closure = tgetclo(o);
-		askid_t t = api_decrtop(T);
-		if (ttisnil(t)) {
-			t = index2addr(T, ALO_REGISTRY_INDEX);
-		}
-		api_check(T, ttistab(t), "delegate should be table");
-		tsetobj(T, &closure->delegate, t);
+	const atval_t* t = api_decrtop(T);
+	if (ttisnil(t)) {
+		t = T->frame->env;
+	}
+	api_check(T, ttistab(t), "delegate should be table");
+	switch (ttype(o)) {
+	case ALO_TACL: {
+		aacl_t* closure = tgetacl(o);
+		tsetobj(T, closure->array[0]->p, t);
 		aloG_barriert(T, closure, t);
 		return true;
 	}
-	return false;
+	case ALO_TCCL: {
+		accl_t* closure = tgetccl(o);
+		tsetobj(T, closure->array, t);
+		aloG_barriert(T, closure, t);
+		return true;
+	}
+	default:
+		return false;
+	}
 }
 
 void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
@@ -1047,7 +1064,7 @@ int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* k
  */
 static void pnewclosure(astate T, void* context) {
 	aacl_t** p = aloE_cast(aacl_t**, context);
-	*p = aloF_new(T, 0);
+	*p = aloF_new(T, 1);
 	tsetacl(T, api_incrtop(T), *p); /* put closure into stack to avoid GC */
 }
 
@@ -1060,11 +1077,11 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 	astring_t* s;
 	aibuf_t buf;
 	aloB_iopen(&buf, reader, context);
-	status = aloP_parse(T, src, &buf, &c->base.a.proto, &s);
+	status = aloP_parse(T, src, &buf, &c->proto, &s);
 	if (status == ThreadStateRun) { /* compile success */
-		c->base.a.proto->name = aloS_of(T, name);
-		c->base.a.proto->cache = c;
-		tsetobj(T, &c->base.delegate, aloT_getreg(T));
+		aloE_assert(c->proto->ncap == 1, "top prototype should only have 1 capture.");
+		c->proto->name = aloS_of(T, name);
+		c->array[0] = aloF_envcap(T);
 	}
 	else { /* failed */
 		tsetstr(T, T->top - 1, s); /* move error message into top of stack */
@@ -1076,7 +1093,7 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 int alo_load(astate T, astr src, areader reader, void* context) {
 	aacl_t* c = aloF_new(T, 0);
 	tsetacl(T, api_incrtop(T), c);
-	int status = aloZ_load(T, &c->base.a.proto, src, reader, context);
+	int status = aloZ_load(T, &c->proto, src, reader, context);
 	if (status != ThreadStateRun) {
 		api_decrtop(T);
 	}

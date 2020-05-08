@@ -254,31 +254,38 @@ static int moveresults(astate T, askid_t dest, askid_t src, int nresult, int exp
  */
 int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 	acfun caller;
+	atval_t* env;
 	switch (ttype(fun)) {
-	case ALO_TLCF:
+	case ALO_TLCF: {
 		caller = tgetlcf(fun);
+		env = T->frame->env;
 		goto C;
-	case ALO_TCCL:
-		caller = tgetclo(fun)->c.handle;
-		C: {
-			checkstack(T, ALO_MINSTACKSIZE, fun);
-			aframe_t* frame = nextframe(T);
-			frame->nresult = nresult;
-			frame->name = aloU_getcname(T, caller);
-			frame->c.kfun = NULL;
-			frame->c.ctx = NULL;
-			frame->c.oef = 0;
-			frame->fun = fun;
-			frame->top = T->top + ALO_MINSTACKSIZE;
-			frame->flags = 0;
-			T->frame = frame;
-			if (T->hookmask & ALO_HMASKCALL) {
-				aloD_hook(T, ALO_HMASKCALL, -1);
-			}
-			int n = *nactual = caller(T);
-			aloE_assert(frame->fun + n <= T->top, "no enough elements in stack.");
-			aloD_postcall(T, T->top - n, n);
+	}
+	case ALO_TCCL: {
+		accl_t* c = tgetccl(fun);
+		caller = c->handle;
+		env = c->fenv ? c->array : T->frame->env;
+		goto C;
+	}
+		C:
+		checkstack(T, ALO_MINSTACKSIZE, fun);
+		aframe_t* frame = nextframe(T);
+		frame->nresult = nresult;
+		frame->name = aloU_getcname(T, caller);
+		frame->c.kfun = NULL;
+		frame->c.ctx = NULL;
+		frame->c.oef = 0;
+		frame->fun = fun;
+		frame->top = T->top + ALO_MINSTACKSIZE;
+		frame->flags = 0;
+		frame->env = env;
+		T->frame = frame;
+		if (T->hookmask & ALO_HMASKCALL) {
+			aloD_hook(T, ALO_HMASKCALL, -1);
 		}
+		int n = *nactual = caller(T);
+		aloE_assert(frame->fun + n <= T->top, "no enough elements in stack.");
+		aloD_postcall(T, T->top - n, n);
 		return true;
 	case ALO_TACL: {
 		aproto_t* p = tgetclo(fun)->a.proto;
@@ -311,6 +318,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->fun = base - off;
 		frame->a.base = base;
 		frame->a.pc = p->code;
+		frame->env = tgetacl(fun)->array[0]->p;
 		T->frame = frame;
 		T->top = frame->top = base + p->nstack;
 		if (T->hookmask & ALO_HMASKCALL) {

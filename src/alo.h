@@ -144,14 +144,15 @@ ALO_API astr alo_pushlstring(astate, const char*, size_t);
 ALO_API astr alo_pushstring(astate, astr);
 ALO_API astr alo_pushfstring(astate, astr, ...);
 ALO_API astr alo_pushvfstring(astate, astr, va_list);
-ALO_API void alo_pushlightcfunction(astate, acfun);
-ALO_API void alo_pushcclosure(astate, acfun, size_t);
+ALO_API void alo_pushcfunction(astate, acfun, size_t, int);
 ALO_API void alo_pushpointer(astate, void*);
 ALO_API int alo_pushthread(astate);
 
 #define alo_pushunit(T) alo_newtuple(T, 0)
 #define alo_pushiterator(T,i) alo_pushinteger(T, (i).offset)
 #define alo_pushcstring(T,s) alo_pushlstring(T, ""s, sizeof(s) / sizeof(char) - 1)
+#define alo_pushlightcfunction(T,f) alo_pushcfunction(T, f, 0, false)
+#define alo_pushcclosure(T,f,n) alo_pushcfunction(T, f, n, false)
 
 /**
  ** arithmetic operation, comparison and other functions

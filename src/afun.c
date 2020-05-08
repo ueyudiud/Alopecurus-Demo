@@ -8,21 +8,20 @@
 #define AFUN_C_
 #define ALO_CORE
 
-#include "afun.h"
 #include "astate.h"
 #include "ameta.h"
 #include "agc.h"
+#include "afun.h"
 
 /**
  ** create uninitialized Alopecurus closure.
  */
 aacl_t* aloF_new(astate T, size_t size) {
-	aacl_t* value = aloE_cast(aacl_t*, aloM_malloc(T, acclsizel(size)));
+	aacl_t* value = aloE_cast(aacl_t*, aloM_malloc(T, aaclsizel(size)));
 	aloG_register(T, value, ALO_TACL);
-	value->base.length = aloE_byte(size);
-	value->base.a.proto = NULL;
+	value->length = aloE_byte(size);
+	value->proto = NULL;
 	/* clean delegate and captures */
-	tsetnil(&value->base.delegate);
 	for (size_t i = 0; i < size; value->array[i++] = NULL);
 	return value;
 }
@@ -33,9 +32,9 @@ aacl_t* aloF_new(astate T, size_t size) {
 accl_t* aloF_newc(astate T, acfun handle, size_t size) {
 	accl_t* value = aloE_cast(accl_t*, aloM_malloc(T, acclsizel(size)));
 	aloG_register(T, value, ALO_TCCL);
-	value->base.c.handle = handle;
-	value->base.length = aloE_byte(size);
-	tsetobj(T, &value->base.delegate, aloT_getreg(T));
+	value->handle = handle;
+	value->length = aloE_byte(size);
+	value->fenv = false;
 	return value;
 }
 
@@ -67,6 +66,20 @@ aproto_t* aloF_newp(astate T) {
 	return value;
 }
 
+/**
+ ** create a environment capture.
+ */
+acap_t* aloF_envcap(astate T) {
+	acap_t* cap = aloM_newo(T, acap_t);
+	cap->counter = 1;
+	cap->p = &cap->slot;
+	tsetobj(T, cap->p, T->frame->env);
+	return cap;
+}
+
+/**
+ ** find capture in specific stack slot.
+ */
 acap_t* aloF_find(astate T, askid_t id) {
 	acap_t** p = &T->captures;
 	acap_t* c;
@@ -104,6 +117,9 @@ void aloF_close(astate T, askid_t id) {
 	T->captures = c;
 }
 
+/**
+ ** delete prototype.
+ */
 void aloF_deletep(astate T, aproto_t* proto) {
 	aloM_dela(T, proto->captures, proto->ncap);
 	aloM_dela(T, proto->code, proto->ncode);

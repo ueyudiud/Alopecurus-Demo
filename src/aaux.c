@@ -32,13 +32,12 @@ astate aloL_newstate(void) {
 }
 
 void aloL_pushscopedcfunction(astate T, acfun value) {
-	alo_pushcclosure(T, value, 0);
 	alo_newtable(T, 0);
 	alo_newtable(T, 1); /* meta table of scope */
 	alo_push(T, ALO_REGISTRY_INDEX); /* push current environment */
 	alo_rawsets(T, -2, "__idx"); /* set lookup table */
 	alo_setmetatable(T, -2);
-	alo_setdelegate(T, -2);
+	alo_pushcfunction(T, value, 1, true);
 }
 
 void aloL_newstringlist_(astate T, size_t size, ...) {

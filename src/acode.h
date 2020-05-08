@@ -83,6 +83,12 @@ ALO_IFUN void aloK_drop(afstat_t*, aestat_t*);
 ALO_IFUN int aloK_reuse(afstat_t*, aestat_t*);
 
 /**
+ ** registry allocation
+ */
+
+ALO_IFUN int aloK_newcap(afstat_t*, astring_t*, int, int);
+
+/**
  ** evaluation
  */
 

@@ -188,6 +188,9 @@ static void initproto(astate T, afstat_t* f) {
 	p->consts[0] = tnewbool(false);
 	p->consts[1] = tnewbool(true);
 	f->nconst = 2;
+	int index = aloK_newcap(f, aloX_getstr(f->l, ALO_ENVIRONMENT, sizeof(ALO_ENVIRONMENT) / sizeof(char) - 1), false, 0);
+	aloE_assert(index == 0, "environment should be first capture.");
+	aloE_void(index);
 }
 
 static void closelineinfo(astate T, afstat_t* f) {

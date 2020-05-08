@@ -14,6 +14,11 @@
 #define ALO_FLT_FORMAT "%.8g"
 
 /**
+ ** the environment key
+ */
+#define ALO_ENVIRONMENT "_ENV"
+
+/**
  ** the home of Alopecurus.
  */
 #define ALO_PATH "ALO_HOME"

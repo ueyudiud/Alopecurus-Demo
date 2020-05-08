@@ -235,23 +235,6 @@ const atval_t* aloT_index(astate T, const atval_t* self, const atval_t* key) {
 	return aloO_tnil;
 }
 
-/**
- ** get registry from current environment.
- */
-const atval_t* aloT_getreg(astate T) {
-	aframe_t* frame = T->frame;
-	while (frame->prev) {
-		switch (ttype(frame->fun)) {
-		case ALO_TACL: case ALO_TCCL: {
-			aclosure_t* c = tgetclo(frame->fun);
-			return &c->delegate; /* return delegate registry */
-		}
-		}
-		frame = frame->prev;
-	}
-	return &T->g->registry; /* no local registry found, return global registry. */
-}
-
 static const atval_t* lookup_mro(astate T, const atval_t* self, const atval_t* key, alist_t* mro) {
 	if (mro->length == 0)
 		return NULL;
@@ -279,12 +262,12 @@ static const atval_t* lookup_mro(astate T, const atval_t* self, const atval_t* k
 }
 
 static const atval_t* lookupenv(astate T, const atval_t* self, const atval_t* key) {
-	const atval_t* reg = aloT_getreg(T);
-	if (ttistab(reg)) { /* check by delegate function */
+	const atval_t* env = T->frame->env;
+	if (ttistab(env)) { /* check by delegate function */
 		atval_t t = tnewstr(T->g->stagnames[TM_DLGT]);
-		const atval_t* result = aloH_getis(tgettab(reg), T->g->stagnames[TM_DLGT]);
+		const atval_t* result = aloH_getis(tgettab(env), T->g->stagnames[TM_DLGT]);
 		if (result == aloO_tnil) {
-			result = aloT_index(T, reg, &t);
+			result = aloT_index(T, env, &t);
 		}
 		if (result) {
 			aloT_vmput3(T, result, self, key);

@@ -137,11 +137,11 @@ static aacl_t* aloV_nloadproto(astate T, aproto_t* p, aacl_t* en, askid_t base) 
 		return c;
 	}
 	c = aloF_new(T, p->ncap);
-	c->base.a.proto = p;
+	c->proto = p;
 	tsetacl(T, T->top++, c);
-	trsetvalx(T, &c->base.delegate, en->base.delegate);
 	acapinfo_t* infos = p->captures;
-	for (int i = 0; i < p->ncap; ++i) {
+	c->array[0] = aloF_envcap(T);
+	for (int i = 1; i < p->ncap; ++i) {
 		if (infos[i].finstack) { /* load capture from stack */
 			c->array[i] = aloF_find(T, base + infos[i].index);
 		}
@@ -505,8 +505,6 @@ int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in
 #define checkGC(T,t) aloG_xcheck(T, (T)->top = (t), (T)->top = frame->top)
 #define protect(x) ({ x; base = frame->a.base; })
 
-#define decapture(c) ({ atval_t* _co = c; ttiscap(_co) ? tgetcap(_co)->p : _co; })
-
 /**
  ** invoke Alopecurus function.
  */
@@ -524,15 +522,14 @@ void aloV_invoke(astate T, int dofinish) {
 #define R(op) (base + GET_##op(I))
 #define K(op) (consts + GET_##op(I))
 #define S(op) ({ ainsn_t _id = GET_##op(I); \
-	aloK_iscapture(_id) ? aloK_getcapture(_id) == 0 ? &closure->base.delegate : \
-			closure->array[aloK_getcapture(_id) - 1]->p : base + aloK_getstack(_id); })
+	aloK_iscapture(_id) ? closure->array[aloK_getcapture(_id)]->p : base + aloK_getstack(_id); })
 #define X(op) (GET_x##op(I) ? K(op) : S(op))
 
 	invoke: {
 		aloE_assert(frame == T->frame, "frame should be current frame.");
 		closure = tgetacl(frame->fun);
 		ppc = &frame->a.pc;
-		proto = closure->base.a.proto;
+		proto = closure->proto;
 		consts = proto->consts;
 
 /* macros for main interpreting */
@@ -578,7 +575,8 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_LDN: {
-			for (int n = 0; n < GET_B(I); tsetnil(R(A) + n), ++n);
+			atval_t* t = S(A);
+			for (int n = 0; n < GET_B(I); tsetnil(t + n), ++n);
 			break;
 		}
 		case OP_LDP: {
