@@ -298,6 +298,19 @@ static int io_open(astate T) {
 	return 0;
 }
 
+/**
+ ** open a temporary file.
+ ** prototype: io.opentmp()
+ */
+static int io_opentmp(astate T) {
+	afile* file = l_preopen(T);
+	if ((file->stream = tmpfile())) {
+		file->closer = fclose;
+		return 1;
+	}
+	return 1;
+}
+
 static int l_emptyclose(__attribute__((unused)) fstream stream) {
 	return 0;
 }
@@ -335,6 +348,18 @@ static int io_index(astate T) {
 	return 0;
 }
 
+static int io_remove(astate T) {
+	astr fname = aloL_checkstring(T, 0);
+	return aloL_errresult(T, remove(fname) == 0, alo_pushfstring(T, "can not remove file '%s'", fname));
+}
+
+static int io_rename(astate T) {
+	astr oldfname = aloL_checkstring(T, 0);
+	astr newfname = aloL_checkstring(T, 1);
+	return aloL_errresult(T, rename(oldfname, newfname) == 0,
+			alo_pushfstring(T, "can not rename file '%s' to '%s'", oldfname, newfname));
+}
+
 static const acreg_t cls_funcs[] = {
 	{ "__acat", f_concat },
 	{ "__del", f_close },
@@ -360,11 +385,16 @@ static const acreg_t mod_metafuncs[] = {
 
 static const acreg_t mod_funcs[] = {
 	{ "open", io_open },
+	{ "opentmp", io_opentmp },
+	{ "remove", io_remove },
+	{ "rename", io_rename },
 	{ NULL, NULL }
 };
 
 int aloopen_io(astate T) {
 	alo_bind(T, "io.open", io_open);
+	alo_bind(T, "io.remove", io_remove);
+	alo_bind(T, "io.rename", io_rename);
 	alo_bind(T, "io.meta.__idx", io_index);
 	alo_bind(T, "file.flush", f_flush);
 	alo_bind(T, "file.puts", f_puts);
