@@ -903,10 +903,10 @@ void aloV_invoke(astate T, int dofinish) {
 		case OP_NEW: {
 			askid_t r = S(B);
 			if (!ttistab(r)) {
-				goto notfound;
+				aloU_rterror(T, "invalid value with type '%s', meta table expected", aloT_typenames[ttpnv(r)]);
 			}
-			atable_t* metatable = tgettab(r);
-			tm = aloH_getis(metatable, T->g->stagnames[TM_ALLOC]);
+			atable_t* mt = tgettab(r);
+			tm = aloH_getis(mt, T->g->stagnames[TM_ALLOC]);
 			if (tm != aloO_tnil) {
 				askid_t t = T->top;
 				aloT_vmput1(T, tm);
@@ -920,7 +920,7 @@ void aloV_invoke(astate T, int dofinish) {
 				}
 			}
 			atable_t* object = aloH_new(T);
-			object->metatable = metatable;
+			object->metatable = mt;
 			tsettab(T, S(A), object);
 			checkGC(T, T->top);
 			break;
@@ -1086,9 +1086,18 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_UNM: case OP_LEN: case OP_BNOT: case OP_ITR:
 	case OP_AADD: case OP_ASUB: case OP_AMUL: case OP_ADIV: case OP_AIDIV:
 	case OP_AMOD: case OP_APOW: case OP_ASHL: case OP_ASHR: case OP_AAND:
-	case OP_AOR: case OP_AXOR: case OP_NEW:
+	case OP_AOR: case OP_AXOR:
 		tsetobj(T, S(A), --T->top);
 		break;
+	case OP_NEW: {
+		tb = --T->top;
+		atable_t** pmt = aloT_getpmt(tb);
+		if (pmt) {
+			*pmt = tgettab(S(B));
+		}
+		tsetobj(T, S(A), tb);
+		break;
+	}
 	case OP_CAT: case OP_ACAT:
 		tsetobj(T, S(A), T->top - 1);
 		T->top = frame->top; /* restore top of frame */

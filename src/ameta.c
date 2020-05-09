@@ -67,11 +67,11 @@ static void callunr(astate T, const atval_t* f, const atval_t* t1) {
 	T->top = putstkoff(T, oldtop); /* restore to old top of stack, the result will be here */
 }
 
-atable_t* aloT_getmt(const atval_t* o) {
+atable_t** aloT_getpmt(const atval_t* o) {
 	switch (ttpnv(o)) {
-	case ALO_TLIST   : return tgetlis(o)->metatable;
-	case ALO_TTABLE  : return tgettab(o)->metatable;
-	case ALO_TRAWDATA: return tgetrdt(o)->metatable;
+	case ALO_TLIST   : return &tgetlis(o)->metatable;
+	case ALO_TTABLE  : return &tgettab(o)->metatable;
+	case ALO_TRAWDATA: return &tgetrdt(o)->metatable;
 	default          : return NULL;
 	}
 }

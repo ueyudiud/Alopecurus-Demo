@@ -86,6 +86,19 @@ static astring_t* testident(alexer_t* lex) {
 	return s;
 }
 
+static astring_t* testsoftident(alexer_t* lex) {
+	switch (lex->ct.t) {
+	case TK_ALIAS: case TK_DEF: case TK_STRUCT:
+	case TK_THIS: case TK_NEW: case TK_DELETE: {
+		astr s = aloX_tokenid[lex->ct.t - TK_ALIAS];
+		poll(lex);
+		return aloX_getstr(lex, s, strlen(s));
+	}
+	default:
+		return testident(lex);
+	}
+}
+
 #define OPR_NONE (-1)
 
 static const struct {
@@ -188,7 +201,7 @@ static void initproto(astate T, afstat_t* f) {
 	p->consts[0] = tnewbool(false);
 	p->consts[1] = tnewbool(true);
 	f->nconst = 2;
-	int index = aloK_newcap(f, aloX_getstr(f->l, ALO_ENVIRONMENT, sizeof(ALO_ENVIRONMENT) / sizeof(char) - 1), false, 0);
+	int index = aloK_newcap(f, literal(f->l, ALO_ENVIRONMENT), false, 0);
 	aloE_assert(index == 0, "environment should be first capture.");
 	aloE_void(index);
 }
@@ -316,6 +329,49 @@ static void memberof(alexer_t* lex, aestat_t* e, astring_t* s) {
 	aloK_member(lex->f, e, &e2);
 }
 
+static astring_t* defname(alexer_t* lex, aestat_t* e, int* self) {
+	/* defname -> defnamepart [':' IDENT] */
+	astring_t* name;
+	afstat_t* f = lex->f;
+	size_t l = 0;
+	do {
+		/* defnamepart -> IDENT
+		 *              | defnamepart '.' IDENT */
+		name = testident(lex);
+		if (l != 0) {
+			memberof(lex, e, name);
+		}
+		else {
+			if (check(lex, '.')) {
+				aloK_field(f, e, name);
+			}
+			else {
+				aloK_fromreg(f, e, name);
+			}
+		}
+		aloM_chkb(lex->T, f->d->fn.a, f->d->fn.c, l, 256);
+		f->d->fn.a[l++] = name;
+	}
+	while (checknext(lex, '.'));
+	if ((*self = checknext(lex, ':'))) {
+		name = testsoftident(lex);
+		memberof(lex, e, name);
+		aloM_chkb(lex->T, f->d->fn.a, f->d->fn.c, l, 256);
+		f->d->fn.a[l++] = name;
+	}
+	if (l > 1) {
+		/* adjust */
+		aloB_puts(lex->T, lex->buf, f->d->fn.a[0]->array);
+		for (size_t i = 1; i < l; ++i) {
+			aloB_putc(lex->T, lex->buf,  '.');
+			aloB_puts(lex->T, lex->buf, f->d->fn.a[i]->array);
+		}
+		name = aloX_getstr(lex, aloE_cast(char*, lex->buf->ptr), lex->buf->len);
+		lex->buf->len = 0;
+	}
+	return name;
+}
+
 static void colargs(alexer_t* lex, aestat_t* e) {
 	afstat_t* f = lex->f;
 	int line = lex->cl;
@@ -378,37 +434,43 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		break;
 	}
 	case TK_THIS: { /* primaryexpr -> 'this' */
-		aloK_fromreg(f, e, lex->T->g->stagnames[TM_THIS]);
+		aloK_field(f, e, lex->T->g->stagnames[TM_THIS]);
+		poll(lex); /* skip 'this' expression */
 		break;
 	}
-	case TK_NEW: { /* primaryexpr -> 'new' ['@'] IDENT funargs */
+	case TK_NEW: { /* primaryexpr -> 'new' ('@' IDENT | defname) funargs */
 		int line = lex->cl;
 		int prevfree = f->freelocal;
-		int prevact = f->nactvar;
 		poll(lex); /* skip 'new' token */
-		f->nactvar = prevfree + 1;
-		f->freelocal += 1;
 		if (checknext(lex, '@')) {
 			aloK_fromreg(f, e, literal(lex, "@"));
 			memberof(lex, e, testident(lex));
 		}
 		else {
 			aloK_field(f, e, testident(lex));
+			while (check(lex, '.')) {
+				memberof(lex, e, testident(lex));
+			}
 		}
-		aloK_nextreg(f, e);
-		aestat_t e2 = *e;
-		e2.t = E_LOCAL;
-		e2.v.g -= 1;
-		aloK_iABC(f, OP_NEW, 0, 0, 0, e->v.g - 1, e->v.g, 0);
+		f->freelocal++;
+		aloE_assert(!(e->t == E_LOCAL && e->v.g == f->freelocal - 2), "class cannot be a temporary value");
+		aloK_eval(f, e);
+		if (e->t == E_ALLOC) {
+			aloK_nextreg(f, e);
+		}
 		aloK_drop(f, e);
+		aloK_checkstack(f, 2);
+		aloK_iABC(f, OP_NEW, 0, 0, 0, f->freelocal - 1, e->v.g, 0);
+		if (e->v.g == prevfree + 1) {
+			f->freelocal++;
+		}
 		memberof(lex, e, lex->T->g->stagnames[TM_NEW]);
-		f->freelocal += 1;
 		aloK_nextreg(f, e);
-		aloK_nextreg(f, &e2);
+		aloK_iABC(f, OP_MOV, 0, 0, 0, f->freelocal, f->freelocal - 2, 0);
+		f->freelocal += 1;
 		int n = funargs(lex, e);
-		f->nactvar = prevact;
-		f->freelocal = prevfree + 1; /* remove all arguments and only remain one result */
 		aloK_iABC(f, OP_CALL, false, false, false, prevfree + 1, n != ALO_MULTIRET ? n + 2 : 0, 1);
+		f->freelocal = prevfree + 1; /* remove all arguments and only remain one result */
 		e->t = E_LOCAL;
 		e->v.g = prevfree;
 		aloK_fixline(f, line);
@@ -551,7 +613,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		case '.': { /* suffix -> '.' IDENT */
 			poll(lex); /* skip '.' */
 			initexp(&e2, E_STRING);
-			e2.v.s = testident(lex);
+			e2.v.s = testsoftident(lex);
 			aloK_member(f, e, &e2);
 			break;
 		}
@@ -595,14 +657,14 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 			lbnil = e->lf;
 			e->lf = NO_JUMP;
 			initexp(&e2, E_STRING);
-			e2.v.s = testident(lex);
+			e2.v.s = testsoftident(lex);
 			aloK_member(f, e, &e2);
 			break;
 		}
 		case TK_RARR: { /* suffix -> '->' IDENT [funargs] */
 			line = lex->cl;
 			poll(lex); /* skip '->' */
-			aloK_self(f, e, testident(lex));
+			aloK_self(f, e, testsoftident(lex));
 			switch (lex->ct.t) {
 			case '(': case '{': case TK_STRING:
 				n = funargs(lex, &e2);
@@ -1591,49 +1653,20 @@ static void fistat(alexer_t* lex) {
 	}
 }
 
-static astring_t* defname(alexer_t* lex, aestat_t* e) {
-	/* defname -> IDENT
-	 *          | defname '.' IDENT */
-	aestat_t e2;
-	astring_t* name;
-	afstat_t* f = lex->f;
-	size_t l = 0;
-	do {
-		name = testident(lex);
-		if (l == 0) {
-			aloK_fromreg(f, e, name);
-		}
-		else {
-			initexp(&e2, E_STRING);
-			e2.v.s = name;
-			aloK_member(f, e, &e2);
-		}
-		aloM_chkb(lex->T, f->d->fn.a, f->d->fn.c, l, 256);
-		f->d->fn.a[l++] = name;
-	}
-	while (checknext(lex, '.'));
-	if (l > 1) {
-		lex->buf->len = 0;
-		aloB_puts(lex->T, lex->buf, f->d->fn.a[0]->array);
-		for (size_t i = 1; i < l; ++i) {
-			aloB_putc(lex->T, lex->buf,  '.');
-			aloB_puts(lex->T, lex->buf, f->d->fn.a[i]->array);
-		}
-		name = aloX_getstr(lex, aloE_cast(char*, lex->buf->ptr), lex->buf->len);
-	}
-	return name;
-}
-
 static void defstat(alexer_t* lex) {
 	/* defstat -> 'def' defname { '(' funcarg ')' } fistat */
 	afstat_t* f = lex->f;
 	int line = lex->cl;
+	int hasself;
 	aestat_t e1, e2;
-	astring_t* name = defname(lex, &e1);
 	afstat_t f2;
 	ablock_t b;
+	astring_t* name = defname(lex, &e1, &hasself);
 	enterfunc(&f2, f, &b);
 	f2.p->name = name; /* bind function name */
+	if (hasself) {
+		regloc(&f2, lex->T->g->stagnames[TM_THIS]);
+	}
 	if (check(lex, '(')) {
 		int line = lex->cl;
 		poll(lex);

@@ -500,6 +500,7 @@ static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int ba
 			aloX_error(f->l, "vararg as capture is not support yet."); //TODO
 		}
 		e->v.g = aloK_newcap(f, name, e->t == E_LOCAL, e->v.g);
+		e->t = E_CAPTURE;
 		return true;
 	}
 	return false;

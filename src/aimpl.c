@@ -963,20 +963,12 @@ int alo_setmetatable(astate T, ssize_t index) {
 		api_check(T, ttistab(T->top - 1), "value is not meta table.");
 		mt = tgettab(T->top - 1);
 	}
-	switch (ttpnv(o)) {
-	case ALO_TLIST:
-		tgetlis(o)->metatable = mt;
-		break;
-	case ALO_TTABLE:
-		tgettab(o)->metatable = mt;
-		break;
-	case ALO_TRAWDATA:
-		tgetrdt(o)->metatable = mt;
-		break;
-	default:
+	atable_t** pmt = aloT_getpmt(o);
+	if (pmt == NULL) {
 		T->top -= 1;
 		return false;
 	}
+	*pmt = mt;
 	agct g = tgetref(o);
 	aloG_barrier(T, g, mt);
 	aloG_checkfnzobj(T, g, mt);

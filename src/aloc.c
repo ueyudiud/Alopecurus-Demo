@@ -46,16 +46,11 @@ static void prtkst(int index, __attribute__((unused)) int off) {
 static void prtreg(int index, int off) {
 	if (aloK_iscapture(index)) {
 		index = aloK_getcapture(index);
-		if (index == 0) {
-			printf("#0");
+		if (index < proto->ncap && proto->captures[index].name) {
+			printf("#%s", proto->captures[index].name->array);
 		}
 		else {
-			if (index < proto->ncap && proto->captures[index - 1].name) {
-				printf("#%s", proto->captures[index - 1].name->array);
-			}
-			else {
-				printf("#%d", index);
-			}
+			printf("#%d", index);
 		}
 	}
 	else {
