@@ -272,7 +272,7 @@ static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {
 	if (strchr(what, 'l')) {
 		if (frame->falo) {
 			aproto_t* proto = tgetclo(frame->fun)->a.proto;
-			info->line = lineof(proto, frame->a.pc);
+			info->line = lineof(proto, frame->a.pc - 1);
 		}
 		else {
 			info->line = -1;

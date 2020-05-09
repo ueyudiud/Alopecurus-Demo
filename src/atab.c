@@ -172,7 +172,7 @@ void aloH_trim(astate T, atable_t* self) {
 	if ((_self)->length > 0) { /* element is present */ \
 		aentry_t* _entry = headety(_self, _hash); \
 		if (!hasprev(_entry)) \
-		label: { if (_cond) return amval(_entry); else if (hasnext(_entry)) { _entry = getnext(_entry); goto label; } } \
+		do if (_cond) return amval(_entry); while (hasnext(_entry) && (_entry = getnext(_entry), true)); \
 	}
 
 /**

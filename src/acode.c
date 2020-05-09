@@ -20,7 +20,15 @@
 #define getoffset(a,b) aloE_cast(int, (a) - (b) - 1)
 
 static void fixjmp(afstat_t* f, size_t pc, size_t dest) {
-	SET_sBx(f->p->code[pc], getoffset(dest, pc));
+	ainsn_t* insn = &f->p->code[pc];
+	SET_sBx(*insn, getoffset(dest, pc));
+	if (GET_i(*insn) == OP_JMP) {
+		int lnact = GET_A(*insn);
+		if (lnact != f->nactvar && f->nchild > 0) {
+			SET_xA(*insn, true);
+		}
+		SET_A(*insn, f->nactvar);
+	}
 }
 
 static int nextjump(afstat_t* f, int pc) {
@@ -32,17 +40,14 @@ static int isinsnreducible(afstat_t* f) {
 	if (f->ncode <= 2)
 		return false;
 	int i = GET_i(f->p->code[f->ncode - 2]);
-	return i != OP_EQ && i != OP_LT && i != OP_LE;
+	return i != OP_EQ && i != OP_LT && i != OP_LE && GET_A(i) == f->nactvar;
 }
 
-static void jmplist(afstat_t* f, int list) {
-	if (list == f->ncode - 1 && isinsnreducible(f) && (list = nextjump(f, list)) == NO_JUMP) {
-		return;
-	}
+static void jmplist(afstat_t* f, int list, size_t dest) {
 	int next;
 	do {
 		next = nextjump(f, list);
-		fixjmp(f, list, f->ncode);
+		fixjmp(f, list, dest);
 	}
 	while ((list = next) != NO_JUMP);
 }
@@ -59,7 +64,10 @@ static void checkline(afstat_t* f) {
 
 size_t aloK_insn(afstat_t* f, ainsn_t insn) {
 	if (f->cjump != NO_JUMP) {
-		jmplist(f, f->cjump);
+		int list = f->cjump;
+		if (list != f->ncode - 1 || !isinsnreducible(f) || (list = nextjump(f, list)) != NO_JUMP) {
+			jmplist(f, list, f->ncode);
+		}
 		f->cjump = NO_JUMP;
 	}
 	checkline(f);
@@ -225,7 +233,7 @@ int aloK_jumpforward(afstat_t* f, int index) {
 		linkcjmp(f, &f->cjump, index);
 		int jmp = f->cjump;
 		f->cjump = NO_JUMP;
-		return putjump(f, jmp, OP_JMP, false, false, 0);
+		return putjump(f, jmp, OP_JMP, false, false, f->nactvar);
 	}
 
 	head: { /* can direct code reach here */
@@ -237,7 +245,14 @@ int aloK_jumpforward(afstat_t* f, int index) {
 
 void aloK_jumpbackward(afstat_t* f, int index) {
 	alabel* label = f->d->lb.a + index;
-	aloK_iAsBx(f, OP_JMP, label->nactvar != f->nactvar, false, label->nactvar, getoffset(label->pc, f->ncode));
+	int flag = f->ncode >= 1 && f->cjump == f->ncode - 1;
+	if (f->cjump != NO_JUMP) {
+		jmplist(f, f->cjump, label->pc);
+		f->cjump = NO_JUMP;
+	}
+	if (!flag) {
+		aloK_iAsBx(f, OP_JMP, label->nactvar != f->nactvar, false, label->nactvar, getoffset(label->pc, f->ncode));
+	}
 }
 
 void aloK_fixline(afstat_t* f, int line) {
@@ -402,7 +417,7 @@ void aloK_anyRK(afstat_t* f, aestat_t* e) {
 	}
 	else {
 		aloK_evalk(f, e);
-		if (e->t == E_CONST) {
+		if (e->t == E_CONST || e->t == E_FIXED) {
 			return;
 		}
 	}
@@ -1034,7 +1049,7 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 
 static int cmpjmp(afstat_t* f, aestat_t* l, aestat_t* r, int op, int cond) {
 	aloK_insn(f, CREATE_iABC(op, l->t == E_CONST, r->t == E_CONST, cond, l->v.g, r->v.g, 0));
-	return putjump(f, l->lf, OP_JMP, false, false, 0);
+	return putjump(f, l->lf, OP_JMP, false, false, f->nactvar);
 }
 
 void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {

@@ -224,16 +224,16 @@ static void closeproto(astate T, afstat_t* f) {
 	closelineinfo(T, f);
 }
 
-static void enterblock(afstat_t* f, ablock_t* b, int isloop, astr label) {
+static void enterblock(afstat_t* f, ablock_t* b, int label, astr lname) {
 	*b = (ablock_t) {
-		.lname = label,
-		.loop = isloop,
+		.lname = lname,
+		.loop = label != NO_JUMP,
 		.nactvar = f->nactvar,
 		.nallvar = f->freelocal,
 		.fsymbol = f->d->ss.l,
 		.flabel = f->d->lb.l,
 		.fjump = f->d->lb.l,
-		.lcon = isloop ? aloK_newlabel(f) : NO_JUMP,
+		.lcon = label,
 		.lout = NO_JUMP,
 		.incap = false,
 		.prev = f->b
@@ -250,7 +250,10 @@ static void leaveblock(afstat_t* f) {
 			f->p->locvars[symbols[i].index].end = f->ncode; /* settle end pc */
 		}
 	}
-	f->nactvar = b->nactvar;
+	if (f->nactvar != b->nactvar) {
+		b->lout = aloK_jumpforward(f, b->lout);
+		f->nactvar = b->nactvar;
+	}
 	f->freelocal = b->nallvar;
 	f->d->ss.l = b->fsymbol;
 	int njmp = b->fjump;
@@ -279,7 +282,7 @@ static void enterfunc(afstat_t* f, afstat_t* parent, ablock_t* b) {
 	};
 	initproto(f->l->T, f);
 	parent->l->f = f;
-	enterblock(f, b, false, NULL);
+	enterblock(f, b, NO_JUMP, NULL);
 }
 
 static void leavefunc(afstat_t* f) {
@@ -1234,7 +1237,7 @@ static void partialfun(alexer_t* lex) {
 	aestat_t e1, e2;
 	ablock_t b;
 	do {
-		enterblock(f, &b, false, NULL);
+		enterblock(f, &b, NO_JUMP, NULL);
 		patterns(lex);
 		testnext(lex, TK_RARR);
 		initexp(&e1, E_VARARG);
@@ -1374,7 +1377,7 @@ static int ifstat(alexer_t* lex) {
 	testnext(lex, '(');
 	aestat_t e;
 	ablock_t b;
-	enterblock(lex->f, &b, false, NULL);
+	enterblock(lex->f, &b, NO_JUMP, NULL);
 	if (checknext(lex, TK_LOCAL)) { /* localexpr -> 'local' patterns '=' caseassign */
 		int n = lex->f->nactvar;
 		patterns(lex);
@@ -1417,14 +1420,15 @@ static void whilestat(alexer_t* lex) {
 	afstat_t* f = lex->f;
 	aestat_t e;
 	ablock_t b;
-	enterblock(f, &b, true, lname);
+	int label = aloK_newlabel(f);
 	expr(lex, &e);
 	aloK_gwt(f, &e);
 	testenclose(lex, '(', ')', line);
+	enterblock(f, &b, label, lname);
 	stat(lex, false); /* THEN block */
-	aloK_jumpbackward(f, b.lcon);
-	aloK_fixline(f, line); /* fix line to conditional check */
 	leaveblock(f);
+	aloK_fixline(f, line); /* fix line to conditional check */
+	aloK_jumpbackward(f, b.lcon);
 	aloK_putlabel(f, e.lf);
 	if (checknext(lex, TK_ELSE)) {
 		stat(lex, false); /* ELSE block */
@@ -1440,22 +1444,23 @@ static void dowhilestat(alexer_t* lex) {
 		lname = testident(lex)->array;
 		testenclose(lex, '[', ']', line);
 	}
+	afstat_t* f = lex->f;
 	aestat_t e;
 	ablock_t b;
-	enterblock(lex->f, &b, true, lname);
+	enterblock(f, &b, aloK_newlabel(f), lname);
 	stat(lex, false); /* DO block */
+	leaveblock(f);
 	line = lex->cl;
 	testnext(lex, TK_WHILE);
 	testnext(lex, '(');
 	expr(lex, &e);
 	testenclose(lex, '(', ')', line);
-	aloK_gwf(lex->f, &e);
-	aloK_marklabel(lex->f, b.lcon, e.lt);
-	leaveblock(lex->f);
+	aloK_gwf(f, &e);
+	aloK_marklabel(f, b.lcon, e.lt);
 	if (checknext(lex, TK_ELSE)) {
 		stat(lex, false); /* ELSE block */
 	}
-	aloK_putlabel(lex->f, b.lout);
+	aloK_putlabel(f, b.lout);
 }
 
 static void jumpstat(alexer_t* lex, int type) {
@@ -1516,7 +1521,7 @@ static void forstat(alexer_t* lex) {
 	testnext(lex, ')');
 	int lastfree = f->freelocal;
 	aloK_newitr(f, &e); /* push iterator */
-	enterblock(f, &b, true, lname);
+	enterblock(f, &b, aloK_newlabel(f), lname);
 	aloE_assert(f->nactvar == f->freelocal, "variable number mismatched");
 	int nvar = f->d->cv.l - index;
 	aloK_checkstack(f, nvar);
@@ -1787,10 +1792,11 @@ static int stat(alexer_t* lex, int assign) {
 		int line = lex->cl;
 		poll(lex);
 		ablock_t block;
-		enterblock(lex->f, &block, false, NULL);
+		enterblock(lex->f, &block, NO_JUMP, NULL);
 		int flag = stats(lex);
 		leaveblock(lex->f);
 		testenclose(lex, '{', '}', line);
+		aloK_putlabel(lex->f, block.lout);
 		return flag;
 	}
 	default: { /* stat -> normstat */
@@ -1835,7 +1841,7 @@ static void pparse(astate T, void* raw) {
 	f.l = &ctx->lex;
 	poll(&ctx->lex);
 	initproto(T, &f);
-	enterblock(&f, &b, false, NULL);
+	enterblock(&f, &b, NO_JUMP, NULL);
 	rootstats(&ctx->lex);
 	test(&ctx->lex, TK_EOF); /* should compile to end of script */
 	leaveblock(&f);

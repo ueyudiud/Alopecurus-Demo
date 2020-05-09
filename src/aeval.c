@@ -54,6 +54,8 @@
 
 #define vm_div(T,x,y) vm_fbin(T, /, x, y)
 
+#define vm_idivf(T,a,b) floor(vm_div(T, a, b))
+
 /* check two value has same sign */
 #define samesg(x,y) (!(((x) ^ (y)) & AINT_MIN))
 
@@ -70,8 +72,6 @@ static aint vm_idiv(astate T, aint a, aint b) {
 	aint n = a / b;
 	return a != b * n && !samesg(a, b) ? n - 1 : n; /* floor(a/b) */
 }
-
-#define vm_idivf(T,a,b) floor(vm_div(T, a, b))
 
 #define vm_pow(T,a,b) mcall(T, pow, a, b)
 

@@ -56,6 +56,8 @@
 #define GET_Ax(x)	aloE_cast(uint64_t, GetVal(_Ax, x))
 
 #define SET_i(s,x)  SetVal(s, _i, x)
+#define SET_xA(s,x)  SetVal(s, _xA, x)
+#define SET_xB(s,x)  SetVal(s, _xB, x)
 #define SET_xC(s,x)  SetVal(s, _xC, x)
 #define SET_A(s,x)  SetVal(s, _A, x)
 #define SET_B(s,x)  SetVal(s, _B, x)
