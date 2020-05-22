@@ -25,7 +25,6 @@
 typedef struct {
 	astate T;
 	astr src;
-	int status;
 	aibuf_t buf;
 } I;
 
@@ -261,17 +260,17 @@ static void pload(astate T, void* rcontext) {
 	PContext* context = aloE_cast(PContext*, rcontext);
 	checkhead(&context->in);
 	loadfun(&context->in, &context->p, bind(&context->in, aloS_of(T, context->in.src)));
-	if (context->in.status) {
-		error(&context->in, "fail to read data");
-	}
 }
 
+/**
+ ** load chunk from binary file.
+ */
 int aloZ_load(astate T, aproto_t** p, astr src, areader reader, void* context) {
 	PContext c = { { T, src, 0, { NULL, 0, reader, context } }, NULL };
 	tsetlis(T, T->top, aloI_new(T)); /* create reference for avoiding GC */
 	T->top ++;
 	int status = aloD_prun(T, pload, &c);
-	if (status == ThreadStateRun && !c.in.status) {
+	if (status == ThreadStateRun) {
 		*p = c.p;
 		aloG_register(T, c.p, ALO_TPROTO); /* register prototype */
 	}
@@ -279,6 +278,6 @@ int aloZ_load(astate T, aproto_t** p, astr src, areader reader, void* context) {
 		aloZ_delete(T, c.p);
 		*p = NULL;
 	}
-	T->top --;
+	T->top--;
 	return status;
 }

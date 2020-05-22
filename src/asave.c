@@ -16,13 +16,21 @@
 
 typedef struct {
 	astate T;
-	int status;
+	int debug;
 	awriter writer;
 	void* context;
-	int debug;
+	jmp_buf jmp;
 } O;
 
-#define savem(out,m,s) ({ size_t _size = (s); if (!(out)->status && _size > 0) { (out)->status = (out)->writer((out)->T, (out)->context, m, _size); } })
+static void savem(O* out, void* mem, size_t len) {
+	if (len > 0) {
+		int status = out->writer(out->T, out->context, mem, len);
+		if (status) {
+			longjmp(out->jmp, status);
+		}
+	}
+}
+
 #define savea(out,a,n) savem(out, a, (n) * sizeof((a)[0]))
 #define saver(out,r) savem(out, &(r), sizeof(r))
 #define savel(out,l) savem(out, ""l, sizeof(l) - sizeof(char))
@@ -176,10 +184,15 @@ static void saveheader(O* out) {
 	savek(out, ALOZ_FLT);
 }
 
+/**
+ ** save chunk into binary file.
+ */
 int aloZ_save(astate T, const aproto_t* p, awriter writer, void* context, int debug) {
 	O out = { T, 0, writer, context, debug };
-	saveheader(&out);
-	savefun(&out, p, NULL);
-	return out.status;
+	int status = setjmp(out.jmp);
+	if (status == 0) {
+		saveheader(&out);
+		savefun(&out, p, NULL);
+	}
+	return status;
 }
-
