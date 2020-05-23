@@ -19,14 +19,14 @@ typedef struct {
 	int debug;
 	awriter writer;
 	void* context;
-	jmp_buf jmp;
+	jmp_buf* jmp;
 } O;
 
-static void savem(O* out, void* mem, size_t len) {
+static void savem(O* out, const void* mem, size_t len) {
 	if (len > 0) {
 		int status = out->writer(out->T, out->context, mem, len);
 		if (status) {
-			longjmp(out->jmp, status);
+			longjmp(*out->jmp, status);
 		}
 	}
 }
@@ -188,8 +188,9 @@ static void saveheader(O* out) {
  ** save chunk into binary file.
  */
 int aloZ_save(astate T, const aproto_t* p, awriter writer, void* context, int debug) {
-	O out = { T, 0, writer, context, debug };
-	int status = setjmp(out.jmp);
+	jmp_buf jmp;
+	O out = { T, debug, writer, context, &jmp };
+	int status = setjmp(jmp);
 	if (status == 0) {
 		saveheader(&out);
 		savefun(&out, p, NULL);

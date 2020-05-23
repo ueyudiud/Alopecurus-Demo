@@ -266,7 +266,7 @@ static void pload(astate T, void* rcontext) {
  ** load chunk from binary file.
  */
 int aloZ_load(astate T, aproto_t** p, astr src, areader reader, void* context) {
-	PContext c = { { T, src, 0, { NULL, 0, reader, context } }, NULL };
+	PContext c = { { T, src, { NULL, 0, reader, context } }, NULL };
 	tsetlis(T, T->top, aloI_new(T)); /* create reference for avoiding GC */
 	T->top ++;
 	int status = aloD_prun(T, pload, &c);
