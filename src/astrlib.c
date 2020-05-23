@@ -37,7 +37,7 @@ static int str_reverse(astate T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	if (len < MAX_STACKBUF_LEN) { /* for short string, use heap memory */
-		char buf[len];
+		char buf[MAX_STACKBUF_LEN];
 		for (size_t i = 0; i < len; ++i) {
 			buf[i] = src[len - 1 - i];
 		}
@@ -67,12 +67,12 @@ static int str_repeat(astate T) {
 	if (time >= ALO_INT_PROP(MAX) / len) {
 		aloL_error(T, "repeat time overflow.");
 	}
-	const size_t nlen = len * time;
+	size_t nlen = len * time;
 	if (nlen == 0) {
 		alo_pushstring(T, "");
 	}
 	else if (nlen <= MAX_STACKBUF_LEN) { /* for short string, use buffer on stack */
-		char buf[nlen];
+		char buf[MAX_STACKBUF_LEN];
 		char* p = buf;
 		for (size_t i = 0; i < time; ++i) {
 			l_strcpy(p, src, len);
@@ -83,12 +83,17 @@ static int str_repeat(astate T) {
 	else { /* for long string, use buffer on heap */
 		aloL_usebuf(T, buf,
 			aloL_bcheck(T, buf, nlen * sizeof(char));
-			char* p = aloL_braw(buf);
-			for (size_t i = 0; i < time; ++i) {
-				memcpy(p, src, len);
-				p += len * sizeof(char);
-			}
 			aloL_blen(buf) = nlen * sizeof(char);
+			memcpy(aloL_braw(buf), src, len);
+			char* p = aloL_braw(buf) + len;
+			nlen -= len;
+			while (len <= nlen) {
+				memcpy(p, aloL_braw(buf), len);
+				p += len;
+				nlen -= len;
+				len <<= 1;
+			}
+			memcpy(p, src, nlen);
 			aloL_bpushstring(T, buf);
 		)
 	}
@@ -199,26 +204,13 @@ enum {
 	RE_C_JMP
 };
 
-/* match state */
-typedef struct alo_MatchState {
-	astate T;
-	astr sbegin, send; /* begin and end of source */
-	amgroup_t* groups; /* group buffer */
-	ambuf_t js; /* jump stack */
-} amstat_t;
-
 typedef struct {
 	int kind;
 	int arga;
 	int argb;
 } aminsn_t;
 
-typedef struct alo_MatchLabel {
-	aminsn_t* to;
-	int pos; /* position of string */
-	int cnt; /* counter */
-} amlabel_t;
-
+/* the compiled matching function for regular expression */
 typedef struct {
 	aminsn_t* codes;
 	char* seq;
@@ -227,6 +219,21 @@ typedef struct {
 	int ncounter;
 	int ncode;
 } amfun_t;
+
+/* match state */
+typedef struct alo_MatchState {
+	astate T;
+	amfun_t* f; /* matching function */
+	astr sbegin, send; /* begin and end of source */
+	amgroup_t* groups; /* group buffer */
+	ambuf_t gp;
+} amstat_t;
+
+typedef struct alo_MatchLabel {
+	aminsn_t* to;
+	int pos; /* position of string */
+	int cnt; /* counter */
+} amlabel_t;
 
 /* end of string */
 #define EOS (-1)
@@ -315,16 +322,15 @@ static int match_lim(amstat_t* M, int p, astr s) {
 	}
 }
 
-#define pushlabel(M,s,n,c) aloL_btpush((M)->T, &(M)->js, ((amlabel_t) { n, (s) - (M)->sbegin, c }))
-#define toplabel(M) aloL_bttop(&(M)->js, amlabel_t)
+#define pushlabel(M,js,s,n,c) aloL_btpush((M)->T, js, ((amlabel_t) { n, (s) - (M)->sbegin, c }))
+#define toplabel(M,js) aloL_bttop(js, amlabel_t)
 
 static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
-	alo_bufpush(M->T, &M->js);
 	aminsn_t* pc = f->codes;
 	const char* s = start;
 	int failed = false;
-	aloL_newbuf(M->T, buf);
 	int counter[f->ncounter];
+	aloL_newbuf(M->T, js);
 	for (int i = 0; i < f->ncounter; counter[i++] = 0);
 	mcheck:
 	while (true) {
@@ -332,8 +338,7 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 		case RE_RET: {
 			if ((mask & MASK_FULL) && s != M->send)
 				goto mthrow;
-			alo_bufpop(M->T, buf);
-			alo_bufpop(M->T, &M->js);
+			alo_bufpop(M->T, js);
 			return true;
 		}
 		case RE_BEG: {
@@ -378,14 +383,14 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 		}
 		case RE_REP: {
 			if (failed) {
-				counter[(pc - 1)->arga] = toplabel(M)->cnt;
+				counter[(pc - 1)->arga] = toplabel(M, js)->cnt;
 				goto mthrow;
 			}
 			if (counter[(pc - 1)->arga] == pc->arga) {
 				pc += pc->argb;
 			}
 			else {
-				pushlabel(M, s, pc, counter[(pc - 1)->arga]++);
+				pushlabel(M, js, s, pc, counter[(pc - 1)->arga]++);
 				pc++;
 			}
 			break;
@@ -396,14 +401,14 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 				pc += pc->argb;
 			}
 			else {
-				pushlabel(M, s, pc + pc->argb, 0);
+				pushlabel(M, js, s, pc + pc->argb, 0);
 				pc++;
 			}
 			break;
 		}
 		case RE_REPY: {
 			if (failed) {
-				counter[(pc - 1)->arga] = toplabel(M)->cnt;
+				counter[(pc - 1)->arga] = toplabel(M, js)->cnt;
 				if (counter[(pc - 1)->arga] == pc->arga)
 					goto mthrow;
 				counter[(pc - 1)->arga]++;
@@ -411,13 +416,13 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 			}
 			else
 			{
-				pushlabel(M, s, pc, counter[(pc - 1)->arga]);
+				pushlabel(M, js, s, pc, counter[(pc - 1)->arga]);
 				pc += pc->argb;
 			}
 			break;
 		}
 		case RE_SPT: {
-			pushlabel(M, s, pc + pc->arga, 0);
+			pushlabel(M, js, s, pc + pc->arga, 0);
 			pc += pc->argb;
 			break;
 		}
@@ -437,17 +442,16 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 	}
 
 	mthrow:
-	if (M->js.len > 0) {
+	if (js->len > 0) {
 		/* recover through match stack */
-		amlabel_t* label = aloL_btpop(&M->js, amlabel_t);
+		amlabel_t* label = aloL_btpop(js, amlabel_t);
 		pc = label->to;
 		s = M->sbegin + label->pos;
 		failed = true;
 		goto mcheck;
 	}
 	/* not recoverable, match failed */
-	alo_bufpop(M->T, buf);
-	alo_bufpop(M->T, &M->js);
+	alo_bufpop(M->T, js);
 	return false;
 }
 
@@ -469,11 +473,20 @@ typedef struct alo_CompileState {
 	}; /* string buffer */
 } acstat_t;
 
-static void minit(amstat_t* M, astate T, astr src, size_t len, amgroup_t* groups) {
+static void mbegin(amstat_t* M, astate T, amfun_t* f, astr src, size_t len) {
 	M->T = T;
+	M->f = f;
 	M->sbegin = src;
 	M->send = src + len;
-	M->groups = groups;
+	alo_bufpush(T, &M->gp);
+	size_t used = f->ngroup * sizeof(amgroup_t);
+	aloL_bcheck(T, &M->gp, used);
+	M->gp.len = used;
+	M->groups = aloE_cast(amgroup_t*, aloL_braw(&M->gp));
+}
+
+static void mend(amstat_t* M) {
+	alo_bufpop(M->T, &M->gp);
 }
 
 #define cerror(C,msg,args...) aloL_error((C)->T, msg, ##args)
@@ -956,10 +969,10 @@ static int str_match(astate T) {
 	const char* src = alo_tolstring(T, 0, &len);
 	compile(&f, T, src, len);
 	amstat_t M;
-	amgroup_t groups[f.ngroup];
 	src = alo_tolstring(T, 1, &len);
-	minit(&M, T, src, len, groups);
+	mbegin(&M, T, &f, src, len);
 	alo_pushboolean(T, match(&M, &f, src, true));
+	mend(&M);
 	destory(T, &f);
 	return 1;
 }
@@ -986,29 +999,29 @@ static int matcher_test(astate T) {
 	amfun_t* f = self(T);
 	aloL_checkstring(T, 1);
 	amstat_t M;
-	amgroup_t groups[f->ngroup];
 	const char* src;
 	size_t len;
 	src = alo_tolstring(T, 1, &len);
-	minit(&M, T, src, len, groups);
+	mbegin(&M, T, f, src, len);
 	alo_pushboolean(T, match(&M, f, src, true));
+	mend(&M);
 	return 1;
 }
 
 static int matcher_match(astate T) {
 	amfun_t* f = self(T);
 	amstat_t M;
-	amgroup_t groups[f->ngroup];
 	const char* src;
 	size_t len;
 	src = alo_tolstring(T, 1, &len);
-	minit(&M, T, src, len, groups);
+	mbegin(&M, T, f, src, len);
 	if (!match(&M, f, src, true)) {
+		mend(&M);
 		return 0;
 	}
 	alo_ensure(T, f->ngroup);
 	for (int i = 0; i < f->ngroup; ++i) {
-		amgroup_t* group = &groups[i];
+		amgroup_t* group = &M.groups[i];
 		if (group->begin != NULL) {
 			alo_pushlstring(T, group->begin, group->end - group->begin);
 		}
@@ -1016,6 +1029,7 @@ static int matcher_match(astate T) {
 			alo_pushnil(T);
 		}
 	}
+	mend(&M);
 	return f->ngroup;
 }
 
@@ -1091,11 +1105,10 @@ static int matcher_replace(astate T) {
 		transformer = aux_replacef;
 	}
 	amstat_t M;
-	amgroup_t groups[f->ngroup];
 	const char* src;
 	size_t len;
 	src = aloL_checklstring(T, 1, &len);
-	minit(&M, T, src, len, groups);
+	mbegin(&M, T, f, src, len);
 	alo_settop(T, 3);
 	aloL_usebuf(T, buf,
 		const char* s1 = M.sbegin;
@@ -1120,6 +1133,7 @@ static int matcher_replace(astate T) {
 		}
 		aloL_bpushstring(T, buf);
 	)
+	mend(&M);
 	return 1;
 }
 
@@ -1137,17 +1151,16 @@ static int matcher_split(astate T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 1, &len);
 	amstat_t M;
-	amgroup_t groups[f->ngroup];
-	minit(&M, T, src, len, groups);
+	mbegin(&M, T, f, src, len);
 	size_t n = 0;
 	alo_settop(T, 2);
 	alo_newlist(T, 0);
 	if (mmatch(&M, f, M.sbegin, M.send)) {
 		do
 		{
-			alo_pushlstring(T, M.sbegin, groups->begin - M.sbegin);
+			alo_pushlstring(T, M.sbegin, M.groups->begin - M.sbegin);
 			alo_rawseti(T, 2, n++);
-			M.sbegin = groups->end;
+			M.sbegin = M.groups->end;
 		}
 		while (mmatch(&M, f, M.sbegin, M.send));
 		alo_pushlstring(T, M.sbegin, M.send - M.sbegin);
@@ -1156,6 +1169,7 @@ static int matcher_split(astate T) {
 		alo_push(T, 1);
 	}
 	alo_rawseti(T, 2, n);
+	mend(&M);
 	return 1;
 }
 
@@ -1288,7 +1302,6 @@ static int matcher_find(astate T) {
 	src = aloL_checklstring(T, 1, &len);
 	amfun_t* f = self(T);
 	amstat_t M;
-	amgroup_t groups[f->ngroup];
 	aint off = aloL_getoptinteger(T, 2, 0);
 	if (off < 0) {
 		off += len;
@@ -1296,12 +1309,14 @@ static int matcher_find(astate T) {
 	if (off > aloE_cast(aint, len) || off < 0) {
 		aloL_argerror(T, 2, "ngroup out of bound.");
 	}
-	minit(&M, T, src, len, groups);
+	mbegin(&M, T, f, src, len);
 	if (mmatch(&M, f, src + off, M.send)) {
-		alo_pushinteger(T, groups[0].begin - M.sbegin);
-		alo_pushinteger(T, groups[0].end - M.sbegin);
+		alo_pushinteger(T, M.groups[0].begin - M.sbegin);
+		alo_pushinteger(T, M.groups[0].end - M.sbegin);
+		mend(&M);
 		return 2;
 	}
+	mend(&M);
 	return 0;
 }
 
