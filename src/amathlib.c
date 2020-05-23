@@ -14,11 +14,22 @@
 #include "aaux.h"
 #include "alibs.h"
 
+#define _USE_MATH_DEFINES
+
 #include <math.h>
 #include <stdlib.h>
 
-#define PI 3.1415926535897932384626433832795
-#define E 2.7182818284590452353602874713527
+#if defined(M_PI) && defined(M_E)
+
+#define PI aloE_flt(M_PI)
+#define E aloE_flt(M_E)
+
+#else
+
+#define PI aloE_flt(3.1415926535897932384626433832795)
+#define E aloE_flt(2.7182818284590452353602874713527)
+
+#endif
 
 static int math_abs(astate T) {
 	int flag;
@@ -171,6 +182,36 @@ static int math_lgamma(astate T) {
 	return 1;
 }
 
+#if defined(ALO_USE_POSIX)
+
+#define l_srand48 srand48
+#define l_drand48 drand48
+
+#else
+
+static uint64_t seed = 1;
+
+static double l_drand48(void) {
+	seed = (0x5DEECE66D * seed + 0xB) & ((UINT64_C(1) << 48) - 1);
+	return aloE_flt(seed >> 16) / aloE_flt(0x1.0p32);
+}
+
+static void l_srand48(uint32_t value) {
+	seed = value << 16 | 0x330E;
+}
+
+#endif
+
+static int math_setseed(astate T) {
+	l_srand48(aloL_checkinteger(T, 0));
+	return 0;
+}
+
+static int math_random(astate T) {
+	alo_pushnumber(T, l_drand48());
+	return 1;
+}
+
 static const acreg_t mod_funcs[] = {
 	{ "E", NULL },
 	{ "INTMAX", NULL },
@@ -195,6 +236,8 @@ static const acreg_t mod_funcs[] = {
 	{ "max", math_max },
 	{ "min", math_min },
 	{ "rad", math_rad },
+	{ "random", math_random },
+	{ "setseed", math_setseed },
 	{ "sin", math_sin },
 	{ "sqrt", math_sqrt },
 	{ "tan", math_tan },
@@ -220,7 +263,8 @@ int aloopen_math(astate T) {
 	alo_bind(T, "math.ln", math_ln);
 	alo_bind(T, "math.min", math_min);
 	alo_bind(T, "math.max", math_max);
-	alo_bind(T, "math.rad", math_rad);
+	alo_bind(T, "math.rad", math_rad);;
+	alo_bind(T, "math.random", math_random);
 	alo_bind(T, "math.sin", math_sin);
 	alo_bind(T, "math.sqrt", math_sqrt);
 	alo_bind(T, "math.tan", math_tan);

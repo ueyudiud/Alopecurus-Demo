@@ -107,13 +107,26 @@ static int sys_run(astate T) {
 	}
 }
 
+static int sys_rand(astate T) {
+	alo_pushinteger(T, rand());
+	return 1;
+}
+
+static int sys_srand(astate T) {
+	aint value = aloL_checkinteger(T, 0);
+	srand(value);
+	return 0;
+}
+
 static const acreg_t mod_funcs[] = {
 	{ "exit", sys_exit },
 	{ "clock", sys_clock },
 	{ "getenv", sys_getenv },
 	{ "time", sys_time },
+	{ "rand", sys_rand },
 	{ "run", sys_run },
 	{ "setlocale", sys_setlocale },
+	{ "srand", sys_srand },
 	{ NULL, NULL }
 };
 
