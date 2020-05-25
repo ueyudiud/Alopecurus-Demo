@@ -375,49 +375,90 @@ static astring_t* defname(alexer_t* lex, aestat_t* e, int* self) {
 	return name;
 }
 
+static void mapkey(alexer_t* lex, aestat_t* e) {
+	switch (lex->ct.t) {
+	case TK_INTEGER:
+		initexp(e, E_INTEGER);
+		e->v.i = lex->ct.d.i;
+		break;
+	case TK_FLOAT:
+		initexp(e, E_FLOAT);
+		e->v.f = lex->ct.d.f;
+		break;
+	case TK_STRING:
+		initexp(e, E_STRING);
+		e->v.s = lex->ct.d.s;
+		break;
+	case TK_TRUE:
+		initexp(e, E_TRUE);
+		break;
+	case TK_FALSE:
+		initexp(e, E_FALSE);
+		break;
+	case TK_IDENT:
+		initexp(e, E_STRING);
+		e->v.s = lex->ct.d.s;
+		break;
+	default:
+		lerrorf(lex, "table key literal expected, got: %s", aloX_token2str(lex, &lex->ct));
+	}
+	poll(lex);
+}
+
 static void colargs(alexer_t* lex, aestat_t* e) {
 	afstat_t* f = lex->f;
 	int line = lex->cl;
 	poll(lex);
 	if (checknext(lex, ':')) { /* colargs -> ':' */
 		aloK_newcol(f, e, OP_NEWM, 0);
+		testenclose(lex, '[', ']', line);
+		return;
 	}
-	else {
+	if (checknext(lex, ']')) {
 		aloK_newcol(f, e, OP_NEWL, 0);
-		if (!check(lex, ']')) {
-			int narg = 1;
-			size_t i = e->v.g;
-			aloK_anyR(f, e);
-			size_t t = e->v.g;
-			aestat_t e2, e3;
-			expr(lex, &e2);
-			if (checknext(lex, ':')) { /* colargs -> expr ':' expr { [','|';'] expr ':' expr } */
-				SET_i(f->p->code[i], OP_NEWM); /* set to table */
-				aloK_anyRK(f, &e2);
-				expr(lex, &e3);
-				aloK_rawset(f, t, &e2, &e3);
-				while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex)) {
-					expr(lex, &e2);
-					aloK_anyRK(f, &e2);
-					testnext(lex, ':');
-					expr(lex, &e3);
-					aloK_rawset(f, t, &e2, &e3);
-					narg++;
-				}
-			}
-			else { /* colargs -> expr { [','|';'] expr } */
-				initexp(&e3, E_INTEGER);
-				e3.v.i = narg - 1;
-				aloK_rawset(f, t, &e3, &e2);
-				while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex)) {
-					initexp(&e2, E_INTEGER);
-					e2.v.i = narg++;
-					expr(lex, &e3);
-					aloK_rawset(f, t, &e2, &e3);
-				}
-			}
-			SET_Bx(f->p->code[i], narg); /* set collection size */
+		return;
+	}
+	int narg = 0;
+	aestat_t e2, e3;
+	switch (lex->ct.t) {
+	case TK_INTEGER:
+	case TK_FLOAT:
+	case TK_TRUE:
+	case TK_FALSE:
+	case TK_STRING:
+	case TK_IDENT: {
+		 /* colargs -> expr ':' expr { [','|';'] expr ':' expr } */
+		if (forward(lex) != ':')
+			goto list;
+		aloK_newcol(f, e, OP_NEWM, 0);
+		size_t i = e->v.g;
+		aloK_nextreg(f, e);
+		do {
+			mapkey(lex, &e2);
+			testnext(lex, ':');
+			expr(lex, &e3);
+			aloK_rawset(f, e->v.g, &e2, &e3);
+			narg++;
 		}
+		while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex));
+		SET_Bx(f->p->code[i], narg); /* set collection size */
+		break;
+	}
+	list:
+	default: {
+		/* colargs -> expr { [','|';'] expr } */
+		aloK_newcol(f, e, OP_NEWL, 0);
+		size_t i = e->v.g;
+		aloK_nextreg(f, e);
+		do {
+			initexp(&e2, E_INTEGER);
+			e2.v.i = narg++;
+			expr(lex, &e3);
+			aloK_rawset(f, e->v.g, &e2, &e3);
+		}
+		while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex));
+		SET_Bx(f->p->code[i], narg); /* set collection size */
+	}
 	}
 	testenclose(lex, '[', ']', line);
 }
@@ -553,6 +594,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 		poll(lex);
 		if (checknext(lex, ')')) {
 			n = 0;
+			initexp(e, E_VOID);
 		}
 		else {
 			n = varexpr(lex, e);
@@ -1117,7 +1159,7 @@ static void mergecasevar(afstat_t* f, int begin, int* fail) {
 
 	f->nactvar = begin;
 	adjustcv(f, f->d->cv.a, 0);
-	f->freelocal = i; /* adjust free local size */
+	f->freelocal = f->nactvar; /* adjust free local size */
 }
 
 struct context_caseassign {
