@@ -225,8 +225,10 @@ typedef struct alo_MatchState {
 	astate T;
 	amfun_t* f; /* matching function */
 	astr sbegin, send; /* begin and end of source */
-	amgroup_t* groups; /* group buffer */
-	ambuf_t gp;
+	union {
+		amgroup_t* groups; /* group buffer */
+		ambuf_t gp;
+	};
 } amstat_t;
 
 typedef struct alo_MatchLabel {
@@ -482,7 +484,6 @@ static void mbegin(amstat_t* M, astate T, amfun_t* f, astr src, size_t len) {
 	size_t used = f->ngroup * sizeof(amgroup_t);
 	aloL_bcheck(T, &M->gp, used);
 	M->gp.len = used;
-	M->groups = aloE_cast(amgroup_t*, aloL_braw(&M->gp));
 }
 
 static void mend(amstat_t* M) {
@@ -960,23 +961,6 @@ static void initialize(amfun_t* f) {
 	f->ncounter = 0;
 }
 
-static int str_match(astate T) {
-	aloL_checkstring(T, 0);
-	aloL_checkstring(T, 1);
-	amfun_t f;
-	initialize(&f);
-	size_t len;
-	const char* src = alo_tolstring(T, 0, &len);
-	compile(&f, T, src, len);
-	amstat_t M;
-	src = alo_tolstring(T, 1, &len);
-	mbegin(&M, T, &f, src, len);
-	alo_pushboolean(T, match(&M, &f, src, true));
-	mend(&M);
-	destory(T, &f);
-	return 1;
-}
-
 static int matcher_gc(astate T) {
 	amfun_t* f = aloE_cast(amfun_t*, alo_torawdata(T, 0));
 	if (f->codes) {
@@ -1285,12 +1269,12 @@ static void addcodes(astate T, ambuf_t* buf, amfun_t* f) {
 static int matcher_tostr(astate T) {
 	amfun_t* f = self(T);
 	/*
-	aloL_usebuf(T, buf) {
+	aloL_usebuf(T, buf,
 		aloL_bputf(T, buf, "__matcher: { ngroup: %d, addr: %p, opcodes:", (int) f->ngroup, f);
 		addcodes(T, buf, f);
 		aloL_bputxs(T, buf, "\n}");
 		aloL_bpushstring(T, buf);
-	}
+	);
 	*/
 	alo_pushfstring(T, "__matcher: { address: %p }", f);
 	return 1;
@@ -1345,6 +1329,20 @@ static int str_matcher(astate T) {
 	const char* src = aloL_checklstring(T, 0, &len);
 	amfun_t* f = preload(T);
 	compile(f, T, src, len);
+	return 1;
+}
+
+static int str_match(astate T) {
+	size_t len;
+	const char* src = aloL_checklstring(T, 0, &len);
+	aloL_checkstring(T, 1);
+	amfun_t* f = preload(T);
+	compile(f, T, src, len);
+	amstat_t M;
+	src = alo_tolstring(T, 1, &len);
+	mbegin(&M, T, f, src, len);
+	alo_pushboolean(T, match(&M, f, src, true));
+	mend(&M);
 	return 1;
 }
 
