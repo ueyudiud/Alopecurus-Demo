@@ -895,7 +895,7 @@ static acasevar_t* nextcv(alexer_t* lex, int type, astring_t* name, struct conte
 	int index = pushcv(f);
 	acasevar_t* var = f->d->cv.a + index;
 	var->type = type;
-	var->src = var->dest = -1;
+	var->src = -1;
 	var->name = name;
 	var->nchild = 0;
 	var->parent = ctx->parent;
@@ -926,8 +926,9 @@ static void leavecv(alexer_t* lex, struct context_pattern* ctx) {
 		lerror(lex, "unexpected token");
 		break;
 	}
+	/* poll back head indices */
+	ctx->previous = ctx->parent;
 	ctx->parent = var->parent;
-	ctx->previous = var->prev;
 }
 
 static void patterns(alexer_t* lex) {
@@ -957,7 +958,7 @@ static void patterns(alexer_t* lex) {
 			name = handle = NULL;
 			unboxseq: {
 				poll(lex);
-				acasevar_t* var = nextcv(lex, CV_UNBOX, name, &ctx);
+				acasevar_t* var = nextcv(lex, CV_UNBOXSEQ, name, &ctx);
 				if (handle) {
 					aloK_field(lex->f, &var->expr, handle);
 				}
@@ -1003,24 +1004,23 @@ static void patterns(alexer_t* lex) {
 			break;
 		}
 		}
-		label:
-		if (ctx.parent != NO_CASEVAR) { /* check leave block */
-			switch (lex->ct.t) {
-			case ')': case ']':
-				leavecv(lex, &ctx);
-				goto label;
+		while (lex->ct.t == ')' || lex->ct.t == ']') {
+			leavecv(lex, &ctx);
+			if (ctx.parent == NO_CASEVAR) {
+				return; /* check leave block */
 			}
 		}
 	}
 	while (checknext(lex, ','));
 }
 
-static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
-	acasevar_t* v = f->d->cv.a + index;
+static void multiput(afstat_t* f, acasevar_t* v, int* fail) {
+	aestat_t e[1];
+	initexp(e, E_LOCAL);
+	e->v.g = v->src;
+	f->nactvar = v->src + 1;
 	switch (v->type) {
 	case CV_MATCH: {
-		initexp(e, E_LOCAL);
-		e->v.g = v->src;
 		aloK_suffix(f, e, &v->expr, OPR_EQ, f->l->cl);
 		e->lf = *fail;
 		aloK_gwt(f, e);
@@ -1030,43 +1030,53 @@ static void multiput(afstat_t* f, aestat_t* e, int index, int* j, int* fail) {
 	}
 	case CV_UNBOX: { /* unbox */
 		int current = f->freelocal;
+		/* unbox value first */
 		if (v->expr.t == E_VOID) { /* unit type: unbox by itself */
+			/* unbox directly */
 			aloK_unbox(f, e, v->nchild);
 			e->t = E_ALLOC;
 			aloK_nextreg(f, e);
 		}
 		else {
+			/* unbox by function */
 			aloK_nextreg(f, &v->expr);
 			aloK_nextreg(f, e);
 			aloK_iABC(f, OP_CALL, false, false, false, v->expr.v.g, 3, 1 + v->nchild);
 			f->freelocal -= 1;
 		}
 		aloE_assert(current + 1 == f->freelocal, "illegal argument count");
-		f->freelocal = current + v->nchild;
-		if (v->nchild > 0) { /* placce child variables */
+		f->freelocal = current + v->nchild; /* adjust variable count */
+		if (v->nchild > 0) { /* place child variables */
 			size_t k = 0;
-			int i = index + 1;
+			acasevar_t* v1;
+			int i = v - f->d->cv.a + 1; /* the variable index allocate after it self */
+			/* allocate variable */
 			do {
-				v = f->d->cv.a + i;
-				v->src = current + k++;
-				if (v->name) {
-					v->dest = (*j)++;
-				}
+				v1 = f->d->cv.a + i;
+				v1->src = current + k++;
 			}
-			while ((i = v->next) != NO_CASEVAR);
-			aloE_assert(k == f->d->cv.a[index].nchild, "illegal variable count");
-			i = index + 1;
+			while ((i = v1->next) != NO_CASEVAR);
+			aloE_assert(k == v->nchild, "illegal variable count");
+			i = v - f->d->cv.a + 1;
 			do {
 				v = f->d->cv.a + i;
-				f->nactvar = f->freelocal;
-				multiput(f, e, i, j, fail);
+				multiput(f, v, fail); /* multiple put values recursively */
 			}
 			while ((i = v->next) != NO_CASEVAR);
 		}
 		break;
 	}
-	case CV_UNBOXSEQ: /* unbox sequence TODO */
+	case CV_UNBOXSEQ: { /* unbox sequence TODO */
+		int current = f->freelocal;
+		if (v->expr.t == E_VOID) { /* unit type: direct sequence */
+			initexp(e, E_LOCAL);
+			e->v.g = v->src;
+		}
+		else {
+			aloK_nextreg(f, &v->expr);
+		}
 		break;
+	}
 	}
 }
 
@@ -1076,9 +1086,9 @@ static void adjustcv(afstat_t* f, acasevar_t* const a, int i) {
 	do {
 		v = a + j;
 		if (v->name) {
-			if (v->src != v->dest) {
-				aloK_iABC(f, OP_MOV, false, false, false, v->dest, v->src, 0);
-				v->src = v->dest;
+			if (v->src != f->nactvar) {
+				aloK_iABC(f, OP_MOV, false, false, false, f->nactvar, v->src, 0);
+				v->src = f->nactvar;
 			}
 			regloc(f, v->name);
 		}
@@ -1094,15 +1104,16 @@ static void adjustcv(afstat_t* f, acasevar_t* const a, int i) {
 	while ((j = v->next) != NO_CASEVAR);
 }
 
-static void mergecasevar(afstat_t* f, aestat_t* e, int begin, int i, int* fail) {
-	int j = 0;
+static void mergecasevar(afstat_t* f, int begin, int* fail) {
+	int varid = 0;
+	acasevar_t* cv;
 	do {
-		if (f->d->cv.a[j].type != CV_MATCH) {
-			f->nactvar = f->freelocal;
-			multiput(f, e, j, &i, fail);
+		cv = &f->d->cv.a[varid];
+		if (cv->type != CV_MATCH) {
+			multiput(f, cv, fail);
 		}
 	}
-	while ((j = f->d->cv.a[j].next) != NO_CASEVAR);
+	while ((varid = cv->next) != NO_CASEVAR);
 
 	f->nactvar = begin;
 	adjustcv(f, f->d->cv.a, 0);
@@ -1111,68 +1122,63 @@ static void mergecasevar(afstat_t* f, aestat_t* e, int begin, int i, int* fail) 
 
 struct context_caseassign {
 	acasevar_t* v;
-	aestat_t e;
 	int fail;
 };
 
-static void putvar(afstat_t* f, int* i, struct context_caseassign* ctx) {
+static void putvar(afstat_t* f, struct context_caseassign* ctx, aestat_t* e) {
 	switch (ctx->v->type) {
 	case CV_MATCH:
-		ctx->e.lf = ctx->fail;
-		aloK_suffix(f, &ctx->e, &ctx->v->expr, OPR_EQ, f->l->cl);
-		aloK_gwt(f, &ctx->e);
-		ctx->e.t = E_TRUE;
-		ctx->fail = ctx->e.lf;
+		e->lf = ctx->fail;
+		aloK_suffix(f, e, &ctx->v->expr, OPR_EQ, f->l->cl);
+		aloK_gwt(f, e);
+		e->t = E_TRUE;
+		ctx->fail = e->lf;
 		break;
 	default:
-		ctx->v->src = aloK_nextreg(f, &ctx->e);
-		if (ctx->v->name != NULL) {
-			ctx->v->dest = (*i)++;
-		}
+		ctx->v->src = aloK_nextreg(f, e);
 		break;
 	}
 	ctx->v = ctx->v->next != NO_CASEVAR ? f->d->cv.a + ctx->v->next : NULL;
 }
 
-static int caseassign(alexer_t* lex, int i) {
+static int caseassign(alexer_t* lex) {
 	afstat_t* f = lex->f;
-	struct context_caseassign ctx;
-	ctx.fail = NO_JUMP;
-	ctx.v = f->d->cv.a;
+	struct context_caseassign ctx = { f->d->cv.a, NO_JUMP };
+	aestat_t e;
 	int act = f->nactvar;
 	size_t narg = 0;
-
+	/* scan all of argumnet used to assign */
 	do {
-		expr(lex, &ctx.e);
+		expr(lex, &e);
 		narg++;
 		if (!checknext(lex, ',')) {
 			goto remain;
 		}
-		if (hasmultiarg(&ctx.e)) {
-			aloK_singleret(f, &ctx.e);
+		if (hasmultiarg(&e)) {
+			aloK_singleret(f, &e);
 		}
-		putvar(f, &i, &ctx); /* move variable */
+		putvar(f, &ctx, &e); /* move variable */
 	}
 	while (ctx.v);
 	aloE_assert(narg == f->d->cv.l, "illegal variable count.");
 	do {
-		expr(lex, &ctx.e);
-		aloK_drop(f, &ctx.e);
+		expr(lex, &e);
+		aloK_drop(f, &e); /* drop extra arguments */
 	}
 	while (checknext(lex, ','));
 	goto end;
 	remain:
 	if (ctx.v->next == NO_CASEVAR) { /* fit last element */
-		putvar(f, &i, &ctx);
+		putvar(f, &ctx, &e);
 	}
 	else {
 		aloE_assert(narg != f->d->cv.l, "argument not matched");
-		adjust_assign(f, f->d->cv.l, narg, &ctx.e);
-		do putvar(f, &i, &ctx);
+		adjust_assign(f, f->d->cv.l, narg, &e);
+		do putvar(f, &ctx, &e);
 		while (ctx.v);
 	}
 	end:
-	mergecasevar(lex->f, &ctx.e, act, i, &ctx.fail);
+	mergecasevar(lex->f, act, &ctx.fail);
 	return ctx.fail;
 }
 
@@ -1255,7 +1261,7 @@ static void partialfun(alexer_t* lex) {
 		do {
 			v = f->d->cv.a + i;
 			initexp(&e1, E_ALLOC);
-			e1.v.g = aloK_iABC(f, OP_SELV, false, 2, false, 0, j, 0);
+			e1.v.g = aloK_iABC(f, OP_SELV, false, 2, false, 0, j++, 0);
 			if (v->type == CV_MATCH) {
 				aloK_suffix(f, &e1, &v->expr, OPR_EQ, lex->cl);
 				e1.lf = fail;
@@ -1264,13 +1270,10 @@ static void partialfun(alexer_t* lex) {
 			}
 			else {
 				v->src = aloK_nextreg(f, &e1);
-				if (v->name != NULL) {
-					v->dest = j++;
-				}
 			}
 		}
 		while ((i = v->next) != NO_CASEVAR);
-		mergecasevar(f, &e1, f->b->nactvar, j, &fail);
+		mergecasevar(f, f->b->nactvar, &fail);
 		stats(lex);
 		if (check(lex, TK_CASE)) {
 			succ = aloK_jumpforward(f, succ);
@@ -1379,11 +1382,10 @@ static int ifstat(alexer_t* lex) {
 	ablock_t b;
 	enterblock(lex->f, &b, NO_JUMP, NULL);
 	if (checknext(lex, TK_LOCAL)) { /* localexpr -> 'local' patterns '=' caseassign */
-		int n = lex->f->nactvar;
 		patterns(lex);
 		testnext(lex, '='); /* assignment */
 		initexp(&e, E_VOID);
-		e.lf = caseassign(lex, n);
+		e.lf = caseassign(lex);
 	}
 	else { /* if statement */
 		expr(lex, &e);

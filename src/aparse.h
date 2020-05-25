@@ -134,8 +134,7 @@ struct alo_CaseVar {
 	int prev; /* index of previous node */
 	int next; /* index of next node */
 	int line; /* nested line */
-	uint16_t src; /* source index*/
-	uint16_t dest; /* destination variable index */
+	uint16_t src; /* source index */
 	abyte type; /* variable type */
 	abyte flag;
 };

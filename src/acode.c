@@ -717,7 +717,9 @@ void aloK_boxt(afstat_t* f, aestat_t* e, int narg) {
 		multi = true;
 	}
 	aloK_nextreg(f, e);
-	e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, e->v.g - narg + 1, (multi ? ALO_MULTIRET : narg) + 1);
+	int i = e->v.g - narg + 1;
+	e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, i, (multi ? ALO_MULTIRET : narg) + 1);
+	f->freelocal = i;
 	e->t = E_ALLOC;
 }
 
