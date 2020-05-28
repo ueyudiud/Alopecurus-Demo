@@ -50,8 +50,7 @@ typedef struct {
 enum {
 	CV_NORMAL, /* free variable, pattern: _ */
 	CV_MATCH, /* match variable, pattern: ?_ */
-	CV_UNBOX, /* for unbox variable, pattern: _@f(...) */
-	CV_UNBOXSEQ, /* for unbox sequence, pattern: _@f[...] */
+	CV_UNBOX /* for unbox variable, pattern: _@f(...) */
 };
 
 /* the protected data needed used in parser */

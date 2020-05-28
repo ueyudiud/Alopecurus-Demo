@@ -961,9 +961,6 @@ static void leavecv(alexer_t* lex, struct context_pattern* ctx) {
 	case CV_UNBOX:
 		testenclose(lex, '(', ')', var->line);
 		break;
-	case CV_UNBOXSEQ:
-		testenclose(lex, '[', ']', var->line);
-		break;
 	default:
 		lerror(lex, "unexpected token");
 		break;
@@ -996,21 +993,6 @@ static void patterns(alexer_t* lex) {
 			}
 			goto begin; /* enter into block, skip ',' check */
 		}
-		case '[': { /* pattern -> '[' patterns ']' */
-			name = handle = NULL;
-			unboxseq: {
-				poll(lex);
-				acasevar_t* var = nextcv(lex, CV_UNBOXSEQ, name, &ctx);
-				if (handle) {
-					aloK_field(lex->f, &var->expr, handle);
-				}
-				else { /* no unboxer, use identical unboxer */
-					initexp(&var->expr, E_VOID);
-				}
-				entercv(lex, &ctx);
-			}
-			goto begin; /* enter into block, skip ',' check */
-		}
 		case TK_NIL: case TK_TRUE: case TK_FALSE: case TK_INTEGER: case TK_FLOAT: { /* pattern -> LITERAL */
 			acasevar_t* var = nextcv(lex, CV_MATCH, NULL, &ctx);
 			primaryexpr(lex, &var->expr); /* scan match value */
@@ -1024,8 +1006,6 @@ static void patterns(alexer_t* lex) {
 				switch (lex->ct.t) {
 				case '(': /* pattern -> IDENT '@' {IDENT} '(' patterns ')' */
 					goto unbox;
-				case '[': /* pattern -> IDENT '@' {IDENT} '[' patterns ']' */
-					goto unboxseq;
 				default:
 					lerror(lex, "unexpected token");
 					break;
@@ -1035,10 +1015,6 @@ static void patterns(alexer_t* lex) {
 				handle = name;
 				name = NULL;
 				goto unbox;
-			case '[': /* pattern -> IDENT '[' patterns ']' */
-				handle = name;
-				name = NULL;
-				goto unboxseq;
 			default: /* pattern -> IDENT */
 				nextcv(lex, CV_NORMAL, name, &ctx);
 				break;
@@ -1046,7 +1022,7 @@ static void patterns(alexer_t* lex) {
 			break;
 		}
 		}
-		while (lex->ct.t == ')' || lex->ct.t == ']') {
+		while (lex->ct.t == ')') {
 			leavecv(lex, &ctx);
 			if (ctx.parent == NO_CASEVAR) {
 				return; /* check leave block */
@@ -1105,17 +1081,6 @@ static void multiput(afstat_t* f, acasevar_t* v, int* fail) {
 				multiput(f, v, fail); /* multiple put values recursively */
 			}
 			while ((i = v->next) != NO_CASEVAR);
-		}
-		break;
-	}
-	case CV_UNBOXSEQ: { /* unbox sequence TODO */
-		int current = f->freelocal;
-		if (v->expr.t == E_VOID) { /* unit type: direct sequence */
-			initexp(e, E_LOCAL);
-			e->v.g = v->src;
-		}
-		else {
-			aloK_nextreg(f, &v->expr);
 		}
 		break;
 	}
