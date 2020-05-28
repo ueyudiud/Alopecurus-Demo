@@ -147,15 +147,16 @@ struct alo_FuncState {
 	int ncode;
 	int nconst;
 	int nchild;
-	int firstlocal; /* first local variable offset */
+	int nlocvar; /* number of named local variables */
 	int nline; /* number of line number */
 	int cjump; /* current label for jump */
 	int lastline; /* line number for last instruction */
+	int firstsym; /* first symbol */
 	uint16_t ncap;
 	uint16_t layer; /* layer of nested function depth */
+	uint16_t firsttemp; /* first temporary variable offset */
+	uint16_t firstlocal; /* first local value offset */
 	uint16_t freelocal; /* first free local variable */
-	uint16_t nactvar; /* number of active variables */
-	uint16_t nlocvar; /* number of named local variables */
 };
 
 #endif /* APARSE_H_ */

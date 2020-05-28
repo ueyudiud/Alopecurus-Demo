@@ -24,10 +24,10 @@ static void fixjmp(afstat_t* f, size_t pc, size_t dest) {
 	SET_sBx(*insn, getoffset(dest, pc));
 	if (GET_i(*insn) == OP_JMP) {
 		int lnact = GET_A(*insn);
-		if (lnact != f->nactvar && f->nchild > 0) {
+		if (lnact != f->firsttemp && f->nchild > 0) {
 			SET_xA(*insn, true);
 		}
-		SET_A(*insn, f->nactvar);
+		SET_A(*insn, f->firsttemp);
 	}
 }
 
@@ -40,7 +40,7 @@ static int isinsnreducible(afstat_t* f) {
 	if (f->ncode <= 2)
 		return false;
 	int i = GET_i(f->p->code[f->ncode - 2]);
-	return i != OP_EQ && i != OP_LT && i != OP_LE && GET_A(i) == f->nactvar;
+	return i != OP_EQ && i != OP_LT && i != OP_LE && GET_A(i) == f->firstlocal;
 }
 
 static void jmplist(afstat_t* f, int list, size_t dest) {
@@ -99,7 +99,7 @@ static ainsn_t* getctrl(afstat_t* f, int index) {
 
 static int aloK_kint(afstat_t* f, aint value) {
 	int i;
-	kfind(i, f->p->consts, f->nconst, value, ttisflt, tgetflt);
+	kfind(i, f->p->consts, f->nconst, value, ttisint, tgetint);
 	tsetint(newconst(f), value);
 	return i;
 }
@@ -144,7 +144,7 @@ void aloK_incrstack(afstat_t* f, int n) {
 
 static void initlabel(afstat_t* f, alabel* label) {
 	label->name = NULL;
-	label->nactvar = f->nactvar;
+	label->nactvar = f->firstlocal;
 	label->layer = f->layer;
 	label->line = f->l->cl;
 	label->pc = f->ncode;
@@ -218,29 +218,26 @@ static int putjump_(afstat_t* f, int prev, ainsn_t insn) {
 #define putjump(f,prev,i,cond,xa,a) putjump_(f, prev, CREATE_iAsBx(i, xa, cond, a, NO_JUMP))
 
 int aloK_jumpforward(afstat_t* f, int index) {
-	if (f->ncode == 0) {
-		goto normal;
-	}
-	switch (GET_i(f->p->code[f->ncode - 1])) {
-	case OP_RET:
-	case OP_TCALL:
-		goto head;
-	default:
-		goto normal;
-	}
-
-	normal: {
-		linkcjmp(f, &f->cjump, index);
-		int jmp = f->cjump;
-		f->cjump = NO_JUMP;
-		return putjump(f, jmp, OP_JMP, false, false, f->nactvar);
+	if (f->ncode != 0) {
+		switch (GET_i(f->p->code[f->ncode - 1])) {
+		case OP_RET: case OP_TCALL: { /* can direct code reach here */
+			int jmp = f->cjump;
+			f->cjump = NO_JUMP;
+			return jmp; /* return current hold index */
+		}
+		case OP_JMP: { /* if last label is jump out */
+			if (index == f->ncode - 1) {
+				return index;
+			}
+			break;
+		}
+		}
 	}
 
-	head: { /* can direct code reach here */
-		int jmp = f->cjump;
-		f->cjump = NO_JUMP;
-		return jmp; /* return current hold index */
-	}
+	int jmp = f->cjump;
+	f->cjump = NO_JUMP;
+	linkcjmp(f, &jmp, index);
+	return putjump(f, jmp, OP_JMP, false, false, f->firstlocal);
 }
 
 void aloK_jumpbackward(afstat_t* f, int index) {
@@ -251,7 +248,7 @@ void aloK_jumpbackward(afstat_t* f, int index) {
 		f->cjump = NO_JUMP;
 	}
 	if (!flag) {
-		aloK_iAsBx(f, OP_JMP, label->nactvar != f->nactvar, false, label->nactvar, getoffset(label->pc, f->ncode));
+		aloK_iAsBx(f, OP_JMP, label->nactvar != f->firstlocal, false, label->nactvar, getoffset(label->pc, f->ncode));
 	}
 }
 
@@ -278,7 +275,7 @@ void aloK_fixline(afstat_t* f, int line) {
 }
 
 static void freereg(afstat_t* f, int index) {
-	if (!aloK_iscapture(index) && index >= f->nactvar) {
+	if (!aloK_iscapture(index) && index >= f->firstlocal) {
 		f->freelocal--;
 		aloE_xassert(f->freelocal == index);
 	}
@@ -482,45 +479,6 @@ int aloK_newcap(afstat_t* f, astring_t* name, int instack, int index) {
 	return i;
 }
 
-static int getvaraux(astate T, afstat_t* f, aestat_t* e, astring_t* name, int base) {
-	asymbol* ss = f->d->ss.a + f->firstlocal;
-	for (int i = f->nactvar - 1; i >= 0; --i) {
-		aloE_assert(ss[i].type == SYMBOL_LOC, "unexpected variable type.");
-		if (ss[i].name == name) { /* find symbol in table */
-			e->t = E_LOCAL;
-			e->v.g = f->p->locvars[ss[i].index].index; /* get register index */
-			return true;
-		}
-	}
-	if (f->p->fvararg) {
-		if (!base) {
-			aloX_error(f->l, "can not capture vararg.");
-		}
-		aloE_assert(ss[f->nlocvar].type == SYMBOL_VAR, "unexpected variable type.");
-		if (ss[f->nlocvar].name == name) {
-			e->t = E_VARARG;
-			return true;
-		}
-	}
-	int i;
-	for (i = 0; i < f->ncap; ++i) {
-		if (f->p->captures[i].name == name) {
-			e->t = E_CAPTURE;
-			e->v.g = i;
-			return true;
-		}
-	}
-	if (f->e && getvaraux(T, f->e, e, name, false)) {
-		if (e->t == E_VARARG) {
-			aloX_error(f->l, "vararg as capture is not support yet."); //TODO
-		}
-		e->v.g = aloK_newcap(f, name, e->t == E_LOCAL, e->v.g);
-		e->t = E_CAPTURE;
-		return true;
-	}
-	return false;
-}
-
 /**
  ** get registry slot
  */
@@ -533,12 +491,48 @@ void aloK_fromreg(afstat_t* f, aestat_t* o, astring_t* k) {
 	o->lf = o->lt = NO_JUMP;
 }
 
+static int getvaraux(afstat_t* f, aestat_t* e, astring_t* name, int top) {
+	for (int i = top - 1; i >= f->firstsym; --i) {
+		asymbol* sym = &f->d->ss.a[i];
+		if (sym->name == name) { /* find symbol in table */
+			switch (sym->type) {
+			case SYMBOL_LOC:
+				e->t = E_LOCAL;
+				e->v.g = f->p->locvars[sym->index].index; /* get register index */
+				break;
+			case SYMBOL_VAR:
+				aloE_assert(f->p->fvararg, "vararg should only exist in vararg function");
+				e->t = E_VARARG;
+				break;
+			}
+			return true;
+		}
+	}
+	int i;
+	for (i = 0; i < f->ncap; ++i) {
+		if (f->p->captures[i].name == name) {
+			e->t = E_CAPTURE;
+			e->v.g = i;
+			return true;
+		}
+	}
+	if (f->e && getvaraux(f->e, e, name, f->firstsym)) {
+		if (e->t == E_VARARG) {
+			aloX_error(f->l, "vararg cannot capture");
+		}
+		e->v.g = aloK_newcap(f, name, e->t == E_LOCAL, e->v.g);
+		e->t = E_CAPTURE;
+		return true;
+	}
+	return false;
+}
+
 /**
  ** get field in local scope.
  */
 void aloK_field(afstat_t* f, aestat_t* o, astring_t* k) {
 	o->lf = o->lt = NO_JUMP;
-	if (!getvaraux(f->l->T, f, o, k, true)) {
+	if (!getvaraux(f, o, k, f->d->ss.l)) {
 		aloK_fromreg(f, o, k);
 	}
 }
@@ -652,7 +646,7 @@ void aloK_singleret(afstat_t* f, aestat_t* e) {
 void aloK_fixedret(afstat_t* f, aestat_t* e, int n) {
 	switch (e->t) {
 	case E_VARARG: {
-		if (n) {
+		if (n != 0) {
 			e->t = E_ALLOC;
 			e->v.g = aloK_iABC(f, OP_LDV, false, false, false, 0, 0, n + 1);
 		}
@@ -661,7 +655,13 @@ void aloK_fixedret(afstat_t* f, aestat_t* e, int n) {
 		}
 		break;
 	}
-	case E_CALL: case E_UNBOX: {
+	case E_UNBOX: {
+		ainsn_t* i = &getinsn(f, e);
+		SET_C(*i, n + 1);
+		e->t = E_ALLOC;
+		break;
+	}
+	case E_CALL: {
 		ainsn_t* i = &getinsn(f, e);
 		SET_C(*i, n + 1);
 		e->t = E_FIXED;
@@ -812,11 +812,12 @@ void aloK_gwf(afstat_t* f, aestat_t* e) {
 }
 
 void aloK_move(afstat_t* f, aestat_t* e, int reg) {
+	int end = NO_JUMP;
 	if (e->t == E_JMP) {
 		linkcjmp(f, &e->lf, e->v.g);
+		goto next;
 	}
-	int end;
-	if (hasjump(e)) {
+	else if (hasjump(e)) {
 		switch (e->t) {
 		case E_TRUE:
 			aloK_putlabel(f, e->lt);
@@ -834,7 +835,6 @@ void aloK_move(afstat_t* f, aestat_t* e, int reg) {
 	}
 	fixregaux(f, e, reg);
 	if (hasjump(e)) {
-		end = NO_JUMP;
 		next:
 		if (e->lt != NO_JUMP || e->t == E_JMP) {
 			aloK_putlabel(f, e->lt);
@@ -1051,7 +1051,7 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 
 static int cmpjmp(afstat_t* f, aestat_t* l, aestat_t* r, int op, int cond) {
 	aloK_insn(f, CREATE_iABC(op, l->t == E_CONST, r->t == E_CONST, cond, l->v.g, r->v.g, 0));
-	return putjump(f, l->lf, OP_JMP, false, false, f->nactvar);
+	return putjump(f, l->lf, OP_JMP, false, false, f->firstlocal);
 }
 
 void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
