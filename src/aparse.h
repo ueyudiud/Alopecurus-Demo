@@ -138,6 +138,19 @@ struct alo_CaseVar {
 	abyte flag;
 };
 
+struct alo_Block {
+	ablock_t* prev; /* previous block */
+	astr lname; /* label name */
+	size_t flabel; /* index of first label in this block */
+	size_t fjump; /* index of first jump in this block */
+	size_t fsymbol; /* first symbol index */
+	int lcon; /* index of continue */
+	int lout; /* index of jump from break */
+	uint16_t nlocal; /* last index of local or temporary variable at beginning of this block */
+	abyte incap; /* true when some local variable in this block is capture */
+	abyte loop; /* true when block is loop */
+};
+
 struct alo_FuncState {
 	alexer_t* l; /* lexer */
 	aproto_t* p; /* prototype */
@@ -157,6 +170,7 @@ struct alo_FuncState {
 	uint16_t firsttemp; /* first temporary variable offset */
 	uint16_t firstlocal; /* first local value offset */
 	uint16_t freelocal; /* first free local variable */
+	ablock_t broot[1]; /* root block */
 };
 
 #endif /* APARSE_H_ */

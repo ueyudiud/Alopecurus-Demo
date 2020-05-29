@@ -21,31 +21,14 @@
 
 #include <string.h>
 
-#define check(l,id) ((l)->ct.t == (id))
-#define test(l,id) { if (!check(l, id)) error_expected(l, id); }
-#define testenclose(l,f,t,ln) { if (!check(l, t)) error_enclose(l, f, t, ln); else poll(l); }
-#define checknext(l,id) (check(l, id) ? (poll(l), true) : false)
-#define testnext(l,id) { test(l, id); poll(l); }
+static void expr(alexer_t*, aestat_t*);
+
 #define poll aloX_poll
 #define forward aloX_forward
 #define lerror aloX_error
+
 #define literal(l,s) aloX_getstr(l, ""s, (sizeof(s) / sizeof(char)) - 1)
 #define checklimit(l,n,lim,msg) { if ((n) > (lim)) lerror(l, msg); }
-
-struct alo_Block {
-	ablock_t* prev; /* previous block */
-	astr lname; /* label name */
-	size_t flabel; /* index of first label in this block */
-	size_t fjump; /* index of first jump in this block */
-	size_t fsymbol; /* first symbol index */
-	int lcon; /* index of continue */
-	int lout; /* index of jump from break */
-	uint16_t nlocal; /* last index of local or temporary variable at beginning of this block */
-	abyte incap; /* true when some local variable in this block is capture */
-	abyte loop; /* true when block is loop */
-};
-
-static void expr(alexer_t*, aestat_t*);
 
 static anoret lerrorf(alexer_t* lex, astr fmt, ...) {
 	va_list varg;
@@ -68,10 +51,39 @@ static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
 	}
 }
 
+static int check(alexer_t* lex, int id) {
+	return lex->ct.t == id;
+}
+
+static int checknext(alexer_t* lex, int id) {
+	if (lex->ct.t == id) {
+		poll(lex);
+		return true;
+	}
+	return false;
+}
+
+static void test(alexer_t* lex, int id) {
+	if (!check(lex, id))
+		error_expected(lex, id);
+}
+
+static void testnext(alexer_t* lex, int id) {
+	test(lex, id);
+	poll(lex);
+}
+
+static void testenclose(alexer_t* lex, int frontid, int backid, int line) {
+	if (!check(lex, backid))
+		error_enclose(lex, frontid, backid, line);
+	poll(lex);
+}
+
 static int isending(alexer_t* lex) {
 	switch (lex->ct.t) {
-	case ')': case ']': case '}':
-	case TK_EOF: case TK_ELSE: case TK_CASE:
+	case ')': case ']': case '}': case TK_EOF: /* common ending of a section */
+	case TK_ELSE: /* in most of conditional statement */
+	case TK_CASE: /* in match statement */
 		return true;
 	default:
 		return false;
@@ -156,6 +168,86 @@ static int getunrop(int t) {
 	}
 }
 
+static void initexp(aestat_t* e, int type) {
+	e->t = type;
+	e->lf = e->lt = NO_JUMP;
+}
+
+static int regcap(afstat_t* f, astring_t* name, int instack, int index) {
+	astate T = f->l->T;
+	aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
+	int i = f->ncap++;
+	acapinfo_t* info = f->p->captures + i;
+	info->name = name;
+	info->finstack = instack;
+	info->index = index;
+	return i;
+}
+
+/**
+ ** get slot from environment.
+ */
+static void getenvslot(afstat_t* f, aestat_t* o, astring_t* k) {
+	initexp(o, E_INDEXED);
+	int index = aloK_kstr(f, k);
+	if (index < aloK_fastconstsize) {
+		o->v.d.fk = true;
+		o->v.d.k = index;
+	}
+	else {
+		o->v.d.fk = false;
+		o->v.d.k = f->freelocal;
+		aloK_incrstack(f, 1);
+	}
+	o->v.d.fo = false;
+	o->v.d.o = aloK_registry;
+}
+
+static int getvaraux(afstat_t* f, aestat_t* e, astring_t* name, int top) {
+	for (int i = top - 1; i >= f->firstsym; --i) {
+		asymbol* sym = &f->d->ss.a[i];
+		if (sym->name == name) { /* find symbol in table */
+			switch (sym->type) {
+			case SYMBOL_LOC:
+				initexp(e, E_LOCAL);
+				e->v.g = f->p->locvars[sym->index].index; /* get register index */
+				break;
+			case SYMBOL_VAR:
+				initexp(e, E_VARARG);
+				aloE_assert(f->p->fvararg, "vararg should only exist in vararg function");
+				break;
+			}
+			return true;
+		}
+	}
+	int i;
+	for (i = 0; i < f->ncap; ++i) {
+		if (f->p->captures[i].name == name) {
+			initexp(e, E_CAPTURE);
+			e->v.g = i;
+			return true;
+		}
+	}
+	if (f->e && getvaraux(f->e, e, name, f->firstsym)) {
+		if (e->t == E_VARARG) {
+			aloX_error(f->l, "vararg cannot capture");
+		}
+		e->v.g = regcap(f, name, e->t == E_LOCAL, e->v.g);
+		e->t = E_CAPTURE;
+		return true;
+	}
+	return false;
+}
+
+/**
+ ** get field in local scope.
+ */
+static void getvar(afstat_t* f, aestat_t* o, astring_t* k) {
+	if (!getvaraux(f, o, k, f->d->ss.l)) {
+		getenvslot(f, o, k);
+	}
+}
+
 static void regsym(afstat_t* f, int type, astring_t* name, int index) {
 	aloM_chkb(f->l->T, f->d->ss.a, f->d->ss.c, f->d->ss.l, ALO_MAX_BUFSIZE);
 	asymbol* symbol = f->d->ss.a + f->d->ss.l++;
@@ -178,11 +270,6 @@ static int regloc(afstat_t* f, astring_t* name) {
 	return reg;
 }
 
-static void initexp(aestat_t* e, int type) {
-	e->t = type;
-	e->lf = e->lt = NO_JUMP;
-}
-
 #define TONULL(x) *(x) = NULL
 
 static aproto_t* newproto(afstat_t* f) {
@@ -201,7 +288,7 @@ static void initproto(astate T, afstat_t* f) {
 	p->consts[0] = tnewbool(false);
 	p->consts[1] = tnewbool(true);
 	f->nconst = 2;
-	int index = aloK_newcap(f, literal(f->l, ALO_ENVIRONMENT), false, 0);
+	int index = regcap(f, literal(f->l, ALO_ENVIRONMENT), false, 0);
 	aloE_assert(index == 0, "environment should be first capture.");
 	aloE_void(index);
 }
@@ -272,12 +359,12 @@ static void leaveblock(afstat_t* f) {
 	f->b = b->prev;
 }
 
-static void enterfunc(afstat_t* f, afstat_t* parent, ablock_t* b) {
+static void enterfunc(afstat_t* f, afstat_t* parent) {
 	*f = (afstat_t) {
 		.l = parent->l,
 		.p = newproto(parent),
 		.e = parent,
-		.b = b,
+		.b = f->broot,
 		.d = parent->d,
 		.cjump = NO_JUMP,
 		.firstsym = parent->d->ss.l,
@@ -285,7 +372,7 @@ static void enterfunc(afstat_t* f, afstat_t* parent, ablock_t* b) {
 	};
 	initproto(f->l->T, f);
 	parent->l->f = f;
-	enterblock(f, b, NO_JUMP, NULL);
+	enterblock(f, f->broot, NO_JUMP, NULL);
 }
 
 static void leavefunc(afstat_t* f) {
@@ -321,7 +408,7 @@ static int varexpr(alexer_t* lex, aestat_t* e) {
 	int n = 1;
 	expr(lex, e);
 	while (checknext(lex, ',')) {
-		aloK_nextreg(lex->f, e);
+		aloK_nextR(lex->f, e);
 		expr(lex, e);
 		n++;
 	}
@@ -349,10 +436,10 @@ static astring_t* defname(alexer_t* lex, aestat_t* e, int* self) {
 		}
 		else {
 			if (check(lex, '.')) {
-				aloK_field(f, e, name);
+				getvar(f, e, name);
 			}
 			else {
-				aloK_fromreg(f, e, name);
+				getenvslot(f, e, name);
 			}
 		}
 		aloM_chkb(lex->T, f->d->fn.a, f->d->fn.c, l, 256);
@@ -435,12 +522,12 @@ static void colargs(alexer_t* lex, aestat_t* e) {
 			goto list;
 		aloK_newcol(f, e, OP_NEWM, 0);
 		size_t i = e->v.g;
-		aloK_nextreg(f, e);
+		aloK_nextR(f, e);
 		do {
 			mapkey(lex, &e2);
 			testnext(lex, ':');
 			expr(lex, &e3);
-			aloK_rawset(f, e->v.g, &e2, &e3);
+			aloK_set(f, e->v.g, &e2, &e3);
 			narg++;
 		}
 		while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex));
@@ -452,12 +539,12 @@ static void colargs(alexer_t* lex, aestat_t* e) {
 		/* colargs -> expr { [','|';'] expr } */
 		aloK_newcol(f, e, OP_NEWL, 0);
 		size_t i = e->v.g;
-		aloK_nextreg(f, e);
+		aloK_nextR(f, e);
 		do {
 			initexp(&e2, E_INTEGER);
 			e2.v.i = narg++;
 			expr(lex, &e3);
-			aloK_rawset(f, e->v.g, &e2, &e3);
+			aloK_set(f, e->v.g, &e2, &e3);
 		}
 		while (checknext(lex, ',') || checknext(lex, ';') || !isending(lex));
 		SET_Bx(f->p->code[i], narg); /* set collection size */
@@ -470,18 +557,18 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 	afstat_t* f = lex->f;
 	switch (lex->ct.t) {
 	case TK_IDENT: { /* primaryexpr -> IDENT */
-		aloK_field(f, e, testident(lex));
+		getvar(f, e, testident(lex));
 		break;
 	}
 	case '@': { /* primaryexpr -> '@' [IDENT] */
-		aloK_fromreg(f, e, literal(lex, "@"));
+		getenvslot(f, e, literal(lex, "@"));
 		if (poll(lex) == TK_IDENT) {
 			memberof(lex, e, testident(lex));
 		}
 		break;
 	}
 	case TK_THIS: { /* primaryexpr -> 'this' */
-		aloK_field(f, e, lex->T->g->stagnames[TM_THIS]);
+		getvar(f, e, lex->T->g->stagnames[TM_THIS]);
 		poll(lex); /* skip 'this' expression */
 		break;
 	}
@@ -490,11 +577,11 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		int prevfree = f->freelocal;
 		poll(lex); /* skip 'new' token */
 		if (checknext(lex, '@')) {
-			aloK_fromreg(f, e, literal(lex, "@"));
+			getenvslot(f, e, literal(lex, "@"));
 			memberof(lex, e, testident(lex));
 		}
 		else {
-			aloK_field(f, e, testident(lex));
+			getvar(f, e, testident(lex));
 			while (check(lex, '.')) {
 				memberof(lex, e, testident(lex));
 			}
@@ -503,7 +590,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 		aloE_assert(!(e->t == E_LOCAL && e->v.g == f->freelocal - 2), "class cannot be a temporary value");
 		aloK_eval(f, e);
 		if (e->t == E_ALLOC) {
-			aloK_nextreg(f, e);
+			aloK_nextR(f, e);
 		}
 		aloK_drop(f, e);
 		aloK_checkstack(f, 2);
@@ -512,7 +599,7 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 			f->freelocal++;
 		}
 		memberof(lex, e, lex->T->g->stagnames[TM_NEW]);
-		aloK_nextreg(f, e);
+		aloK_nextR(f, e);
 		aloK_iABC(f, OP_MOV, 0, 0, 0, f->freelocal, f->freelocal - 2, 0);
 		f->freelocal += 1;
 		int n = funargs(lex, e);
@@ -604,7 +691,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 			testenclose(lex, '(', ')', line);
 		}
 		if (check(lex, '{')) {
-			aloK_nextreg(lex->f, e);
+			aloK_nextR(lex->f, e);
 			goto func;
 		}
 		break;
@@ -613,8 +700,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 		n = 0;
 		func: {
 			afstat_t f;
-			ablock_t b;
-			enterfunc(&f, lex->f, &b);
+			enterfunc(&f, lex->f);
 			int line = lex->cl;
 			poll(lex); /* skip '}' */
 			if (check(lex, TK_CASE)) { /* partial function mode */
@@ -643,7 +729,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 		n = ALO_MULTIRET;
 	}
 	else if (n > 0) {
-		aloK_nextreg(lex->f, e);
+		aloK_nextR(lex->f, e);
 	}
 	return n;
 }
@@ -728,7 +814,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		}
 		case '(': case '{': case TK_STRING: case '\\': { /* suffix -> '->' IDENT [funargs] */
 			line = lex->cl;
-			aloK_nextreg(f, e);
+			aloK_nextR(f, e);
 			n = funargs(lex, &e2);
 			call:
 			f->freelocal = e->v.g + 1; /* remove all arguments and only remain one result */
@@ -744,7 +830,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		}
 		default:
 			if (lbnil != NO_JUMP) {
-				aloK_nextreg(f, e);
+				aloK_nextR(f, e);
 				int lbend = aloK_jumpforward(f, NO_JUMP);
 				aloK_putlabel(f, lbnil);
 				aloK_loadnil(f, e->v.g, 1);
@@ -759,8 +845,7 @@ static void funcarg(alexer_t*);
 
 static void lambdaexpr(alexer_t* lex, aestat_t* e) {
 	afstat_t f;
-	ablock_t b;
-	enterfunc(&f, lex->f, &b);
+	enterfunc(&f, lex->f);
 	if (checknext(lex, '{')) {
 		/* lambdaexpr -> '\\' '{' stats '}' */
 		int line = lex->pl;
@@ -830,14 +915,14 @@ static void triexpr(alexer_t* lex, aestat_t* e) {
 		}
 		else {
 			expr(lex, e);
-			reg = aloK_nextreg(f, e);
+			reg = aloK_nextR(f, e);
 			aloK_drop(f, e);
 			testnext(lex, ':');
 		}
 		int label2 = aloK_jumpforward(f, NO_JUMP);
 		aloK_putlabel(f, label1);
 		expr(lex, e);
-		aloK_nextreg(f, e);
+		aloK_nextR(f, e);
 		aloE_assert(reg == e->v.g, "register not matched.");
 		aloE_void(reg);
 		aloK_putlabel(f, label2);
@@ -894,7 +979,7 @@ static void adjust_assign(afstat_t* f, int nvar, int narg, aestat_t* e) {
 		}
 		aloK_fixedret(f, e, extra);
 		if (e->t == E_ALLOC) {
-			aloK_nextreg(f, e);
+			aloK_nextR(f, e);
 		}
 		if (extra > 0) {
 			aloK_incrstack(f, extra - 1);
@@ -902,7 +987,7 @@ static void adjust_assign(afstat_t* f, int nvar, int narg, aestat_t* e) {
 	}
 	else {
 		if (e->t != E_VOID) {
-			aloK_nextreg(f, e);
+			aloK_nextR(f, e);
 		}
 		if (extra > 0) {
 			int reg = f->freelocal;
@@ -983,7 +1068,7 @@ static void patterns(alexer_t* lex) {
 				poll(lex);
 				acasevar_t* var = nextcv(lex, CV_UNBOX, name, &ctx);
 				if (handle) {
-					aloK_field(lex->f, &var->expr, handle);
+					getvar(lex->f, &var->expr, handle);
 				}
 				else { /* no unboxer, use identical unboxer */
 					initexp(&var->expr, E_VOID);
@@ -1052,17 +1137,17 @@ static void multiput(afstat_t* f, acasevar_t* v, int* fail) {
 			/* unbox directly */
 			aloK_unbox(f, e, v->nchild);
 			e->t = E_ALLOC;
-			aloK_nextreg(f, e);
+			aloK_nextR(f, e);
 		}
 		else {
 			/* unbox by function */
-			aloK_nextreg(f, &v->expr);
-			aloK_nextreg(f, e);
+			aloK_nextR(f, &v->expr);
+			aloK_nextR(f, e);
 			aloK_iABC(f, OP_CALL, false, false, false, v->expr.v.g, 3, 1 + v->nchild);
 			f->freelocal -= 1;
 		}
 		aloE_assert(current + 1 == f->freelocal, "illegal argument count");
-		f->freelocal = current + v->nchild; /* adjust variable count */
+		aloK_incrstack(f, v->nchild - 1); /* adjust variable count */
 		if (v->nchild > 0) { /* place child variables */
 			size_t k = 0;
 			acasevar_t* v1;
@@ -1141,7 +1226,7 @@ static void putvar(afstat_t* f, struct context_caseassign* ctx, aestat_t* e) {
 		ctx->fail = e->lf;
 		break;
 	default:
-		ctx->v->src = aloK_nextreg(f, e);
+		ctx->v->src = aloK_nextR(f, e);
 		break;
 	}
 	ctx->v = ctx->v->next != NO_CASEVAR ? f->d->cv.a + ctx->v->next : NULL;
@@ -1230,7 +1315,7 @@ static void partialfun(alexer_t* lex) {
 				fail = e1.lf;
 			}
 			else {
-				v->src = aloK_nextreg(f, &e1);
+				v->src = aloK_nextR(f, &e1);
 			}
 		}
 		while ((i = v->next) != NO_CASEVAR);
@@ -1330,10 +1415,10 @@ static void retstat(alexer_t* lex) {
 		}
 		else {
 			if (nret == 1) {
-				first = aloK_putreg(f, &e);
+				first = aloK_anyR(f, &e);
 			}
 			else {
-				aloK_nextreg(f, &e);
+				aloK_nextR(f, &e);
 				aloE_assert(f->freelocal - first == nret, "illegal argument count");
 			}
 		}
@@ -1359,12 +1444,12 @@ static void istat(alexer_t* lex) {
 			}
 			else {
 				aloK_multiret(lex->f, &e);
-				int reg = aloK_putreg(lex->f, &e);
+				int reg = aloK_anyR(lex->f, &e);
 				aloK_return(lex->f, reg, ALO_MULTIRET);
 			}
 		}
 		else {
-			int reg = aloK_putreg(lex->f, &e);
+			int reg = aloK_anyR(lex->f, &e);
 			aloK_return(lex->f, reg, 1);
 		}
 	}
@@ -1644,10 +1729,10 @@ static void fistat(alexer_t* lex) {
 		}
 		else {
 			if (nret == 1) {
-				first = aloK_putreg(f, &e);
+				first = aloK_anyR(f, &e);
 			}
 			else {
-				aloK_nextreg(f, &e);
+				aloK_nextR(f, &e);
 				aloE_assert(f->freelocal - first == nret, "illegal argument count");
 			}
 		}
@@ -1663,9 +1748,8 @@ static void defstat(alexer_t* lex) {
 	int hasself;
 	aestat_t e1, e2;
 	afstat_t f2;
-	ablock_t b;
 	astring_t* name = defname(lex, &e1, &hasself);
-	enterfunc(&f2, f, &b);
+	enterfunc(&f2, f);
 	f2.p->name = name; /* bind function name */
 	if (hasself) {
 		regloc(&f2, lex->T->g->stagnames[TM_THIS]);
@@ -1693,8 +1777,7 @@ static void localstat(alexer_t* lex) {
 		/* localstat -> 'local' IDENT { '(' funcarg ')' } fistat */
 		int index = regloc(f, name); /* add local name */
 		afstat_t f2;
-		ablock_t b;
-		enterfunc(&f2, f, &b);
+		enterfunc(&f2, f);
 		f2.p->name = name; /* bind function name */
 		if (check(lex, '(')) {
 			int line = lex->cl;
@@ -1753,7 +1836,7 @@ static void matchstat(alexer_t* lex) {
 		aloK_boxt(f, &e, 1);
 	}
 	enterblock(f, &b, NO_JUMP, NULL);
-	aloK_anyRK(f, &e);
+	aloK_anyX(f, &e);
 	if (e.t == E_FIXED && !aloK_iscapture(e.v.g)) {
 		f->freelocal = ++f->firstlocal;
 	}

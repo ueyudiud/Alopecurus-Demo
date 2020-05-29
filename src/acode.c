@@ -393,7 +393,7 @@ static void fixregaux(afstat_t* f, aestat_t* e, int reg) {
 /**
  ** get new temporary register and put expression into it.
  */
-int aloK_nextreg(afstat_t* f, aestat_t* e) {
+int aloK_nextR(afstat_t* f, aestat_t* e) {
 	if (!hasjump(e) || !(e->t == E_TRUE || e->t == E_FALSE)) { /* special cases for jump */
 		aloK_evalk(f, e);
 		freeexp(f, e);
@@ -402,7 +402,7 @@ int aloK_nextreg(afstat_t* f, aestat_t* e) {
 	return e->v.g;
 }
 
-void aloK_anyRK(afstat_t* f, aestat_t* e) {
+void aloK_anyX(afstat_t* f, aestat_t* e) {
 	if (e->t == E_FIXED) {
 		if (!hasjump(e)) {
 			return;
@@ -422,7 +422,7 @@ void aloK_anyRK(afstat_t* f, aestat_t* e) {
 	newR(f, e);
 }
 
-void aloK_anyR(afstat_t* f, aestat_t* e) {
+void aloK_anyS(afstat_t* f, aestat_t* e) {
 	if (e->t == E_FIXED) {
 		if (!hasjump(e)) {
 			return;
@@ -440,6 +440,17 @@ void aloK_anyR(afstat_t* f, aestat_t* e) {
 }
 
 /**
+ ** put expression into the register
+ */
+int aloK_anyR(afstat_t* f, aestat_t* e) {
+	if (e->t != E_LOCAL) {
+		return aloK_nextR(f, e);
+	}
+	e->t = E_FIXED;
+	return e->v.g;
+}
+
+/**
  ** get member value.
  */
 void aloK_member(afstat_t* f, aestat_t* o, aestat_t* k) {
@@ -449,91 +460,22 @@ void aloK_member(afstat_t* f, aestat_t* o, aestat_t* k) {
 			o->v.g = aloK_iABC(f, OP_SELV, 0, 2, 0, 0, k->v.i, 0);
 		}
 		else {
-			aloK_anyRK(f, k);
+			aloK_anyX(f, k);
 			o->v.g = aloK_iABC(f, OP_SELV, 0, k->t == E_CONST, 0, 0, k->v.g, 0);
 		}
 	}
 	else {
-		aloK_anyRK(f, o);
-		aloK_anyRK(f, k);
+		aloK_anyX(f, o);
+		aloK_anyX(f, k);
 		size_t oindex = o->v.g;
 		o->v.d.fo = o->t == E_CONST;
 		o->v.d.o = oindex;
 		if (k->t == E_CONST && k->v.g >= aloK_fastconstsize) {
-			aloK_nextreg(f, k);
+			aloK_nextR(f, k);
 		}
 		o->v.d.fk = k->t == E_CONST;
 		o->v.d.k = k->v.g;
 		o->t = E_INDEXED;
-	}
-}
-
-int aloK_newcap(afstat_t* f, astring_t* name, int instack, int index) {
-	astate T = f->l->T;
-	aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
-	int i = f->ncap++;
-	acapinfo_t* info = f->p->captures + i;
-	info->name = name;
-	info->finstack = instack;
-	info->index = index;
-	return i;
-}
-
-/**
- ** get registry slot
- */
-void aloK_fromreg(afstat_t* f, aestat_t* o, astring_t* k) {
-	o->t = E_INDEXED;
-	o->v.d.fo = false;
-	o->v.d.o = aloK_registry;
-	o->v.d.fk = true;
-	o->v.d.k = aloK_kstr(f, k);
-	o->lf = o->lt = NO_JUMP;
-}
-
-static int getvaraux(afstat_t* f, aestat_t* e, astring_t* name, int top) {
-	for (int i = top - 1; i >= f->firstsym; --i) {
-		asymbol* sym = &f->d->ss.a[i];
-		if (sym->name == name) { /* find symbol in table */
-			switch (sym->type) {
-			case SYMBOL_LOC:
-				e->t = E_LOCAL;
-				e->v.g = f->p->locvars[sym->index].index; /* get register index */
-				break;
-			case SYMBOL_VAR:
-				aloE_assert(f->p->fvararg, "vararg should only exist in vararg function");
-				e->t = E_VARARG;
-				break;
-			}
-			return true;
-		}
-	}
-	int i;
-	for (i = 0; i < f->ncap; ++i) {
-		if (f->p->captures[i].name == name) {
-			e->t = E_CAPTURE;
-			e->v.g = i;
-			return true;
-		}
-	}
-	if (f->e && getvaraux(f->e, e, name, f->firstsym)) {
-		if (e->t == E_VARARG) {
-			aloX_error(f->l, "vararg cannot capture");
-		}
-		e->v.g = aloK_newcap(f, name, e->t == E_LOCAL, e->v.g);
-		e->t = E_CAPTURE;
-		return true;
-	}
-	return false;
-}
-
-/**
- ** get field in local scope.
- */
-void aloK_field(afstat_t* f, aestat_t* o, astring_t* k) {
-	o->lf = o->lt = NO_JUMP;
-	if (!getvaraux(f, o, k, f->d->ss.l)) {
-		aloK_fromreg(f, o, k);
 	}
 }
 
@@ -543,9 +485,10 @@ void aloK_field(afstat_t* f, aestat_t* o, astring_t* k) {
 void aloK_drop(afstat_t* f, aestat_t* e) {
 	switch (e->t) {
 	case E_ALLOC:
-		freereg(f, aloK_nextreg(f, e));
-		break;
+		newR(f, e);
+		goto fixed;
 	case E_FIXED:
+		fixed:
 		freeexp(f, e);
 		break;
 	case E_INDEXED:
@@ -563,12 +506,7 @@ void aloK_drop(afstat_t* f, aestat_t* e) {
  ** the register should on the top of stack.
  */
 int aloK_reuse(afstat_t* f, aestat_t* e) {
-	if (e->t == E_FIXED && f->freelocal == aloK_getstack(e->v.g)) {
-		return f->freelocal++;
-	}
-	else {
-		return aloK_nextreg(f, e);
-	}
+	return e->t == E_FIXED && f->freelocal == aloK_getstack(e->v.g) ? f->freelocal++ : aloK_nextR(f, e);
 }
 
 size_t aloK_loadnil(afstat_t* f, int first, int len) {
@@ -604,17 +542,6 @@ void aloK_loadproto(afstat_t* f, aestat_t* e) {
  */
 void aloK_return(afstat_t* f, int first, int len) {
 	aloK_iABC(f, OP_RET, false, false, false, first, len + 1, 0);
-}
-
-/**
- ** put expression into the register
- */
-int aloK_putreg(afstat_t* f, aestat_t* e) {
-	if (e->t != E_LOCAL) {
-		aloK_nextreg(f, e);
-	}
-	e->t = E_FIXED;
-	return e->v.g;
 }
 
 /**
@@ -694,7 +621,7 @@ void aloK_multiret(afstat_t* f, aestat_t* e) {
 }
 
 void aloK_self(afstat_t* f, aestat_t* e, astring_t* name) {
-	aloK_anyR(f, e);
+	aloK_anyS(f, e);
 	freeexp(f, e);
 	int index = aloK_kstr(f, name);
 	aloK_iABC(f, OP_SELF, false, e->t == E_CONST, true, f->freelocal, e->v.g, index);
@@ -704,7 +631,7 @@ void aloK_self(afstat_t* f, aestat_t* e, astring_t* name) {
 }
 
 void aloK_unbox(afstat_t* f, aestat_t* e, int narg) {
-	aloK_anyR(f, e);
+	aloK_anyS(f, e);
 	freereg(f, e->v.g);
 	e->v.g = aloK_iABC(f, OP_UNBOX, false, e->v.g == E_CONST, false, 0, e->v.g, narg + 1);
 	e->t = E_UNBOX;
@@ -716,8 +643,7 @@ void aloK_boxt(afstat_t* f, aestat_t* e, int narg) {
 		aloK_multiret(f, e);
 		multi = true;
 	}
-	aloK_nextreg(f, e);
-	int i = e->v.g - narg + 1;
+	int i = aloK_nextR(f, e) - narg + 1;
 	e->v.g = aloK_iABC(f, OP_NEWA, false, false, false, 0, i, (multi ? ALO_MULTIRET : narg) + 1);
 	f->freelocal = i;
 	e->t = E_ALLOC;
@@ -731,7 +657,7 @@ void aloK_newcol(afstat_t* f, aestat_t* e, int op, size_t narg) {
 }
 
 void aloK_newitr(afstat_t* f, aestat_t* e) {
-	aloK_anyR(f, e);
+	aloK_anyS(f, e);
 	int r = e->v.g;
 	freereg(f, r);
 	aloK_checkstack(f, 1);
@@ -739,9 +665,9 @@ void aloK_newitr(afstat_t* f, aestat_t* e) {
 	aloK_iABC(f, OP_ITR, 0, 0, 0, e->v.g, r, 0);
 }
 
-void aloK_rawset(afstat_t* f, int index, aestat_t* k, aestat_t* v) {
-	aloK_anyRK(f, k);
-	aloK_anyRK(f, v);
+void aloK_set(afstat_t* f, int index, aestat_t* k, aestat_t* v) {
+	aloK_anyX(f, k);
+	aloK_anyX(f, v);
 	aloK_iABC(f, OP_SET, false, k->t == E_CONST, v->t == E_CONST, index, k->v.g, v->v.g);
 	freeexp(f, v);
 	freeexp(f, k);
@@ -753,7 +679,7 @@ static void flipcond(afstat_t* f, int index) {
 }
 
 static int condjmp(afstat_t* f, aestat_t* e, int cond) {
-	aloK_anyR(f, e);
+	aloK_anyS(f, e);
 	freeexp(f, e);
 	return putjump(f, NO_JUMP, OP_JCZ, cond, false, e->v.g);
 }
@@ -871,7 +797,7 @@ void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
 	}
 	case E_INDEXED: {
 		typeof(r->v.d) d = r->v.d;
-		aloK_anyR(f, v);
+		aloK_anyS(f, v);
 		aloK_iABC(f, OP_SET, d.fo, d.fk, v->t == E_CONST, d.o, d.k, v->v.g);
 		r->t = E_VOID;
 		break;
@@ -981,7 +907,7 @@ static void codenot(afstat_t* f, aestat_t* e) {
 		flipcond(f, e->v.g);
 		break;
 	default: {
-		aloK_anyR(f, e);
+		aloK_anyS(f, e);
 		freeexp(f, e);
 		e->t = E_JMP;
 		e->v.g = putjump(f, NO_JUMP, OP_JCZ, true, false, e->v.g);
@@ -1004,7 +930,7 @@ void aloK_prefix(afstat_t* f, aestat_t* e, int op, int line) {
 			break;
 		}
 		normal:
-		aloK_anyR(f, e);
+		aloK_anyS(f, e);
 		freeexp(f, e);
 		e->v.g = aloK_iABC(f, op + OP_PNM - OPR_PNM, false, e->t == E_CONST, false, 0, e->v.g, 0);
 		e->t = E_ALLOC;
@@ -1043,7 +969,7 @@ void aloK_infix(afstat_t* f, aestat_t* e, int op) {
 		break;
 	case OPR_CAT:
 		if (e->t != E_CONCAT) {
-			aloK_nextreg(f, e);
+			aloK_nextR(f, e);
 		}
 		break;
 	}
@@ -1077,8 +1003,8 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		if (foldbinary(f, l, r, op + ALO_OPADD - OPR_ADD)) {
 			break;
 		}
-		aloK_anyRK(f, l);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, l);
+		aloK_anyX(f, r);
 		freeexp(f, r);
 		freeexp(f, l);
 		l->v.g = aloK_iABC(f, op + OP_ADD - OPR_ADD, false, l->t == E_CONST, r->t == E_CONST, 0, l->v.g, r->v.g);
@@ -1087,11 +1013,11 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		break;
 	case OPR_CAT: {
 		if (l->t == E_CONCAT) {
-			aloK_nextreg(f, r);
+			aloK_nextR(f, r);
 			l->v.a.l += 1;
 		}
 		else {
-			aloK_nextreg(f, r);
+			aloK_nextR(f, r);
 			l->v.a.s = l->v.g;
 			l->v.a.l = 2;
 			l->t = E_CONCAT;
@@ -1102,8 +1028,8 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		if (foldcompare(f, l, r, op + ALO_OPEQ - OPR_EQ)) {
 			break;
 		}
-		aloK_anyRK(f, l);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, l);
+		aloK_anyX(f, r);
 		freeexp(f, r);
 		freeexp(f, l);
 		l->v.g = cmpjmp(f, l, r, op + OP_EQ - OPR_EQ, true);
@@ -1115,8 +1041,8 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 			l->t ^= (E_TRUE ^ E_FALSE); /* flip value */
 			break;
 		}
-		aloK_anyRK(f, l);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, l);
+		aloK_anyX(f, r);
 		freeexp(f, r);
 		freeexp(f, l);
 		l->v.g = cmpjmp(f, l, r, OP_EQ, false);
@@ -1127,8 +1053,8 @@ void aloK_suffix(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		if (foldcompare(f, r, l, op + ALO_OPLT - OPR_GT)) {
 			break;
 		}
-		aloK_anyRK(f, l);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, l);
+		aloK_anyX(f, r);
 		freeexp(f, r);
 		freeexp(f, l);
 		l->v.g = cmpjmp(f, r, l, op + OP_LT - OPR_GT, true);
@@ -1143,7 +1069,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 	switch (l->t) {
 	case E_LOCAL: {
 		index = aloK_setstack(l->v.g);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, r);
 		aloK_fixline(f, line);
 		aloK_iABC(f, op, false, r->t == E_CONST, false, index, r->v.g, 0);
 		freeexp(f, r);
@@ -1151,7 +1077,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 	}
 	case E_CAPTURE: {
 		index = aloK_setcapture(l->v.g);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, r);
 		aloK_fixline(f, line);
 		aloK_iABC(f, op, false, r->t == E_CONST, false, index, r->v.g, 0);
 		freeexp(f, r);
@@ -1165,7 +1091,7 @@ void aloK_opassign(afstat_t* f, aestat_t* l, aestat_t* r, int op, int line) {
 		e.t = E_ALLOC;
 		e.v.g = aloK_iABC(f, OP_GET, false, d.fo, d.fk, 0, d.o, d.k);
 		newR(f, &e);
-		aloK_anyRK(f, r);
+		aloK_anyX(f, r);
 		aloK_fixline(f, line);
 		/* take operation for value */
 		aloK_iABC(f, op, false, r->t == E_CONST, false, e.v.g, r->v.g, 0);

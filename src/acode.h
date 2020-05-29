@@ -45,6 +45,7 @@ enum {
 
 ALO_IFUN size_t aloK_insn(afstat_t*, ainsn_t);
 ALO_IFUN int aloK_kstr(afstat_t*, astring_t*);
+ALO_IFUN void aloK_loadstr(afstat_t*, aestat_t*, astring_t*);
 
 /**
  ** stack manipulation.
@@ -73,20 +74,13 @@ ALO_IFUN void aloK_gwf(afstat_t*, aestat_t*);
 
 ALO_IFUN void aloK_eval(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_evalk(afstat_t*, aestat_t*);
-ALO_IFUN void aloK_anyR(afstat_t*, aestat_t*);
-ALO_IFUN void aloK_anyRK(afstat_t*, aestat_t*);
-ALO_IFUN int aloK_nextreg(afstat_t*, aestat_t*);
+ALO_IFUN int aloK_anyR(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_anyS(afstat_t*, aestat_t*);
+ALO_IFUN void aloK_anyX(afstat_t*, aestat_t*);
+ALO_IFUN int aloK_nextR(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_member(afstat_t*, aestat_t*, aestat_t*);
-ALO_IFUN void aloK_fromreg(afstat_t*, aestat_t*, astring_t*);
-ALO_IFUN void aloK_field(afstat_t*, aestat_t*, astring_t*);
 ALO_IFUN void aloK_drop(afstat_t*, aestat_t*);
 ALO_IFUN int aloK_reuse(afstat_t*, aestat_t*);
-
-/**
- ** registry allocation
- */
-
-ALO_IFUN int aloK_newcap(afstat_t*, astring_t*, int, int);
 
 /**
  ** evaluation
@@ -94,7 +88,6 @@ ALO_IFUN int aloK_newcap(afstat_t*, astring_t*, int, int);
 
 ALO_IFUN size_t aloK_loadnil(afstat_t*, int, int);
 ALO_IFUN void aloK_loadproto(afstat_t*, aestat_t*);
-ALO_IFUN int aloK_putreg(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_singleret(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_fixedret(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_multiret(afstat_t*, aestat_t*);
@@ -103,8 +96,7 @@ ALO_IFUN void aloK_unbox(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_boxt(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_newcol(afstat_t*, aestat_t*, int, size_t);
 ALO_IFUN void aloK_newitr(afstat_t*, aestat_t*);
-ALO_IFUN void aloK_rawseti(afstat_t*, int, aint, aestat_t*);
-ALO_IFUN void aloK_rawset(afstat_t*, int, aestat_t*, aestat_t*);
+ALO_IFUN void aloK_set(afstat_t*, int, aestat_t*, aestat_t*);
 ALO_IFUN void aloK_move(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_assign(afstat_t*, aestat_t*, aestat_t*);
 ALO_IFUN void aloK_prefix(afstat_t*, aestat_t*, int, int);
