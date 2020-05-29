@@ -431,7 +431,4 @@ ALO_IFUN int aloO_tostring(astate, awriter, void*, const atval_t*);
 ALO_IFUN int aloO_escape(astate, awriter, void*, const char*, size_t);
 ALO_IFUN const atval_t* aloO_get(astate, const atval_t*, const atval_t*);
 
-ALO_IFUN int alo_format(astate, awriter, void*, astr, ...);
-ALO_IFUN int alo_vformat(astate, awriter, void*, astr, va_list);
-
 #endif /* AOBJ_H_ */

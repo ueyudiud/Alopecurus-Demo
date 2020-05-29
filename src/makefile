@@ -8,7 +8,7 @@ RANLIB= ranlib
 STRIP= strip --strip-unneeded
 
 LIBS= -lm $(SYSLIBS) $(USRLIBS)
-CFLAGS= -fPIC -O2 -Wall -Wextra $(SYSCFLAGS) $(USRCFLAGS)
+CFLAGS= -O2 -Wall -Wextra $(SYSCFLAGS) $(USRCFLAGS)
 LDFLAGS= $(SYSLDFLAGS) $(USRLDFLAGS)
 
 USRLIBS=
@@ -145,8 +145,8 @@ ado.o: ado.c astr.h aobj.h art.h acfg.h adef.h afun.h abuf.h agc.h amem.h \
 aeval.o: aeval.c aop.h art.h acfg.h adef.h aobj.h astr.h atup.h alis.h \
  atab.h afun.h astate.h ameta.h alo.h agc.h amem.h abuf.h adebug.h ado.h \
  avm.h aeval.h
-afun.o: afun.c afun.h aobj.h art.h acfg.h adef.h astate.h ameta.h alo.h \
- agc.h amem.h
+afun.o: afun.c astate.h aobj.h art.h acfg.h adef.h ameta.h alo.h agc.h \
+ amem.h afun.h
 agc.o: agc.c aop.h art.h acfg.h adef.h astr.h aobj.h atup.h atab.h afun.h \
  astate.h ameta.h alo.h abuf.h adebug.h agc.h amem.h avm.h ado.h
 agclib.o: agclib.c alo.h adef.h acfg.h aaux.h alibs.h
@@ -175,8 +175,8 @@ amodlib.o: amodlib.c alo.h adef.h acfg.h aaux.h alibs.h
 aobj.o: aobj.c achr.h art.h acfg.h adef.h aobj.h astr.h atup.h alis.h \
  atab.h ameta.h ado.h astate.h alo.h adebug.h
 aop.o: aop.c aop.h art.h acfg.h adef.h
-aparse.o: aparse.c aop.h art.h acfg.h adef.h afun.h aobj.h agc.h amem.h \
- avm.h astate.h ameta.h alo.h ado.h alex.h abuf.h aparse.h acode.h \
+aparse.o: aparse.c aop.h art.h acfg.h adef.h astr.h aobj.h afun.h agc.h \
+ amem.h avm.h astate.h ameta.h alo.h ado.h alex.h abuf.h aparse.h acode.h \
  aload.h
 asave.o: asave.c astr.h aobj.h art.h acfg.h adef.h astate.h ameta.h alo.h \
  aload.h abuf.h

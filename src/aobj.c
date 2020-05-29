@@ -17,6 +17,7 @@
 #include "ameta.h"
 #include "ado.h"
 #include "adebug.h"
+#include "alo.h"
 
 #include <inttypes.h>
 #include <stdlib.h>
