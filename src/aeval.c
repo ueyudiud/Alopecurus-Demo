@@ -515,9 +515,7 @@ void aloV_invoke(astate T, int dofinish) {
 	askid_t base;
 	aproto_t* proto;
 	const ainsn_t** ppc;
-#if ALO_RUNTIME_DEBUG
 	alineinfo_t* line;
-#endif
 
 #define R(op) (base + GET_##op(I))
 #define K(op) (consts + GET_##op(I))
@@ -535,13 +533,11 @@ void aloV_invoke(astate T, int dofinish) {
 /* macros for main interpreting */
 #define pc (*ppc)
 
-#if ALO_RUNTIME_DEBUG
 		line = aloU_lineof(proto, pc);
 		if (pc - proto->code != 0 && (T->hookmask & ALO_HMASKLINE)) {
 			aloD_hook(T, ALO_HMASKLINE, line->line);
 		}
 		line += 1;
-#endif
 		base = frame->a.base;
 
 		frame->fact = true; /* start active */
@@ -559,12 +555,10 @@ void aloV_invoke(astate T, int dofinish) {
 	while (true) {
 		I = *pc;
 		pc += 1;
-#if ALO_RUNTIME_DEBUG
 		if (pc - proto->code >= line->begin) {
 			protect(aloD_hook(T, ALO_HMASKLINE, line->line));
 			line += 1;
 		}
-#endif
 		switch (GET_i(I)) { /* get instruction */
 		case OP_MOV: {
 			tsetobj(T, S(A), X(B));

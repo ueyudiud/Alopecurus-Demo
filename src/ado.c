@@ -177,7 +177,6 @@ anoret aloD_throw(astate T, int status) {
 }
 
 void aloD_hook(astate T, int event, int line) {
-#if ALO_RUNTIME_DEBUG
 	ahfun hook = T->hook;
 	if (hook && T->fallowhook) {
 		aframe_t* frame = T->frame;
@@ -200,7 +199,6 @@ void aloD_hook(astate T, int event, int line) {
 		frame->top = putstkoff(T, ftop);
 		frame->fhook = false;
 	}
-#endif
 }
 
 #define checkstack(T,n,f) aloD_checkstackaux(T, n, ptrdiff_t _off = getstkoff(T, f); aloG_check(T), f = putstkoff(T, _off))
@@ -350,13 +348,11 @@ int aloD_precall(astate T, askid_t fun, int nresult) {
 
 void aloD_postcall(astate T, askid_t ret, int nresult) {
 	aframe_t* const frame = T->frame;
-#if ALO_RUNTIME_DEBUG
 	if (T->hookmask & ALO_HMASKRET) {
 		ptrdiff_t r = getstkoff(T, ret);
 		aloD_hook(T, ALO_HMASKRET, -1);
 		ret = putstkoff(T, r);
 	}
-#endif
 	askid_t res = frame->fun;
 	int expected = frame->nresult;
 	T->frame = frame->prev; /* back to previous frame */
