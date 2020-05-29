@@ -12,6 +12,7 @@
 #include "alibs.h"
 
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,18 @@
 
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
 #define l_err(fmt,args...) fprintf(stderr, fmt, ##args)
+
+static astate glbT;
+
+static void sigstop(astate T, __attribute__((unused)) aframeinfo_t* info) {
+	alo_sethook(T, NULL, 0);
+	aloL_error(T, "interrupted!");
+}
+
+static void sigaction(int id) {
+	signal(id, SIG_DFL);
+	alo_sethook(glbT, sigstop, ALO_HMASKCALL | ALO_HMASKRET);
+}
 
 static void compilef(astate T, astr name) {
 	int status = aloL_compilef(T, name, name);
@@ -126,7 +139,10 @@ static int loadscript(astate T) {
 }
 
 static void runscript(astate T) {
+	glbT = T;
+	signal(SIGINT, sigaction);
 	alo_call(T, 0, ALO_MULTIRET);
+	signal(SIGINT, SIG_DFL);
 	int n = alo_gettop(T);
 	if (n > 0) {
 		alo_getreg(T, "println");
@@ -333,6 +349,7 @@ static int ferrmsg(astate T) {
 
 int main(int argc, astr argv[]) {
 	astate T = aloL_newstate();
+	aloE_log("alo in debug mode");
 	if (T == NULL) {
 		l_err("fail to initialize VM.\n");
 	}
