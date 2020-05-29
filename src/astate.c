@@ -151,7 +151,6 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 		return NULL;
 	}
 
-	aloE_log("alo in debug mode");
 	aloE_log("new alo state initialized, seed: %"PRId64, G->seed);
 
 	G->fgc = true; /* enable GC */

@@ -176,7 +176,7 @@ static int runf(astate T) {
 	return 0;
 }
 
-static __attribute__((noreturn)) int panic(__attribute__((unused)) astate T) {
+static anoret int panic(__attribute__((unused)) astate T) {
 	l_err("unmanaged error caught.\n");
 	exit(EXIT_FAILURE);
 }
