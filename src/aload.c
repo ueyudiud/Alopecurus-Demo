@@ -235,7 +235,7 @@ static void checkversion(I* in) {
 	abyte version = loadu8(in);
 	abyte major = version / 16;
 	abyte minor = version % 16;
-	const aver_t* current = &in->T->g->version;
+	const aver_t* current = in->T->g->version;
 	if (major != current->major || minor < current->minor) {
 		error(in, "version mismatch in");
 	}

@@ -82,7 +82,7 @@ typedef struct alo_Global {
 	astring_t* stagnames[TM_N]; /* special tag method names */
 	astring_t* scache[ALO_STRCACHE_N][ALO_STRCACHE_M]; /* string cache */
 	atval_t stack[1]; /* reserved stack, used for provided a fake stack */
-	aver_t version; /* version of VM */
+	const aver_t* version; /* version of VM */
 	abyte whitebit; /* current white bit */
 	abyte gcstep; /* current GC step */
 	abyte gckind; /* kind of GC running */

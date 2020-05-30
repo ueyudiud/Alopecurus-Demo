@@ -79,8 +79,8 @@ static void savestr(O* out, astring_t* s) {
 	}
 }
 
-static void saveversion(O* out, aver_t version) {
-	savek(out, aloE_byte(version.major * 16 + version.minor));
+static void saveversion(O* out, const aver_t* version) {
+	savek(out, aloE_byte(version->major * 16 + version->minor));
 }
 
 static void saveconsts(O* out, const aproto_t* p) {

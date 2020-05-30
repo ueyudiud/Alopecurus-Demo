@@ -128,7 +128,7 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	G->trun = T;
 	G->smerrmsg = NULL;
 	G->sempty = NULL;
-	G->version = aloR_version;
+	G->version = &aloR_version;
 	G->whitebit = aloG_white1;
 	G->gcstep = GCStepPause;
 	G->gckind = GCKindNormal;

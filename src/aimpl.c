@@ -50,7 +50,7 @@ void alo_bind(astate T, astr name, acfun handle) {
 }
 
 const aver_t* alo_version(astate T) {
-	return T ? &T->g->version : &aloR_version;
+	return T ? T->g->version : &aloR_version;
 }
 
 #define isinstk(index) ((index) > ALO_GLOBAL_IDNEX)

@@ -49,7 +49,7 @@ void aloL_checkversion_(astate T, aver_t req, size_t signature) {
 	else if (ver->major != req.major) {
 		aloL_error(T, "incompatible AVM version: expected %d.%d+, got: %d.%d", req.major, req.minor, ver->major, ver->minor);
 	}
-	else if (ver->major != ALO_VERSION_MAJOR || ver->minor != ALO_VERSION_MINOR) {
+	else if (ver != alo_version(NULL)) {
 		aloL_error(T, "The VM %p not belongs to this API.", T);
 	}
 }

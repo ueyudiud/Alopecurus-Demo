@@ -176,11 +176,6 @@ static int runf(astate T) {
 	return 0;
 }
 
-static anoret int panic(__attribute__((unused)) astate T) {
-	l_err("unmanaged error caught.\n");
-	exit(EXIT_FAILURE);
-}
-
 static int movedir(astr f) {
 	astr p = f;
 	astr l = NULL;
@@ -352,8 +347,8 @@ int main(int argc, astr argv[]) {
 	aloE_log("alo in debug mode");
 	if (T == NULL) {
 		l_err("fail to initialize VM.\n");
+		return EXIT_FAILURE;
 	}
-	alo_setpanic(T, panic); /* set error callback */
 
 	int flags = check_args(argc, argv); /* check and collect arguments */
 	if (flags == has_err) /* error? */
