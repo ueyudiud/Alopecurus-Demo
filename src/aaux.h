@@ -14,6 +14,12 @@
 
 ALO_API astate aloL_newstate(void);
 
+#define ALOL_SIGNATURE (sizeof(aint) << 4 | sizeof(afloat))
+
+ALO_API void aloL_checkversion_(astate, aver_t, size_t);
+
+#define aloL_checkversion(T) aloL_checkversion_(T, (aver_t) { ALO_VERSION_NUM }, ALOL_SIGNATURE)
+
 ALO_API void aloL_pushscopedcfunction(astate, acfun);
 ALO_API void aloL_newstringlist_(astate, size_t, ...);
 ALO_API void aloL_newweaktable(astate, astr, size_t);
@@ -50,6 +56,7 @@ ALO_API int aloL_callselfmeta(astate, ssize_t, astr);
 #define aloL_getmodfield(T,mod,key) aloL_getsubfield(T, ALO_REGISTRY_INDEX, mod, key)
 
 ALO_API void aloL_require(astate, astr, acfun, int);
+ALO_API int aloL_compileb(astate, const char*, size_t, astr, astr);
 ALO_API int aloL_compiles(astate, ssize_t, astr, astr);
 ALO_API int aloL_compilef(astate, astr, astr);
 ALO_API int aloL_loadf(astate, astr);
@@ -76,19 +83,22 @@ ALO_API anoret aloL_tagerror(astate, ssize_t, int);
  */
 
 #define aloL_fflush(file) fflush(file)
+#define aloL_fputf(file,fmt,args...) (fprintf(file, fmt, ##args), aloL_fflush(file))
 #define aloL_fputs(file,src,len) fwrite(src, sizeof(char), len, file)
 #define aloL_fputc(file,ch) fputc(ch, file)
 #define aloL_fputln(file) (aloL_fputs(file, "\n", 1), aloL_fflush(file))
 
-/**============================================================================
- ** the contents below this line only takes effect with standard class library
- **============================================================================*/
+/**===============================================================================
+ ** the following section this line only takes effect with standard class library
+ **===============================================================================*/
 
 ALO_API void aloL_checkclassname(astate, ssize_t);
 ALO_API int aloL_getsimpleclass(astate, astr);
 ALO_API void aloL_newclass_(astate, astr, ...);
 
 #define aloL_newclass(T,name,parents...) aloL_newclass_(T, name, ##parents, NULL)
+
+/**===============================================================================*/
 
 /**
  ** functions for memory buffer.

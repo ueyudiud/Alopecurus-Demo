@@ -27,8 +27,31 @@ static amem aux_alloc(__attribute__((unused)) void* context, amem oldblock, __at
 	}
 }
 
+static int aux_panic(astate T) {
+	astr msg = alo_tostring(T, -1);
+	aloL_fputf(stderr, "a unprotected error caught: %s", msg ?: "<no error message>");
+	return 0;
+}
+
 astate aloL_newstate(void) {
-	return alo_newstate(aux_alloc, NULL);
+	astate T = alo_newstate(aux_alloc, NULL);
+	if (T) {
+		alo_setpanic(T, aux_panic);
+	}
+	return T;
+}
+
+void aloL_checkversion_(astate T, aver_t req, size_t signature) {
+	const aver_t* ver = alo_version(T);
+	if (signature != ALOL_SIGNATURE) {
+		aloL_error(T, "invalid signature, core and library have different numeric format.");
+	}
+	else if (ver->major != req.major) {
+		aloL_error(T, "incompatible AVM version: expected %d.%d+, got: %d.%d", req.major, req.minor, ver->major, ver->minor);
+	}
+	else if (ver->major != ALO_VERSION_MAJOR || ver->minor != ALO_VERSION_MINOR) {
+		aloL_error(T, "The VM %p not belongs to this API.", T);
+	}
 }
 
 void aloL_pushscopedcfunction(astate T, acfun value) {
@@ -40,9 +63,15 @@ void aloL_pushscopedcfunction(astate T, acfun value) {
 	alo_pushcfunction(T, value, 1, true);
 }
 
+/**
+ ** push a string list into the top of stack.
+ ** the string list size is given by parameter size and
+ ** the elements is given by variable parameters which is
+ ** stored as C-style string.
+ */
 void aloL_newstringlist_(astate T, size_t size, ...) {
-	alo_newlist(T, size);
 	va_list varg;
+	alo_newlist(T, size);
 	va_start(varg, size);
 	for (size_t i = 0; i < size; ++i) {
 		alo_pushstring(T, va_arg(varg, astr));
@@ -51,6 +80,9 @@ void aloL_newstringlist_(astate T, size_t size, ...) {
 	va_end(varg);
 }
 
+/**
+ ** create a table which mode is provided by parameter prop.
+ */
 void aloL_newweaktable(astate T, astr prop, size_t size) {
 	alo_newtable(T, size);
 	alo_newtable(T, 1);
@@ -363,6 +395,14 @@ static int FSWriter(__attribute__((unused)) astate T, void* context, const void*
 }
 
 /**
+ ** compile script in buffer, the string will not be removed.
+ */
+int aloL_compileb(astate T, const char* buf, size_t len, astr name, astr src) {
+	struct LS context = { buf, len };
+	return alo_compile(T, name, src, LSReader, &context);
+}
+
+/**
  ** compile string as script in the stack, the string will not be removed.
  */
 int aloL_compiles(astate T, ssize_t index, astr name, astr src) {
@@ -484,17 +524,11 @@ anoret aloL_error(astate T, astr fmt, ...) {
 void aloL_checkclassname(astate T, ssize_t index) {
 	size_t len;
 	const char* src = aloL_checklstring(T, index, &len);
-	if (strlen(src) != len)
-		goto error;
 	for (size_t i = 0; i < len; ++i) {
-		if (!isalnum(src[i]) && src[i] != '_') {
-			goto error;
+		if (!aisident(src[i])) {
+			aloL_error(T, "illegal class name.");
 		}
 	}
-	return;
-
-	error:
-	aloL_error(T, "illegal class name.");
 }
 
 int aloL_getsimpleclass(astate T, astr name) {
