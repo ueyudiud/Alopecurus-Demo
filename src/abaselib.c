@@ -318,6 +318,8 @@ static const acreg_t mod_funcs[] = {
 	{ "typeof", base_typeof },
 	{ "__basic_delegates", NULL },
 	{ "__dlgt", base_delegate },
+	{ "_G", NULL },
+	{ "_VERSION", NULL },
 	{ NULL, NULL }
 };
 
@@ -345,6 +347,8 @@ int aloopen_base(astate T) {
 	alo_bind(T, "base.delegate", base_delegate);
 	alo_push(T, ALO_GLOBAL_IDNEX);
 	aloL_setfuns(T, -1, mod_funcs);
+	alo_pushcstring(T, ALO_VERSION);
+	alo_rawsets(T, -2, "_VERSION");
 	alo_newlist(T, NUM_DELEGATES);
 	for (int i = 0; i < NUM_DELEGATES; ++i) {
 		alo_newtable(T, 0);
