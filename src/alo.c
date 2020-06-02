@@ -23,14 +23,14 @@
 
 static astate glbT;
 
-static void sigstop(astate T, __attribute__((unused)) aframeinfo_t* info) {
+static void l_stop(astate T, __attribute__((unused)) aframeinfo_t* info) {
 	alo_sethook(T, NULL, 0);
 	aloL_error(T, "interrupted!");
 }
 
-static void sigaction(int id) {
+static void l_action(int id) {
 	signal(id, SIG_DFL);
-	alo_sethook(glbT, sigstop, ALO_HMASKCALL | ALO_HMASKRET);
+	alo_sethook(glbT, l_stop, ALO_HMASKCALL | ALO_HMASKRET);
 }
 
 static void compilef(astate T, astr name) {
@@ -140,7 +140,7 @@ static int loadscript(astate T) {
 
 static void runscript(astate T) {
 	glbT = T;
-	signal(SIGINT, sigaction);
+	signal(SIGINT, l_action);
 	alo_call(T, 0, ALO_MULTIRET);
 	signal(SIGINT, SIG_DFL);
 	int n = alo_gettop(T);
