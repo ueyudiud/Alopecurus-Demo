@@ -20,5 +20,5 @@ alo
 ```
 println 'Hello world'
 ```
-and see the result. Use `:q` to quit the shell.
+and see the result. Use `sys.exit()` to quit the shell.
 
