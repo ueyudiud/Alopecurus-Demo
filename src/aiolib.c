@@ -13,7 +13,6 @@
 #include "alo.h"
 #include "aaux.h"
 #include "alibs.h"
-#include "abuf.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -144,7 +143,7 @@ static int f_get(astate T) {
 		}
 		else {
 			alo_bufpop(T, buf); /* pop buffer before return */
-			return aloL_errresult_(T, NULL);
+			return aloL_errresult_(T, NULL, errno);
 		}
 	)
 	return 1;
