@@ -316,7 +316,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->fun = base - off;
 		frame->a.base = base;
 		frame->a.pc = p->code;
-		frame->env = tgetacl(fun)->array[0]->p;
+		frame->env = tgetacl(base - 1)->array[0]->p;
 		T->frame = frame;
 		T->top = frame->top = base + p->nstack;
 		if (T->hookmask & ALO_HMASKCALL) {
