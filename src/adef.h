@@ -171,7 +171,7 @@ enum {
  ** useful macros
  */
 
-#ifdef ALO_DEBUG
+#if defined(ALO_DEBUG) || defined(ALOI_DEBUG)
 
 /* ALO_ASSERT definition */
 #if !defined(ALO_ASSERT)
@@ -185,20 +185,21 @@ extern void alo_assert(astr, astr, int);
 extern void alo_log(astr, astr, int, ...);
 #endif
 
-#else
-#undef ALO_ASSERT
-#undef ALO_LOG
-#define ALO_ASSERT(exp,what) ((void) 0)
-#define ALO_LOG(what,args...) ((void) 0)
 #endif
 
+#if defined(ALO_DEBUG)
 #define aloE_assert(exp,what) ALO_ASSERT(exp,what)
+#define aloE_log(what,fmt...) ALO_LOG(what, ##fmt)
+#else
+#define aloE_assert(exp,what) ((void) 0)
+#define aloE_log(what,fmt...) ((void) 0)
+#endif
+
 #define aloE_xassert(exp) aloE_assert(exp, #exp)
 #define aloE_sassert(exp,what) _Static_assert(exp, what)
 #define aloE_check(exp,what,ret...) (aloE_assert(exp, what), ret)
 #define aloE_xcheck(exp,ret...) aloE_check(exp, #exp, ret)
 
-#define aloE_log(what,fmt...) ALO_LOG(what, ##fmt)
 
 /**
  ** type castion macros.

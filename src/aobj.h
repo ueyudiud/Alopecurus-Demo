@@ -21,7 +21,7 @@
 /* variants for function */
 #define ALO_TLCF (ALO_TFUNCTION | 0 << 4)
 #define ALO_TCCL (ALO_TFUNCTION | 1 << 4)
-#define ALO_TACL (ALO_TFUNCTION | 2 << 4)
+#define ALO_TACL (ALO_TFUNCTION | 3 << 4)
 
 /* mask for reference */
 #define ALO_REFERENCE 0x80
@@ -94,6 +94,7 @@ typedef atval_t *askid_t;
 #define ttistab(o) checktype(o, ALO_TTABLE)
 #define ttiscol(o) matchtypes(o, ALO_TMASKCOLLECTION)
 #define ttisfun(o) checktype(o, ALO_TFUNCTION)
+#define ttisclo(o) ((rttype(o) & 0x1F) == (ALO_TFUNCTION | 1 << 4))
 #define ttislcf(o) checktag(o, ALO_TLCF)
 #define ttisccl(o) checktag(o, ALO_TCCL)
 #define ttisacl(o) checktag(o, ALO_TACL)

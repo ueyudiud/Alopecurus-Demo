@@ -268,13 +268,18 @@ ALO_API void alo_bufpop(astate, ambuf_t*);
  ** debugger
  */
 
-typedef struct alo_FrameDebug aframeinfo_t;
+typedef struct alo_DebugInformation adbinfo_t;
 
 /* hook function type, the function will be called in specific events */
-typedef void (*ahfun)(astate, aframeinfo_t*);
+typedef void (*ahfun)(astate, adbinfo_t*);
 
-ALO_API void alo_getframe(astate, astr, aframeinfo_t*);
-ALO_API int alo_prevframe(astate, astr, aframeinfo_t*);
+enum {
+	ALO_INFCURR,
+	ALO_INFPREV,
+	ALO_INFSTACK
+};
+
+ALO_API int alo_getinfo(astate, int, astr, adbinfo_t*);
 
 #define ALO_HMASKCALL  (1 << 0)
 #define ALO_HMASKRET   (1 << 1)
@@ -284,7 +289,7 @@ ALO_API void alo_sethook(astate, ahfun, int);
 ALO_API ahfun alo_gethook(astate);
 ALO_API int alo_gethookmask(astate);
 
-struct alo_FrameDebug {
+struct alo_DebugInformation {
 	int event;
 	astr name; /* apply by 'n' */
 	astr kind; /* kind of frame, apply by 'n' */
@@ -293,7 +298,9 @@ struct alo_FrameDebug {
 	int line; /* apply by 'l' */
 	unsigned nargument; /* apply by 'a' */
 	unsigned ncapture; /* apply by 'a' */
-	abyte vararg; /* apply by 'a' */
+	abyte vararg : 1; /* apply by 'a' */
+	abyte istailc : 1; /* apply by 'c' */
+	abyte isfinc : 1; /* apply by 'c' */
 	/* for private use */
 	void* _frame;
 };

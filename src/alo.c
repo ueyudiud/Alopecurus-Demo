@@ -23,7 +23,7 @@
 
 static astate glbT;
 
-static void l_stop(astate T, __attribute__((unused)) aframeinfo_t* info) {
+static void l_stop(astate T, __attribute__((unused)) adbinfo_t* info) {
 	alo_sethook(T, NULL, 0);
 	aloL_error(T, "interrupted!");
 }

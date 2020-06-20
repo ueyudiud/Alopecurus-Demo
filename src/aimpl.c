@@ -54,7 +54,7 @@ const aver_t* alo_version(astate T) {
 }
 
 #define isinstk(index) ((index) > ALO_GLOBAL_IDNEX)
-#define stackoff(top,base) (api_check(T, (top) >= (base), "illegal stack"), aloE_cast(size_t, (top) - (base)))
+#define stackoff(top,base) (aloi_check(T, (top) >= (base), "illegal stack"), aloE_cast(size_t, (top) - (base)))
 
 ssize_t alo_absindex(astate T, ssize_t index) {
 	return index < 0 && isinstk(index) ?
@@ -89,7 +89,7 @@ ssize_t alo_gettop(astate T) {
 
 void alo_settop(astate T, ssize_t index) {
 	if (index >= 0) { /* resize stack size */
-		api_check(T, index < T->frame->top - (T->frame->fun + 1), "stack overflow");
+		aloi_check(T, index < T->frame->top - (T->frame->fun + 1), "stack overflow");
 		askid_t newtop = (T->frame->fun + 1) + index;
 		/* set expand stack value to nil */
 		for (askid_t i = T->top; i < newtop; ++i) {
@@ -98,7 +98,7 @@ void alo_settop(astate T, ssize_t index) {
 		T->top = newtop;
 	}
 	else { /* decrease stack size */
-		api_check(T, isinstk(index), "illegal stack index");
+		aloi_check(T, isinstk(index), "illegal stack index");
 		api_checkelems(T, -index);
 		T->top += index;
 	}
@@ -111,11 +111,11 @@ void alo_settop(astate T, ssize_t index) {
 
 static atval_t* index2addr(astate T, ssize_t index) {
 	if (index >= 0) {
-		api_check(T, index <= (T->top - (T->frame->fun + 1)), "stack index out of bound.");
+		aloi_check(T, index <= (T->top - (T->frame->fun + 1)), "stack index out of bound.");
 		return T->frame->fun + 1 + index;
 	}
 	else if (isinstk(index)) {
-		api_check(T, T->frame->fun + 1 <= T->top + index, "stack index out of bound.");
+		aloi_check(T, T->frame->fun + 1 <= T->top + index, "stack index out of bound.");
 		return T->top + index;
 	}
 	else if (index == ALO_GLOBAL_IDNEX) {
@@ -131,22 +131,22 @@ static atval_t* index2addr(astate T, ssize_t index) {
 		switch (ttype(fun)) {
 		case ALO_TACL: {
 			aacl_t* v = tgetacl(fun);
-			api_check(T, index < v->length, "capture index out of bound.");
+			aloi_check(T, index < v->length, "capture index out of bound.");
 			return v->array[index]->p;
 		}
 		case ALO_TCCL: {
 			accl_t* v = tgetccl(fun);
-			api_check(T, index < v->length, "capture index out of bound.");
+			aloi_check(T, index < v->length, "capture index out of bound.");
 			return v->array + index;
 		}
 		default: {
-			api_check(T, false, "not a closure.");
+			aloi_check(T, false, "not a closure.");
 			return INVALID_ADDR;
 		}
 		}
 	}
 	else {
-		api_check(T, 0, "illegal stack index.");
+		aloi_check(T, 0, "illegal stack index.");
 		return INVALID_ADDR;
 	}
 }
@@ -179,7 +179,7 @@ void alo_pop(astate T, ssize_t index) {
  ** erase one value in stack
  */
 void alo_erase(astate T, ssize_t index) {
-	api_check(T, isinstk(index), "invalid stack index.");
+	aloi_check(T, isinstk(index), "invalid stack index.");
 	askid_t i = index2addr(T, index);
 	while (++i < T->top) {
 		tsetobj(T, i - 1, i);
@@ -192,7 +192,7 @@ void alo_erase(astate T, ssize_t index) {
  */
 void alo_insert(astate T, ssize_t index) {
 	api_checkslots(T, 1);
-	api_check(T, isinstk(index), "invalid stack index.");
+	aloi_check(T, isinstk(index), "invalid stack index.");
 	askid_t bot = index2addr(T, index);
 	askid_t top = T->top - 1;
 	atval_t cache = *top;
@@ -212,7 +212,7 @@ void alo_xmove(astate from, astate to, size_t n) {
 		return;
 	api_checkelems(from, n);
 	api_checkslots(to, n);
-	api_check(T, from->g == to->g, "two thread from different state.");
+	aloi_check(T, from->g == to->g, "two thread from different state.");
 	from->top -= n;
 	for (size_t i = 0; i < n; ++i) {
 		tsetobj(to, to->top++, from->top + i);
@@ -441,7 +441,7 @@ astr alo_pushvfstring(astate T, astr fmt, va_list varg) {
 
 void alo_pushcfunction(astate T, acfun handle, size_t ncapture, int hasenv) {
 	api_checkelems(T, ncapture);
-	api_check(T, ncapture > 0 || !hasenv, "a closure has environment size must greater than 0.");
+	aloi_check(T, ncapture > 0 || !hasenv, "a closure has environment size must greater than 0.");
 	if (ncapture == 0) {
 		askid_t t = api_incrtop(T);
 		tsetlcf(t, handle);
@@ -586,7 +586,7 @@ int alo_rawgeti(astate T, ssize_t idown, aint key) {
 		break;
 	}
 	default: {
-		api_check(T, false, "illegal owner for 'rawgeti'");
+		aloi_check(T, false, "illegal owner for 'rawgeti'");
 		return ALO_TUNDEF;
 	}
 	}
@@ -597,7 +597,7 @@ int alo_rawgeti(astate T, ssize_t idown, aint key) {
 int alo_rawgets(astate T, ssize_t idown, astr key) {
 	api_checkslots(T, 1);
 	askid_t o = index2addr(T, idown);
-	api_check(T, ttistab(o), "illegal owner for 'rawgets'");
+	aloi_check(T, ttistab(o), "illegal owner for 'rawgets'");
 	const atval_t* v = aloH_gets(T, tgettab(o), key, strlen(key));
 	tsetobj(T, api_incrtop(T), v);
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
@@ -655,7 +655,7 @@ int alo_gets(astate T, ssize_t idown, astr key) {
 int alo_put(astate T, ssize_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
-	api_check(T, ttislis(o), "only list can take 'put' operation.");
+	aloi_check(T, ttislis(o), "only list can take 'put' operation.");
 	int result = aloI_put(T, tgetlis(o), T->top - 1);
 	api_decrtop(T);
 	return result;
@@ -818,7 +818,7 @@ void alo_rawsetx(astate T, ssize_t idown, int drop) {
 		break;
 	}
 	default: {
-		api_check(T, false, "illegal owner for 'rawset'");
+		aloi_check(T, false, "illegal owner for 'rawset'");
 		break;
 	}
 	}
@@ -842,7 +842,7 @@ void alo_rawseti(astate T, ssize_t idown, aint key) {
 		break;
 	}
 	default: {
-		api_check(T, false, "illegal owner for 'rawseti'");
+		aloi_check(T, false, "illegal owner for 'rawseti'");
 		break;
 	}
 	}
@@ -854,7 +854,7 @@ void alo_rawsets(astate T, ssize_t idown, astr key) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
 	askid_t v = T->top - 1;
-	api_check(T, ttistab(o), "illegal owner for 'rawsets'");
+	aloi_check(T, ttistab(o), "illegal owner for 'rawsets'");
 	atable_t* table = tgettab(o);
 	tsetobj(T, aloH_finds(T, table, key, strlen(key)), v);
 	aloG_barrierbackt(T, table, v);
@@ -877,7 +877,7 @@ int alo_rawrem(astate T, ssize_t idown) {
 		break;
 	}
 	default: {
-		api_check(T, false, "illegal owner for 'remove'");
+		aloi_check(T, false, "illegal owner for 'remove'");
 		succ = false;
 		break;
 	}
@@ -901,7 +901,7 @@ void alo_rawclr(astate T, ssize_t idown) {
 		break;
 	}
 	default: {
-		api_check(T, false, "illegal owner for 'clear'");
+		aloi_check(T, false, "illegal owner for 'clear'");
 		break;
 	}
 	}
@@ -910,7 +910,7 @@ void alo_rawclr(astate T, ssize_t idown) {
 void alo_add(astate T, ssize_t idown) {
 	api_checkelems(T, 1);
 	askid_t o = index2addr(T, idown);
-	api_check(T, ttislis(o), "illegal owner for 'add'");
+	aloi_check(T, ttislis(o), "illegal owner for 'add'");
 	aloI_add(T, tgetlis(o), T->top - 1);
 	api_decrtop(T);
 }
@@ -960,7 +960,7 @@ int alo_setmetatable(astate T, ssize_t index) {
 		mt = NULL;
 	}
 	else {
-		api_check(T, ttistab(T->top - 1), "value is not meta table.");
+		aloi_check(T, ttistab(T->top - 1), "value is not meta table.");
 		mt = tgettab(T->top - 1);
 	}
 	atable_t** pmt = aloT_getpmt(o);
@@ -983,7 +983,7 @@ int alo_setdelegate(astate T, ssize_t index) {
 	if (ttisnil(t)) {
 		t = T->frame->env;
 	}
-	api_check(T, ttistab(t), "delegate should be table");
+	aloi_check(T, ttistab(t), "delegate should be table");
 	switch (ttype(o)) {
 	case ALO_TACL: {
 		aacl_t* closure = tgetacl(o);
@@ -1003,10 +1003,10 @@ int alo_setdelegate(astate T, ssize_t index) {
 }
 
 void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
-	api_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
+	aloi_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
-	api_check(T, T->g->trun == T, "thread is not running.");
-	api_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
+	aloi_check(T, T->g->trun == T, "thread is not running.");
+	aloi_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
 	askid_t fun = T->top - (narg + 1);
 	if (kfun && T->nxyield == 0) { /* is available for continuation? */
 		aframe_t* const frame = T->frame;
@@ -1021,11 +1021,11 @@ void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 }
 
 int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* kctx) {
-	api_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
+	aloi_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
-	api_check(T, T->g->trun == T, "thread is not running.");
-	api_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
-	api_check(T, errfun == ALO_NOERRFUN || errfun == ALO_LASTERRFUN || isinstk(errfun),
+	aloi_check(T, T->g->trun == T, "thread is not running.");
+	aloi_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
+	aloi_check(T, errfun == ALO_NOERRFUN || errfun == ALO_LASTERRFUN || isinstk(errfun),
 			"illegal error function index.");
 	aframe_t* const frame = T->frame;
 	askid_t fun = T->top - (narg + 1);

@@ -451,19 +451,19 @@ int aloL_savef(astate T, astr dest, int debug) {
 /**
  ** get frame with level
  */
-int aloL_getframe(astate T, int level, astr what, aframeinfo_t* info) {
+int aloL_getframe(astate T, int level, astr what, adbinfo_t* info) {
 	if (level == 1) {
-		alo_getframe(T, what, info);
+		alo_getinfo(T, ALO_INFCURR, what, info);
 		return true;
 	}
 	else {
-		alo_getframe(T, "", info);
+		alo_getinfo(T, ALO_INFCURR, "", info);
 		for (int i = 1; i < level; ++i) {
-			if (!alo_prevframe(T, "", info)) {
+			if (!alo_getinfo(T, ALO_INFPREV, "", info)) {
 				return false;
 			}
 		}
-		return alo_prevframe(T, what, info);
+		return alo_getinfo(T, ALO_INFPREV, what, info);
 	}
 }
 
@@ -472,13 +472,12 @@ int aloL_getframe(astate T, int level, astr what, aframeinfo_t* info) {
  */
 void aloL_where(astate T, int level) {
 	aloL_checkstring(T, -1);
-	aframeinfo_t info;
-	int n = level;
-	alo_getframe(T, "", &info); /* skip first frame */
+	adbinfo_t info;
+	alo_getinfo(T, ALO_INFCURR, "nslc", &info); /* skip first frame */
 	aloL_usebuf(T, buf,
 		aloL_bwrite(T, buf, -1);
-		while (alo_prevframe(T, "nsl", &info)) {
-			if (n-- == 0) {
+		do {
+			if (level-- == 0) {
 				aloL_bputxs(T, buf, "\n\t...");
 				break;
 			}
@@ -490,7 +489,13 @@ void aloL_where(astate T, int level) {
 				aloL_bputf(T, buf, ":%d", info.line);
 			}
 			aloL_bputc(T, buf, ')');
+			if (info.istailc) {
+				aloL_bputxs(T, buf, "\n\t(tail calls ...)");
+			}
+			else if (info.isfinc) /* finalize call is not relevant to previous call */
+				break;
 		}
+		while (alo_getinfo(T, ALO_INFPREV, "nslc", &info));
 		aloL_bpushstring(T, buf);
 	)
 }

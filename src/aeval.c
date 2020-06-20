@@ -963,10 +963,9 @@ void aloV_invoke(astate T, int dofinish) {
 			/* get number of results */
 			int nres = frame->nresult;
 
+			aloR_closeframe(T, frame);
 			/* move to previous frame and close current frame */
-			T->frame = frame = frame->prev;
-			frame->mode = FrameModeTail; /* set in tail call mode */
-			aloR_closeframe(T, frame->next);
+			T->frame = frame->prev;
 
 			if (aloD_rawcall(T, f, nres, &nres)) {
 				/* called by C function */
@@ -978,6 +977,7 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			else { /* can be execute by this function */
 				frame = T->frame;
+				frame->mode = FrameModeTail; /* set in tail call mode */
 				goto invoke; /* execute it */
 			}
 			return;
@@ -1027,13 +1027,11 @@ void aloV_invoke(astate T, int dofinish) {
 	 ** called when pc take a jump.
 	 */
 	jmp: {
-#if ALO_RUNTIME_DEBUG
 		alineinfo_t* nl = aloU_lineof(proto, pc);
 		if (nl->line != line[-1].line) {
 			protect(aloD_hook(T, ALO_HMASKLINE, nl->line));
 		}
 		line = nl;
-#endif
 		goto normal;
 	}
 

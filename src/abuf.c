@@ -163,14 +163,14 @@ void alo_bufpush(astate T, ambuf_t* buf) {
 
 void alo_bufgrow(astate T, ambuf_t* buf, size_t req) {
 	aloB_lock(buf);
-	api_check(T, buf == T->memstk.top, "not the top of memory stack.");
+	aloi_check(T, buf == T->memstk.top, "not the top of memory stack.");
 	growbuf(T, buf, req);
 	aloB_unlock(buf);
 }
 
 void alo_bufpop(astate T, ambuf_t* buf) {
 	aloB_lock(stack);
-	api_check(T, buf == T->memstk.top, "not the top of memory stack.");
+	aloi_check(T, buf == T->memstk.top, "not the top of memory stack.");
 	aloB_close(T, buf);
 	buf->ptr = NULL; /* avoid released memory be visited */
 	buf->prev = NULL; /* mark buffer released */

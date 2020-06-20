@@ -26,7 +26,7 @@
 
 #define fnname(frame) ((frame)->name ?: "<unknown>")
 
-#if defined(ALO_DEBUG)
+#if defined(ALO_DEBUG) || defined(ALOI_DEBUG)
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -81,7 +81,7 @@ static int putcreg(actable_t* table, acfun handle, astr name) {
 	size_t hash0 = hash;
 	int i = 1;
 	while (table->array[hash].handle) {
-		api_check(T, table->array[hash].handle != handle, "C function registered twice.");
+		aloi_check(T, table->array[hash].handle != handle, "C function registered twice.");
 		hash = (hash + i * i) % table->capacity; /* rehash */
 		i++;
 		if (hash == hash0) { /* collide to first hash? */
@@ -235,61 +235,91 @@ anoret aloU_ererror(astate T, astr fmt, ...) {
 	va_end(varg);
 }
 
-static void getframeinfo(aframe_t* frame, astr what, aframeinfo_t* info) {
-	info->_frame = frame;
-	if (strchr(what, 'n')) {
-		info->name = fnname(frame);
-		info->kind =
-				frame->prev == NULL ? "main" :
-				frame->mode == FrameModeTail ? "tail" :
-						frame->falo ? "alo" : "C";
+#if defined(ALOI_DEBUG)
+static int isvalidframe(astate T, void* raw) {
+	for (aframe_t* frame = T->frame; frame; frame = frame->prev) {
+		if (frame == raw)
+			return true;
 	}
-	if (strchr(what, 's')) {
-		if (frame->falo) {
-			aproto_t* proto = tgetclo(frame->fun)->a.proto;
-			info->src = proto->src->array ?: NATIVE_SOURCE;
-			info->linefdef = proto->linefdef;
-			info->lineldef = proto->lineldef;
-		}
-		else {
-			info->src = NATIVE_SOURCE;
-			info->linefdef = info->lineldef = -1;
-		}
-	}
-	if (strchr(what, 'a')) {
-		if (frame->falo) {
-			aproto_t* proto = tgetclo(frame->fun)->a.proto;
-			info->nargument = proto->nargs;
-			info->ncapture = proto->ncap;
-			info->vararg = proto->fvararg;
-		}
-		else {
-			info->nargument = 0;
-			info->ncapture = ttisccl(frame->fun) ? tgetclo(frame->fun)->length : 0;
-			info->vararg = true;
-		}
-	}
-	if (strchr(what, 'l')) {
-		if (frame->falo) {
-			aproto_t* proto = tgetclo(frame->fun)->a.proto;
-			info->line = lineof(proto, frame->a.pc - 1);
-		}
-		else {
-			info->line = -1;
+	return false;
+}
+#endif
+
+static void getinfo(aframe_t* frame, astr what, aclosure_t* cl, adbinfo_t* i) {
+	i->_frame = frame;
+	for (; *what; ++what) {
+		switch (*what) {
+		case 'n': /* name information */
+			i->name = fnname(frame);
+			i->kind =
+					frame->prev == NULL ? "main" : /* no function called */
+					frame->falo ? "alo" : "C";
+			break;
+		case 's': /* source information */
+			if (cl && ttisacl(cl)) {
+				aproto_t* proto = cl->a.proto;
+				i->src = proto->src->array ?: NATIVE_SOURCE;
+				i->linefdef = proto->linefdef;
+				i->lineldef = proto->lineldef;
+			}
+			else {
+				i->src = NATIVE_SOURCE; /* source name is not available for C function. */
+				i->linefdef = i->lineldef = -1;
+			}
+			break;
+		case 'a': /* argument information */
+			if (cl && ttisacl(cl)) {
+				aproto_t* proto = cl->a.proto;
+				i->nargument = proto->nargs;
+				i->ncapture = proto->ncap;
+				i->vararg = proto->fvararg;
+			}
+			else {
+				i->nargument = 0;
+				i->ncapture = ttisccl(frame->fun) ? tgetclo(frame->fun)->length : 0;
+				i->vararg = true; /* C function always allows variable arguments */
+			}
+			break;
+		case 'l': /* line information */
+			i->line = frame->falo ? lineof(tgetclo(frame->fun)->a.proto, frame->a.pc - 1) : -1;
+			break;
+		case 'c': /* call information */
+			i->istailc = frame->mode == FrameModeTail;
+			i->isfinc = frame->mode = FrameModeFianlize;
+			break;
 		}
 	}
 }
 
-void alo_getframe(astate T, astr what, aframeinfo_t* info) {
-	getframeinfo(T->frame, what, info);
-}
-
-int alo_prevframe(__attribute__((unused)) astate T, astr what, aframeinfo_t* info) {
-	aframe_t* frame = aloE_cast(aframe_t*, info->_frame);
-	if (frame->prev == NULL) {
-		return false;
+int alo_getinfo(astate T, int from, astr what, adbinfo_t* info) {
+	aframe_t* frame = T->frame;
+	atval_t* fun;
+	switch (from) {
+	case ALO_INFPREV: { /* previous frame */
+		aloi_check(T, isvalidframe(T, info->_frame), "invalid stack frame.");
+		frame = aloE_cast(aframe_t*, info->_frame)->prev;
+		if (frame == NULL)
+			return false;
+		fun = frame->fun;
+		break;
 	}
-	getframeinfo(frame->prev, what, info);
+	case ALO_INFSTACK: { /* function in stack */
+		api_checkelems(T, 1);
+		fun = T->frame->top - 1;
+		if (!ttisclo(fun))
+			return false;
+		break;
+	}
+	case ALO_INFCURR: {
+		fun = frame->fun;
+		break;
+	}
+	default: {
+		fun = NULL;
+		aloi_check(T, false, "invalid 'from' for alo_getinfo.");
+	}
+	}
+	getinfo(frame, what, ttisclo(fun) ? tgetclo(fun) : NULL, info);
 	return true;
 }
 

@@ -301,7 +301,7 @@ const atval_t* aloO_get(astate T, const atval_t* o, const atval_t* k) {
 	case ALO_TTABLE:
 		return aloH_get(T, tgettab(o), k);
 	default:
-		api_check(T, false, "illegal owner for 'get'");
+		aloi_check(T, false, "illegal owner for 'get'");
 		return aloO_tnil;
 	}
 }

@@ -167,13 +167,17 @@ ALO_VDEC const aver_t aloR_version;
  */
 
 #if !defined(api_check)
-#define api_check(T,e,m) aloE_assert(e, m)
+#if defined(ALOI_DEBUG)
+#define aloi_check(T,e,m) alo_assert(e, m)
+#else
+#define aloi_check(T,e,m) ((void) 0)
+#endif
 #endif
 
-#define api_checkelems(T,n) api_check(T, aloE_cast(ptrdiff_t, n) <= (T)->top - ((T)->frame->fun + 1), "arguments not enough")
-#define api_checkslots(T,n) api_check(T, aloE_cast(ptrdiff_t, n) <= (T)->frame->top - (T)->top, "stack overflow")
-#define api_incrtop(T) (api_check(T, (T)->top < (T)->frame->top, "stack overflow"), (T)->top++)
-#define api_decrtop(T) (api_check(T, (T)->top > (T)->frame->fun, "arguments not enough"), --(T)->top)
+#define api_checkelems(T,n) aloi_check(T, aloE_cast(ptrdiff_t, n) <= (T)->top - ((T)->frame->fun + 1), "arguments not enough")
+#define api_checkslots(T,n) aloi_check(T, aloE_cast(ptrdiff_t, n) <= (T)->frame->top - (T)->top, "stack overflow")
+#define api_incrtop(T) (aloi_check(T, (T)->top < (T)->frame->top, "stack overflow"), (T)->top++)
+#define api_decrtop(T) (aloi_check(T, (T)->top > (T)->frame->fun, "arguments not enough"), --(T)->top)
 
 /* user defined thread opening function */
 #if !defined(aloi_openthread)

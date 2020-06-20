@@ -182,7 +182,7 @@ void aloD_hook(astate T, int event, int line) {
 		aframe_t* frame = T->frame;
 		ptrdiff_t top = getstkoff(T, T->top);
 		ptrdiff_t ftop = getstkoff(T, frame->top);
-		aframeinfo_t info;
+		adbinfo_t info;
 		info.event = event;
 		info.line = line;
 		info._frame = frame;
@@ -516,8 +516,8 @@ static void resume_unsafe(astate T, void* context) {
 
 int alo_resume(astate T, astate from, int narg) {
 	Gd(T);
-	api_check(T, from->g == G, "two coroutine from different state.");
-	api_check(T, G->trun == from, "the coroutine is not running.");
+	aloi_check(T, from->g == G, "two coroutine from different state.");
+	aloi_check(T, G->trun == from, "the coroutine is not running.");
 	if (T == G->tmain) { /* the main thread can not resumed */
 		return resume_error(T, "the main coroutine is not resumable.", narg);
 	}
