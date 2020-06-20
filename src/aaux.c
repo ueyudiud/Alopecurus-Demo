@@ -503,7 +503,7 @@ void aloL_where(astate T, int level) {
 /**
  ** provide error message and give the return count.
  */
-int aloL_errresult_(astate T, astr msg, errno_t no) {
+int aloL_errresult_(astate T, astr msg, int no) {
 	alo_pushnil(T);
 	if (msg)
 		alo_pushfstring(T, "%s: %s", msg, strerror(no));
