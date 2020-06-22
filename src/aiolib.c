@@ -238,6 +238,23 @@ static int f_setbuf(astate T) {
 	return aloL_errresult(T, setvbuf(file->stream, NULL, masks[id], size) == 0, NULL);
 }
 
+/**
+ ** change the stream position, and return the position if success.
+ ** prototype: file.seek(file, whence, [offset])
+ */
+static int f_seek(astate T) {
+	afile* file = self(T);
+	static const astr modes[] = { "set", "cur", "end", NULL };
+	static const int modeids[] = { SEEK_SET, SEEK_CUR, SEEK_END };
+	int id = aloL_checkenum(T, 1, NULL, modes);
+	aint off = aloL_getoptinteger(T, 2, 0);
+	if (fseek(file->stream, off)) {
+		return aloL_errresult_(T, NULL, errno);
+	}
+	alo_pushinteger(T, ftell(file->stream));
+	return 1;
+}
+
 static int aux_lines(astate T, __attribute__((unused)) int status, void* context) {
 	afile* file = aloE_cast(afile*, context);
 	aloL_usebuf(T, buf,
@@ -374,6 +391,7 @@ static const acreg_t cls_funcs[] = {
 	{ "lines", f_lines },
 	{ "put", f_put },
 	{ "puts", f_puts },
+	{ "seek", f_seek },
 	{ "setbuf", f_setbuf },
 	{ NULL, NULL }
 };
