@@ -1000,6 +1000,11 @@ static void adjust_assign(afstat_t* f, int nvar, int narg, aestat_t* e) {
 	}
 }
 
+static void clearcv(afstat_t* f) {
+	f->d->cv.l = 0;
+	f->d->cv.nchild = 0;
+}
+
 static int pushcv(afstat_t* f) {
 	aloM_chkb(f->l->T, f->d->cv.a, f->d->cv.c, f->d->cv.l, ALO_MAX_BUFSIZE);
 	return f->d->cv.l++;
@@ -1320,11 +1325,11 @@ static void partialfun(alexer_t* lex) {
 		}
 		while ((i = v->next) != NO_CASEVAR);
 		mergecasevar(f, f->b->nlocal, &fail);
+		clearcv(f);
 		stats(lex);
 		if (check(lex, TK_CASE)) {
 			succ = aloK_jumpforward(f, succ);
 		}
-		f->d->cv.l = 0; /* clear buffer */
 		leaveblock(f);
 		aloE_xassert(f->freelocal == f->firstlocal);
 		/* jump when fail to match pattern */
@@ -1363,13 +1368,14 @@ static void patmatch(alexer_t* lex, aestat_t* e, int multi, int* succ, int* fail
 	afstat_t* f = lex->f;
 	ablock_t b;
 	enterblock(f, &b, *succ, NULL);
+	aloE_assert(f->d->cv.l == 0, "case variable size is not 0.");
 	patterns(lex);
 
 	/* extract variables */
 	struct context_caseassign ctx = { f->d->cv.a, NO_JUMP };
 	int nact = f->firstlocal;
+	aestat_t e2 = *e;
 	if (multi) {
-		aestat_t e2 = *e;
 		aloK_unbox(f, &e2, f->d->cv.nchild);
 		adjust_assign(f, f->d->cv.nchild, 1, &e2);
 		do {
@@ -1382,10 +1388,11 @@ static void patmatch(alexer_t* lex, aestat_t* e, int multi, int* succ, int* fail
 		f->firstlocal = nact;
 	}
 	else {
-		putvar(f, &ctx, e);
+		putvar(f, &ctx, &e2);
 	}
 	*fail = ctx.fail;
-	mergecasevar(lex->f, nact, fail);
+	mergecasevar(f, nact, fail);
+	clearcv(f);
 
 	testnext(lex, TK_RARR);
 	stats(lex);
@@ -1467,6 +1474,7 @@ static int ifstat(alexer_t* lex) {
 		testnext(lex, '='); /* assignment */
 		initexp(&e, E_VOID);
 		e.lf = caseassign(lex);
+		clearcv(lex->f);
 	}
 	else { /* if statement */
 		expr(lex, &e);
@@ -1593,11 +1601,11 @@ static void forstat(alexer_t* lex) {
 	testnext(lex, '(');
 	ablock_t b;
 	afstat_t* f = lex->f;
-	int index = pushcv(f); /* push case variable */
-	f->d->cv.a[index].name = testident(lex);
-	while (checknext(lex, ',')) {
+	aloE_assert(f->d->cv.l == 0, "case variable size is not 0.");
+	do { /* push case variable */
 		f->d->cv.a[pushcv(f)].name = testident(lex);
 	}
+	while (checknext(lex, ','));
 	testnext(lex, TK_LARR);
 	aestat_t e;
 	expr(lex, &e);
@@ -1606,14 +1614,14 @@ static void forstat(alexer_t* lex) {
 	f->firstlocal++; /* fix temporary iterator */
 	enterblock(f, &b, aloK_newlabel(f), lname);
 	aloE_assert(f->firstlocal == f->freelocal, "variable number mismatched");
-	int nvar = f->d->cv.l - index;
+	int nvar = f->d->cv.l;
 	aloK_checkstack(f, nvar);
 	for (int i = 0; i < nvar; ++i) {
-		regloc(f, f->d->cv.a[index + i].name);
+		regloc(f, f->d->cv.a[i].name);
 	}
 	aloK_iABC(f, OP_ICALL, 0, 0, 0, e.v.g, 0, nvar + 1);
 	f->freelocal = f->firstlocal;
-	f->d->cv.l = index;
+	clearcv(f);
 	int label = aloK_jumpforward(f, NO_JUMP);
 	stat(lex, false); /* THEN block */
 	aloK_jumpbackward(f, b.lcon);
@@ -1796,7 +1804,6 @@ static void localstat(alexer_t* lex) {
 	}
 	else {
 		/* localstat -> 'local' IDENT [ ',' IDENT ] { '=' varexpr } */
-		f->d->cv.l = 0;
 		int index = pushcv(f);
 		f->d->cv.a[index].name = name;
 		while (checknext(lex, ',')) {
@@ -1817,6 +1824,7 @@ static void localstat(alexer_t* lex) {
 		for (int i = 0; i < nvar; ++i) {
 			regloc(f, f->d->cv.a[i].name); /* register local variables */
 		}
+		clearcv(f);
 	}
 }
 
