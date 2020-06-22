@@ -25,18 +25,32 @@
 #if !defined(l_lockstream)
 #if defined(ALO_USE_POSIX)
 
+#include <sys/types.h>
+
 #define l_lockstream flockfile
 #define l_unlockstream funlockfile
+
+#define l_seek fseeko64
+#define l_tell ftello64
+typedef off64_t l_fpos_t;
 
 #elif defined(ALOE_WINDOWS)
 
 #define l_lockstream _lock_file
 #define l_unlockstream _unlock_file
 
+#define l_seek _fseeki64
+#define l_tell _ftelli64
+typedef __int64 l_fpos_t;
+
 #else
 
 #define l_lockstream aloE_void
 #define l_unlockstream aloE_void
+
+#define l_seek fseek
+#define l_tell ftell
+typedef int l_fpos_t;
 
 #endif
 
@@ -248,10 +262,14 @@ static int f_seek(astate T) {
 	static const int modeids[] = { SEEK_SET, SEEK_CUR, SEEK_END };
 	int id = aloL_checkenum(T, 1, NULL, modes);
 	aint off = aloL_getoptinteger(T, 2, 0);
-	if (fseek(file->stream, off)) {
+	l_fpos_t pos = aloE_cast(l_fpos_t, off);
+	if (pos != off) {
+		aloL_error(T, "seek position out of range.");
+	}
+	if (l_seek(file->stream, pos, modeids[id])) {
 		return aloL_errresult_(T, NULL, errno);
 	}
-	alo_pushinteger(T, ftell(file->stream));
+	alo_pushinteger(T, l_tell(file->stream));
 	return 1;
 }
 
