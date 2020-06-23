@@ -30,9 +30,9 @@
 #define l_lockstream flockfile
 #define l_unlockstream funlockfile
 
-#define l_seek fseeko64
-#define l_tell ftello64
-typedef off64_t l_fpos_t;
+#define l_seek fseeko
+#define l_tell ftello
+typedef off_t l_fpos_t;
 
 #elif defined(ALOE_WINDOWS)
 

@@ -34,7 +34,7 @@ static void l_action(int id) {
 }
 
 static void compilef(astate T, astr name) {
-	int status = aloL_compilef(T, name, name);
+	int status = aloL_compilef(T, "__main__", name);
 	switch (status) {
 	case ThreadStateRun:
 		break;
