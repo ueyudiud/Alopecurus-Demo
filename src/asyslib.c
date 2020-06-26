@@ -53,7 +53,7 @@ static int sys_exit(astate T) {
 	if (!aloL_getoptbool(T, 1, false)) {
 		alo_deletestate(T);
 	}
-	aloE_void(exit(status));
+	exit(status);
 	return 0;
 }
 

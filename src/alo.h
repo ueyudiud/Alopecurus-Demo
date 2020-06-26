@@ -211,25 +211,25 @@ ALO_API int alo_setdelegate(astate, ssize_t);
  ** call and IO functions
  */
 
-ALO_API void alo_callk(astate, int, int, akfun, void*);
-ALO_API int alo_pcallk(astate, int, int, ssize_t, akfun, void*);
+ALO_API void alo_callk(astate, int, int, akfun, akctx);
+ALO_API int alo_pcallk(astate, int, int, ssize_t, akfun, akctx);
 ALO_API int alo_compile(astate, astr, astr, areader, void*);
 ALO_API int alo_load(astate, astr, areader, void*);
 ALO_API int alo_save(astate, awriter, void*, int);
 
-#define alo_call(T,a,r) alo_callk(T, a, r, NULL, NULL)
-#define alo_pcall(T,a,r,e) alo_pcallk(T, a, r, e, NULL, NULL)
+#define alo_call(T,a,r) alo_callk(T, a, r, NULL, 0)
+#define alo_pcall(T,a,r,e) alo_pcallk(T, a, r, e, NULL, 0)
 
 /**
  ** coroutine functions.
  */
 
 ALO_API int alo_resume(astate, astate, int);
-ALO_API void alo_yieldk(astate, int, akfun, void*);
+ALO_API void alo_yieldk(astate, int, akfun, akctx);
 ALO_API int alo_status(astate);
 ALO_API int alo_isyieldable(astate);
 
-#define alo_yield(T,nres) alo_yieldk(T, nres, NULL, NULL)
+#define alo_yield(T,nres) alo_yieldk(T, nres, NULL, 0)
 
 /**
  ** error handling

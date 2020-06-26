@@ -755,14 +755,6 @@ void alo_newtable(astate T, size_t size) {
 	aloG_check(T);
 }
 
-astate alo_newthread(astate T) {
-	aloG_check(T);
-	api_checkslots(T, 1);
-	astate thread = aloR_newthread(T);
-	tsetthr(T, api_incrtop(T), thread);
-	return thread;
-}
-
 /**
  ** trim object, and make it takes lower memory cost.
  */
@@ -1002,7 +994,7 @@ int alo_setdelegate(astate T, ssize_t index) {
 	}
 }
 
-void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
+void alo_callk(astate T, int narg, int nres, akfun kfun, akctx kctx) {
 	aloi_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
 	aloi_check(T, T->g->trun == T, "thread is not running.");
@@ -1011,7 +1003,7 @@ void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	if (kfun && T->nxyield == 0) { /* is available for continuation? */
 		aframe_t* const frame = T->frame;
 		frame->c.kfun = kfun;
-		frame->c.ctx = kctx;
+		frame->c.kctx = kctx;
 		aloD_call(T, fun, nres); /* do call */
 	}
 	else { /* in non-yieldable environment or not yieldable */
@@ -1020,7 +1012,7 @@ void alo_callk(astate T, int narg, int nres, akfun kfun, void* kctx) {
 	aloD_adjustresult(T, nres);
 }
 
-int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* kctx) {
+int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, akctx kctx) {
 	aloi_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
 	aloi_check(T, T->g->trun == T, "thread is not running.");
@@ -1038,7 +1030,7 @@ int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, void* k
 	}
 	else {
 		frame->c.kfun = kfun;
-		frame->c.ctx = kctx;
+		frame->c.kctx = kctx;
 		frame->c.oef = T->errfun;
 		T->errfun = ef;
 		frame->fypc = true;

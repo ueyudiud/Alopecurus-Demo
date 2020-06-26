@@ -160,10 +160,12 @@ anoret aloD_throw(astate T, int status) {
 		aloi_throw(T, *T->label, status);
 	}
 	else { /* no error handler in current thread */
-		T->status = aloE_byte(status);
+		T->status = aloE_byte(status); /* set coroutine status */
 		if (T->caller) {
 			tsetobj(T, T->caller->top++, T->top - 1); /* move error message */
-			T = T->caller;
+			astate Tcaller = T->caller;
+			T->caller = NULL; /* remove caller */
+			T = Tcaller;
 			goto rethrow; /* handle error function by caller */
 		}
 		else {
@@ -191,7 +193,7 @@ void aloD_hook(astate T, int event, int line) {
 		T->fallowhook = false;
 		frame->fhook = true;
 
-		hook(T, &info);
+		hook(T, &info); /* call hook function */
 
 		aloE_assert(!T->fallowhook, "hook should not allowed.");
 		T->fallowhook = true;
@@ -271,7 +273,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->nresult = nresult;
 		frame->name = aloU_getcname(T, caller);
 		frame->c.kfun = NULL;
-		frame->c.ctx = NULL;
+		frame->c.kctx = 0;
 		frame->c.oef = 0;
 		frame->fun = fun;
 		frame->top = T->top + ALO_MINSTACKSIZE;
@@ -436,7 +438,7 @@ static void postpcc(astate T, int status) {
 	aloE_assert(frame->fypc || status != ThreadStateYield, "error can only be caught by protector.");
 
 	aloD_adjustresult(T, frame->nresult);
-	int n = (*frame->c.kfun)(T, status, frame->c.ctx);
+	int n = (*frame->c.kfun)(T, status, frame->c.kctx);
 	api_checkelems(T, n);
 	aloD_postcall(T, T->top - n, n);
 }
@@ -503,7 +505,7 @@ static void resume_unsafe(astate T, void* context) {
 		}
 		else {
 			if (frame->c.kfun) { /* does frame have a continuation? */
-				narg = (*frame->c.kfun)(T, ThreadStateYield, frame->c.ctx);
+				narg = (*frame->c.kfun)(T, ThreadStateYield, frame->c.kctx);
 				api_checkelems(T, narg);
 			}
 			aloD_postcall(T, T->top - narg, narg);
@@ -512,23 +514,24 @@ static void resume_unsafe(astate T, void* context) {
 	}
 }
 
-#define resume_error(T,msg,narg) ({ T->top -= (narg); tsetstr(T, T->top, aloS_newl(T, msg)); T->top++; ThreadStateErrRuntime; })
+#define resume_error(T,msg,narg) ({ T->top -= (narg); tsetstr(T, T->top, aloS_newl(T, msg)); T->top++; -1; })
 
 int alo_resume(astate T, astate from, int narg) {
 	Gd(T);
 	aloi_check(T, from->g == G, "two coroutine from different state.");
 	aloi_check(T, G->trun == from, "the coroutine is not running.");
+
 	if (T == G->tmain) { /* the main thread can not resumed */
-		return resume_error(T, "the main coroutine is not resumable.", narg);
+		return resume_error(from, "the main coroutine is not resumable.", narg);
 	}
 	else if (T->status != ThreadStateYield) { /* check coroutine status */
 		if (T->status == ThreadStateRun)
-			return resume_error(T, "cannot resume a non-suspended coroutine.", narg);
+			return resume_error(from, "cannot resume a non-suspended coroutine.", narg);
 		else
-			return resume_error(T, "the coroutine is already dead.", narg);
+			return resume_error(from, "the coroutine is already dead.", narg);
 	}
 	else if (T->frame == &T->base_frame && T->top != T->base_frame.fun + 2) { /* check function not called yet */
-		return resume_error(T, "the coroutine is already dead.", narg);
+		return resume_error(from, "the coroutine is already dead.", narg);
 	}
 	api_checkelems(T, narg);
 
@@ -537,26 +540,24 @@ int alo_resume(astate T, astate from, int narg) {
 	if (T->nccall >= ALO_MAXCCALL) {
 		stackerror(T);
 	}
-	T->nxyield = 0;
-
-	T->caller = from;
-	T->status = ThreadStateRun;
 	G->trun = T;
+	T->caller = from;
+	T->nxyield = 0;
+	T->status = ThreadStateRun;
 	aloi_resumethread(T, narg); /* call user's resume action */
 	int status = aloD_prun(T, resume_unsafe, &narg);
-	if (status == ThreadStateRun) { /* does function invoke to the end? */
-		T->status = ThreadStateYield; /* yield coroutine */
-	}
-	else if (status != ThreadStateYield) { /* error occurred? */
-		while (iserrorstate(status) && recover(T)) { /* try to recover the error by yieldable error protector */
-			status = aloD_prun(T, unroll_unsafe, &status);
+	if (status != ThreadStateRun) { /* does function invoke to the end? */
+		if (status != ThreadStateYield) { /* error occurred? */
+			while (iserrorstate(status) && recover(T)) { /* try to recover the error by yieldable error protector */
+				status = aloD_prun(T, unroll_unsafe, &status);
+			}
+			if (iserrorstate(status)) { /* is error unrecoverable? */
+				T->frame->top = T->top;
+			}
+			else aloE_assert(status == T->status, "status mismatched.");
 		}
-		if (iserrorstate(status)) { /* is error unrecoverable? */
-			T->status = aloE_byte(status);
-			T->frame->top = T->top;
-		}
-		else aloE_assert(status == T->status, "status mismatched.");
 	}
+	T->status = status == ThreadStateRun ? ThreadStateYield : aloE_byte(status); /* mark thread status */
 	G->trun = from;
 	T->nccall--;
 	T->nxyield = oldnxy;
@@ -564,11 +565,9 @@ int alo_resume(astate T, astate from, int narg) {
 	return status;
 }
 
-void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
+void alo_yieldk(astate T, int nres, akfun kfun, akctx kctx) {
 	aframe_t* frame = T->frame;
 	api_checkelems(T, nres);
-	Gd(T);
-	aloE_void(G);
 	aloE_assert(T == G->trun, "the current coroutine is not running.");
 	if (T->nxyield > 0) {
 		aloU_rterror(T, T->caller != NULL ?
@@ -576,29 +575,30 @@ void alo_yieldk(astate T, int nres, akfun kfun, void* kctx) {
 				"attempt to yield from a outside coroutine.");
 	}
 	T->status = ThreadStateYield;
-	aloi_yieldthread(T, nres); /* call user's yield action */
+	aloi_yieldthread(T, nres); /* call user's yield procedure */
+	/* user yield failed, call default yield procedure */
 	if (frame->falo) {
 		aloU_rterror(T, "can not yield in hook.");
 	}
-	else {
-		aloE_assert(T->label, "missing resume label.");
-		if ((frame->c.kfun = kfun)) { /* protector present? */
-			/* settle protector */
-			frame->c.ctx = kctx;
-		}
-		/* push new frame for 'yield' function */
+	aloE_assert(T->label, "missing resume label.");
+	if ((frame->c.kfun = kfun)) { /* protector present? */
+		/* settle protector */
+		frame->c.kctx = kctx;
+		frame->fypc = true;
+		/* push new frame for yield procedure */
 		frame = nextframe(T);
 		frame->nresult = ALO_MULTIRET;
 		frame->name = "<yield>";
-		frame->c.kfun = NULL;
-		frame->c.ctx = NULL;
-		frame->c.oef = 0;
-		frame->fun = T->top - nres;
-		frame->top = T->top;
 		frame->flags = 0;
 		T->frame = frame;
-		aloi_yield(T, *T->label);
 	}
+	frame->c.kfun = NULL;
+	frame->c.kctx = 0;
+	frame->c.oef = 0;
+	frame->fun = T->top - nres;
+	frame->top = T->top;
+	T->caller = NULL; /* remove caller */
+	aloi_yield(T, *T->label); /* yield coroutine */
 }
 
 int alo_status(astate T) {

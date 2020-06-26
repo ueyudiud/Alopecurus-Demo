@@ -41,7 +41,6 @@ typedef struct {
 } TG;
 
 static void init_stack(astate T, athread_t* thread) {
-	aloM_clsb(thread->stack, thread->stacksize);
 	aloM_newb(T, thread->stack, thread->stacksize, ALO_BASESTACKSIZE);
 	thread->top = thread->stack + 1; /* reserve for function slot */
 	/* initialize base frame stack */
@@ -96,8 +95,11 @@ static void preinit(astate T, aglobal_t* G) {
 	T->base_frame.flags = 0;
 	T->base_frame.env = &G->registry;
 	T->base_frame.c.kfun = NULL;
-	T->base_frame.c.ctx = NULL;
+	T->base_frame.c.kctx = 0;
 	T->captures = NULL;
+	T->stack = NULL;
+	T->top = NULL;
+	T->stacksize = 0;
 	T->hook = NULL;
 	T->hookmask = 0;
 	T->fallowhook = true;
@@ -158,11 +160,15 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	return T;
 }
 
-athread_t* aloR_newthread(astate T) {
+astate alo_newthread(astate T) {
 	Gd(T);
+	aloG_check(T);
+	api_checkslots(T, 1);
 	athread_t* thread = &aloM_newo(T, TX)->state;
-	aloG_register(T, thread, ALO_TTHREAD);
 	preinit(thread, G);
+	aloG_register(T, thread, ALO_TTHREAD);
+	tsetthr(T, api_incrtop(T), thread);
+	aloG_barrierback(T, T, thread);
 	init_stack(T, thread);
 	aloi_openthread(thread, T);
 	return thread;
@@ -196,7 +202,7 @@ static void destory_thread(astate T, athread_t* v, int close) {
 		}
 	}
 	aloM_delb(T, v->stack, v->stacksize); /* clear stack */
-	aloM_free(T, T->memstk.ptr, T->memstk.cap);
+	aloM_free(T, v->memstk.ptr, v->memstk.cap);
 }
 
 void alo_deletestate(astate rawT) {
@@ -215,7 +221,7 @@ void alo_deletestate(astate rawT) {
 void aloR_deletethread(astate T, athread_t* v) {
 	aloi_closethread(T);
 	destory_thread(T, v, true);
-	aloM_delo(T, getraw(T));
+	aloM_delo(T, getraw(v));
 }
 
 /**

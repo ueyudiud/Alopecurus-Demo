@@ -249,6 +249,7 @@ static size_t propagate_thread(aglobal_t* G, athread_t* v) {
 		markt(G, i++);
 	}
 	if (G->gcstep == GCStepAtomic) {
+		marknpg(G, v->caller);
 		askid_t end = v->stack + v->stacksize;
 		while (i < end) {
 			trsetval(i++, aloO_nil);
@@ -656,6 +657,7 @@ static size_t gcatomic(astate T, aglobal_t* G) {
 	G->mtraced = 0;
 	/* propagate all strong accessible references */
 	markpg(G, T);
+	markpg(G, G->tmain);
 	markt(G, &G->registry);
 	propagateall(G); /* traverse changes */
 	work = G->mtraced; /* count traced memory, do not recount gray again. */

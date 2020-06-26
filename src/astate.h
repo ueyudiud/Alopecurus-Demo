@@ -116,7 +116,7 @@ struct alo_Frame {
 		} a;
 		struct { /* for C functions */
 			akfun kfun;
-			void* ctx;
+			akctx kctx;
 			ptrdiff_t oef; /* the old error function for previous frame */
 		} c;
 	};
@@ -168,7 +168,6 @@ struct alo_Thread {
 	uint16_t nframe; /* frame depth */
 	uint16_t nxyield; /* nested non-yieldable depth */
 	uint16_t nccall; /* C caller depth */
-	sig_atomic_t signal;
 };
 
 /**
@@ -178,7 +177,6 @@ struct alo_Thread {
 
 #define Gd(T) aglobal_t* G = (T)->g
 
-ALO_IFUN athread_t* aloR_newthread(astate);
 ALO_IFUN void aloR_closeframe(astate, aframe_t*);
 ALO_IFUN void aloR_deletethread(astate, athread_t*);
 ALO_IFUN aframe_t* aloR_topframe(astate);

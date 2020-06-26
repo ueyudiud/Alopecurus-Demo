@@ -58,8 +58,11 @@ typedef struct alo_Thread *astate;
 /* the C function type in Alopecurus */
 typedef int (*acfun)(astate);
 
+/* the context for function */
+typedef intptr_t akctx;
+
 /* context based function type, the function is used to recover yielded function */
-typedef int (*akfun)(astate, int, void*);
+typedef int (*akfun)(astate, int, akctx);
 
 /* allocation function handle type, used for memory allocation */
 typedef amem (*aalloc)(void*, amem, size_t, size_t);

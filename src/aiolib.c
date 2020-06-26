@@ -273,7 +273,7 @@ static int f_seek(astate T) {
 	return 1;
 }
 
-static int aux_lines(astate T, __attribute__((unused)) int status, void* context) {
+static int aux_lines(astate T, __attribute__((unused)) int status, akctx context) {
 	afile* file = aloE_cast(afile*, context);
 	aloL_usebuf(T, buf,
 		while (!feof(file->stream)) {
@@ -284,7 +284,7 @@ static int aux_lines(astate T, __attribute__((unused)) int status, void* context
 			aloL_bclean(buf); /* rewind buffer */
 			alo_push(T, 1); /* push function */
 			alo_push(T, -2); /* push string */
-			alo_callk(T, 1, 0, aux_lines, file);
+			alo_callk(T, 1, 0, aux_lines, aloE_addr(file));
 		}
 	)
 	return 0;
@@ -298,7 +298,7 @@ static int f_lines(astate T) {
 	l_checkopen(T, file);
 	if (alo_gettop(T) >= 2) {
 		aloL_checkcall(T, 1); /* check function */
-		return aux_lines(T, ThreadStateRun, file); /* invoke by auxiliary function */
+		return aux_lines(T, ThreadStateRun, aloE_addr(file)); /* invoke by auxiliary function */
 	}
 	else {
 		alo_newlist(T, 0); /* create new line list */

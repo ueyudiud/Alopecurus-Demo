@@ -331,7 +331,7 @@ static int ferrmsg(astate T) {
 			break;
 		default:
 			error:
-			alo_pushfstring(T, "can not transform %s value to string");
+			alo_pushfstring(T, "can not transform value to string");
 			break;
 		}
 	}

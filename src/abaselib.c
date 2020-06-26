@@ -182,21 +182,35 @@ static int base_throw(astate T) {
 	return 0;
 }
 
-static int try_unsafe(astate T, int status, __attribute__((unused)) void* context) {
-	int error = status > ThreadStateYield;
-	alo_pushboolean(T, error);
-	if (error) { /* error occurred? */
-		alo_push(T, -2); /* push error message */
+static int finish_try(astate T, int status, akctx context) {
+	if (status == ThreadStateRun || status == ThreadStateYield) {
+		return alo_gettop(T) - context;
+	}
+	else { /*catch an error */
+		alo_pushboolean(T, false);
+		alo_push(T, -2);
 		return 2;
 	}
-	return 1;
 }
 
 static int base_try(astate T) {
 	aloL_checkcall(T, 0);
-	alo_settop(T, 1);
-	int status = alo_pcallk(T, 0, 0, ALO_NOERRFUN, try_unsafe, NULL);
-	return try_unsafe(T, status, NULL);
+	alo_pushboolean(T, true); /* true is first result if no error */
+	alo_insert(T, 0);
+	int status = alo_pcallk(T, alo_gettop(T) - 2, ALO_MULTIRET, ALO_NOERRFUN, finish_try, 0);
+	return finish_try(T, status, 0);
+}
+
+static int base_xtry(astate T) {
+	aloL_checkcall(T, 1);
+	int lastfun = !alo_isnonnil(T, 0);
+	if (!lastfun) {
+		aloL_checkcall(T, 0);
+	}
+	alo_pushboolean(T, true); /* true is first result if no error */
+	alo_insert(T, 1);
+	int status = alo_pcallk(T, alo_gettop(T) - 3, ALO_MULTIRET, lastfun ? ALO_LASTERRFUN : 0, finish_try, 1);
+	return finish_try(T, status, 1);
 }
 
 /**
@@ -274,8 +288,9 @@ static int base_typeof(astate T) {
  */
 static int base_delegate(astate T) {
 	aloL_checkany(T, 0);
-	alo_getreg(T, "__basic_delegates");
-	aloL_checktype(T, -1, ALO_TLIST);
+	if (alo_getreg(T, "__basic_delegates") != ALO_TLIST) {
+		aloL_tagerror(T, -1, ALO_TLIST);
+	}
 	alo_rawgeti(T, -1, alo_typeid(T, 0));
 	alo_push(T, 1);
 	alo_get(T, -2);
@@ -316,6 +331,7 @@ static const acreg_t mod_funcs[] = {
 	{ "throw", base_throw },
 	{ "try", base_try },
 	{ "typeof", base_typeof },
+	{ "xtry", base_xtry },
 	{ "__basic_delegates", NULL },
 	{ "__dlgt", base_delegate },
 	{ "_G", NULL },

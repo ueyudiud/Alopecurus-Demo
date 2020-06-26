@@ -28,7 +28,10 @@ static int coro_create(astate T) {
 static int aux_resume(astate T, astate from, int narg) {
 	alo_xmove(from, T, narg);
 	int status = alo_resume(T, from, narg);
-	if (status != ThreadStateRun && status != ThreadStateYield) {
+	if (status == -1) {
+		return -1;
+	}
+	else if (status != ThreadStateRun && status != ThreadStateYield) {
 		/* resumed failed or throw an unrecoverable error */
 		alo_xmove(T, from, 1);
 		return -1;
