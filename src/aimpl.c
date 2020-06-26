@@ -756,6 +756,26 @@ void alo_newtable(astate T, size_t size) {
 }
 
 /**
+ ** give a hint of how many size of extra elements will be put into the collection.
+ */
+void alo_sizehint(astate T, ssize_t index, size_t size) {
+	if (size == 0) /* skip check when no extra elements */
+		return;
+	atval_t* t = index2addr(T, index);
+	switch (ttpnv(t)) {
+	case ALO_TLIST:
+		aloI_ensure(T, tgetlis(t), size);
+		break;
+	case ALO_TTABLE:
+		aloH_ensure(T, tgettab(t), size);
+		break;
+	default:
+		aloi_check(T, false, "invalid collection.");
+		break;
+	}
+}
+
+/**
  ** trim object, and make it takes lower memory cost.
  */
 void alo_trim(astate T, ssize_t idown) {

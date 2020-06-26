@@ -191,6 +191,7 @@ ALO_API astate alo_newthread(astate);
  ** set functions (stack -> Alopecurus)
  */
 
+ALO_API void alo_sizehint(astate, ssize_t, size_t);
 ALO_API void alo_trim(astate, ssize_t);
 ALO_API void alo_triml(astate, ssize_t, size_t);
 ALO_API void alo_rawsetx(astate, ssize_t, int);

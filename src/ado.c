@@ -568,7 +568,7 @@ int alo_resume(astate T, astate from, int narg) {
 void alo_yieldk(astate T, int nres, akfun kfun, akctx kctx) {
 	aframe_t* frame = T->frame;
 	api_checkelems(T, nres);
-	aloE_assert(T == G->trun, "the current coroutine is not running.");
+	aloE_assert(T == T->g->trun, "the current coroutine is not running.");
 	if (T->nxyield > 0) {
 		aloU_rterror(T, T->caller != NULL ?
 				"attempt to yield across a C-call boundary." :

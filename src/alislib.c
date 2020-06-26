@@ -17,6 +17,37 @@
 /* masks for tagged methods */
 
 /**
+ ** allocate new list.
+ ** prototype: list.__alloc()
+ */
+static int list_alloc(astate T) {
+	alo_newlist(T, 0);
+	return 1;
+}
+
+/**
+ ** create a new list with capacity (the list is already allocated).
+ ** prototype: list.__new(initial_capacity)
+ */
+static int list_new(astate T) {
+	aloL_checktype(T, 0, ALO_TLIST);
+	if (!alo_isnothing(T, 1)) {
+		if (alo_typeid(T, 1) == ALO_TLIST) {
+			size_t n = alo_rawlen(T, 1);
+			alo_sizehint(T, 0, n);
+			for (size_t i = 0; i < n; ++i) {
+				alo_rawgeti(T, 1, i);
+				alo_add(T, 0);
+			}
+		}
+		else {
+			alo_sizehint(T, 0, aloL_checkinteger(T, 1));
+		}
+	}
+	return 0;
+}
+
+/**
  ** return true if target is contained in list.
  ** prototype: list.contains(self, target)
  */
@@ -493,6 +524,8 @@ static const acreg_t mod_funcs[] = {
 	{ "map", list_map },
 	{ "mkstr", list_mkstr },
 	{ "sort", list_sort },
+	{ "__alloc", list_alloc },
+	{ "__new", list_new },
 	{ NULL, NULL }
 };
 
