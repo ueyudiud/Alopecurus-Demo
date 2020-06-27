@@ -1,4 +1,4 @@
-# Alopecurus [![Build Status](https://www.travis-ci.org/ueyudiud/Alopecurus.svg?branch=master)](https://www.travis-ci.org/ueyudiud/Alopecurus)
+# Alopecurus [![Build Status](https://www.travis-ci.org/ueyudiud/Alopecurus.svg?branch=master)](https://www.travis-ci.org/ueyudiud/Alopecurus) ![C CI](https://github.com/ueyudiud/Alopecurus/workflows/C%20CI/badge.svg)
 Alopecurus is a light script language run on VM.
 ## Getting Started
 ### Compilation
