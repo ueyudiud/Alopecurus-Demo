@@ -155,6 +155,47 @@ static int coro_isyieldable(astate T) {
 }
 
 /**
+ ** get status of current state.
+ ** prototype: thread.status(self)
+ */
+static int coro_status(astate T) {
+	if (alo_isnothing(T, 0))
+		goto is_self;
+	aloL_checktype(T, 0, ALO_TTHREAD);
+	astate self = alo_tothread(T, 0);
+	if (T == self) {
+		is_self:
+		alo_pushcstring(T, "running");
+	}
+	else switch (alo_status(self)) {
+	case ThreadStateYield: {
+		suspended:
+		alo_pushcstring(T, "suspended");
+		break;
+	}
+	case ThreadStateRun: {
+		adbinfo_t info;
+		if (alo_getinfo(T, ALO_INFCURR, "", &info)) {
+			goto dead;
+		}
+		else if (alo_gettop(self) == 0) {
+			alo_pushcstring(T, "normal");
+			break;
+		}
+		else {
+			goto suspended;
+		}
+	}
+	default: {
+		dead:
+		alo_pushcstring(T, "dead");
+		break;
+	}
+	}
+	return 1;
+}
+
+/**
  ** return current coroutine, and second result shows that current coroutine
  ** is main coroutine.
  ** prototype: thread.current()
@@ -171,6 +212,7 @@ static const acreg_t mod_funcs[] = {
 	{ "isyieldable", coro_isyieldable },
 	{ "presume", coro_presume },
 	{ "resume", coro_resume },
+	{ "status", coro_status },
 	{ "tofun", coro_tofun },
 	{ "wrap", coro_wrap },
 	{ "yield", coro_yield },

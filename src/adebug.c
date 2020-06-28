@@ -237,11 +237,12 @@ anoret aloU_ererror(astate T, astr fmt, ...) {
 
 #if defined(ALOI_DEBUG)
 static int isvalidframe(astate T, void* raw) {
-	for (aframe_t* frame = T->frame; frame; frame = frame->prev) {
+	aframe_t* frame;
+	for (frame = T->frame; frame; frame = frame->prev) {
 		if (frame == raw)
 			return true;
 	}
-	return false;
+	return frame->prev != NULL;
 }
 #endif
 
@@ -298,7 +299,7 @@ int alo_getinfo(astate T, int from, astr what, adbinfo_t* info) {
 	case ALO_INFPREV: { /* previous frame */
 		aloi_check(T, isvalidframe(T, info->_frame), "invalid stack frame.");
 		frame = aloE_cast(aframe_t*, info->_frame)->prev;
-		if (frame == NULL)
+		if (frame->prev == NULL)
 			return false;
 		fun = frame->fun;
 		break;
@@ -311,6 +312,8 @@ int alo_getinfo(astate T, int from, astr what, adbinfo_t* info) {
 		break;
 	}
 	case ALO_INFCURR: {
+		if (frame->prev == NULL)
+			return false;
 		fun = frame->fun;
 		break;
 	}
