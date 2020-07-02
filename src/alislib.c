@@ -246,14 +246,25 @@ static int list_foldr(astate T) {
 }
 
 /* maximum number of elements should use insert sort */
-#define INSERET_THRESHOLD 32
+#define INSERET_THRESHOLD 40
 
 /* maximum number of elements should use quick sort */
 #define QUICK_THRESHOLD 128
 
+/* maximum number of elements should use middle value instead of middle of list */
+#define PIVOT_THRESHOLD 700
+
 /* maximum count mark list has local structure */
 #define STRUCTURE_THRESHOLD (QUICK_THRESHOLD / 5)
 
+static void set2(astate T, size_t a, size_t b) {
+	alo_rawseti(T, 0, a);
+	alo_rawseti(T, 0, b);
+}
+
+/**
+ ** compare value on stack.
+ */
 static int stkcmp(astate T, size_t i, size_t j) {
 	if (alo_isnonnil(T, 1)) { /* use function */
 		alo_push(T, 1);
@@ -265,7 +276,7 @@ static int stkcmp(astate T, size_t i, size_t j) {
 		return f;
 	}
 	else { /* use natural order */
-		return alo_compare(T, i, j, ALO_OPLE);
+		return alo_compare(T, i, j, ALO_OPLT);
 	}
 }
 
@@ -274,8 +285,7 @@ static int elecmp(astate T, size_t i, size_t j, int put) {
 	alo_rawgeti(T, 0, j);
 	if (!stkcmp(T, 2, 3)) {
 		if (put) {
-			alo_rawseti(T, 0, i);
-			alo_rawseti(T, 0, j);
+			set2(T, i, j);
 		}
 		else {
 			alo_settop(T, -2);
@@ -289,35 +299,44 @@ static int elecmp(astate T, size_t i, size_t j, int put) {
 static void swapele(astate T, size_t i, size_t j) {
 	alo_rawgeti(T, 0, i);
 	alo_rawgeti(T, 0, j);
-	alo_rawseti(T, 0, i);
-	alo_rawseti(T, 0, j);
+	set2(T, i, j);
 }
 
+/**
+ ** do binary insert in stack.
+ */
+static void insert(astate T, size_t n) {
+	size_t l = 2, h = 2 + n;
+	size_t t = h;
+	/* do binary insert */
+	while (l < h) {
+		size_t m = (l + h) / 2;
+		if (!stkcmp(T, m, t)) {
+			h = m;
+		}
+		else {
+			l = m + 1;
+		}
+	}
+	alo_insert(T, l);
+}
+
+/**
+ ** insert sort.
+ */
 static void isortaux(astate T, size_t s, size_t l) {
 	switch (l) {
-	case 0: case 1:
+	case 0: case 1: /* don't need sort */
 		break;
 	case 2:
-		elecmp(T, s, s + 1, true);
+		elecmp(T, s, s + 1, true); /* swap only */
 		break;
-	default: {
+	default: { /* sort on stack */
 		alo_rawgeti(T, 0, s);
-		size_t a, b, m, t;
 		for (size_t i = 1; i < l; ++i) {
 			alo_rawgeti(T, 0, s + i);
-			a = 2;
-			t = b = 2 + i;
 			/* do binary insert */
-			while (a < b) {
-				m = (a + b) / 2;
-				if (!stkcmp(T, m, t)) {
-					b = m;
-				}
-				else {
-					a = m + 1;
-				}
-			}
-			alo_insert(T, a);
+			insert(T, i);
 		}
 		for (aint i = l - 1; i >= 0; --i) {
 			alo_rawseti(T, 0, s + i);
@@ -327,42 +346,86 @@ static void isortaux(astate T, size_t s, size_t l) {
 	}
 }
 
-static void qsortaux(astate T, size_t l, size_t h) {
-	size_t len = h - l + 1;
-	if (len < INSERET_THRESHOLD) { /* if only a few elements present, use insert sort */
-		isortaux(T, l, len);
+/**
+ ** find pivot for quick sort and put it in front of list.
+ ** the result is the mid-value of 5 samples.
+ */
+static void find_pivot(astate T, size_t l, size_t n) {
+	/* sort 5 samples in list */
+	alo_rawgeti(T, 0, l);
+	for (size_t i = 1; i <= 4; ++i) {
+		alo_rawgeti(T, 0, l + n * i / 4);
+		insert(T, i);
 	}
-	else {
-		alo_rawgeti(T, 0, l); /* get basis */
-		/* split elements to two group divided by basis */
-		size_t a = l + 1, b = h;
-		while (a < b) {
-			alo_rawgeti(T, 0, a);
-			if (stkcmp(T, 2, 3)) {
-				alo_rawgeti(T, 0, b);
-				alo_rawseti(T, 0, a);
-				alo_rawseti(T, 0, b);
-				b--;
+	/* put samples back into list */
+	alo_rawseti(T, 0, l + n      );
+	alo_rawseti(T, 0, l + n * 3/4);
+	alo_rawseti(T, 0, l          ); /* the pivot slot */
+	alo_rawseti(T, 0, l + n * 2/4);
+	alo_rawseti(T, 0, l + n * 1/4);
+}
+
+/**
+ ** split part into two sub parts.
+ */
+static size_t partition(astate T, size_t l, size_t h) {
+	alo_rawgeti(T, 0, l); /* get pivot */
+	size_t a = l, b = h + 1;
+	while (true) {
+		while (alo_rawgeti(T, 0, ++a), stkcmp(T, 3, 2)) {
+			if (a + 1 == b)
+				goto end;
+			alo_drop(T);
+		}
+		if (a + 1 == b)
+			goto end;
+		while (alo_rawgeti(T, 0, --b), stkcmp(T, 2, 4)) {
+			alo_drop(T);
+			if (a + 1 == b)
+				goto end;
+		}
+		if (a + 1 == b) {
+			alo_drop(T);
+			break;
+		}
+		set2(T, a, b);
+	}
+	end:
+	set2(T, l, a);
+	return a;
+}
+
+/**
+ ** quick sort list.
+ ** the insert sort will used if length is less than INSERET_THRESHOLD
+ */
+static void qsortaux(astate T, size_t l, size_t h) {
+	while (true) {
+		size_t len = h - l + 1;
+		if (len < INSERET_THRESHOLD) { /* if only a few elements present, use insert sort */
+			return isortaux(T, l, len);
+		}
+		else {
+			/* find a pivot for quick sort */
+			find_pivot(T, l, h - l);
+			/* split elements to two group divided by basis */
+			size_t p = partition(T, l, h);
+			/* recursive call the smaller interval */
+			if (p - l > h - p) {
+				qsortaux(T, p + 1, h);
+				h = p - 1;
 			}
 			else {
-				alo_drop(T);
-				a++;
+				qsortaux(T, l, p - 1);
+				l = p + 1;
 			}
 		}
-		alo_rawgeti(T, 0, a);
-		if (stkcmp(T, 2, 3)) {
-			a -= 1;
-			alo_drop(T);
-			alo_rawgeti(T, 0, a);
-		}
-		alo_rawseti(T, 0, l);
-		alo_rawseti(T, 0, a);
-		/* recursive call */
-		qsortaux(T, l, a - 1);
-		qsortaux(T, a + 1, h);
 	}
 }
 
+/**
+ ** merge sort list.
+ */
 static void mergeaux(astate T, size_t l, size_t m, size_t h) {
 	size_t i;
 	alo_rawgeti(T, 0, m); /* push basis value into stack */
@@ -459,9 +522,10 @@ static int list_sort(astate T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	if (alo_isnonnil(T, 1)) {
 		aloL_checkcall(T, 1);
+		alo_settop(T, 2);
 	}
 	else {
-		alo_settop(T, 2); /* use natural order */
+		alo_pushnil(T); /* use natural order */
 	}
 	size_t len = alo_rawlen(T, 0); /* get list length */
 	sortaux(T, len);

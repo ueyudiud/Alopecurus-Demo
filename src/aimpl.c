@@ -391,7 +391,9 @@ void alo_arith(astate T, int op) {
 }
 
 int alo_compare(astate T, ssize_t index1, ssize_t index2, int op) {
-	return aloV_compare(T, index2addr(T, index1), index2addr(T, index2), op);
+	const atval_t* o1 = index2addr(T, index1);
+	const atval_t* o2 = index2addr(T, index2);
+	return aloV_compare(T, o1, o2, op);
 }
 
 void alo_pushnil(astate T) {
