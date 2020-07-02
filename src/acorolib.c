@@ -169,16 +169,16 @@ static int coro_status(astate T) {
 	}
 	else switch (alo_status(self)) {
 	case ThreadStateYield: {
+		adbinfo_t info;
+		if (!alo_getinfo(self, ALO_INFCURR, "", &info) && alo_gettop(self) != 1) {
+			goto dead;
+		}
 		suspended:
 		alo_pushcstring(T, "suspended");
 		break;
 	}
 	case ThreadStateRun: {
-		adbinfo_t info;
-		if (alo_getinfo(T, ALO_INFCURR, "", &info)) {
-			goto dead;
-		}
-		else if (alo_gettop(self) == 0) {
+		if (alo_gettop(self) == 0) {
 			alo_pushcstring(T, "normal");
 			break;
 		}

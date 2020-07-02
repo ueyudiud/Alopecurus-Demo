@@ -1603,7 +1603,8 @@ static void forstat(alexer_t* lex) {
 	afstat_t* f = lex->f;
 	aloE_assert(f->d->cv.l == 0, "case variable size is not 0.");
 	do { /* push case variable */
-		f->d->cv.a[pushcv(f)].name = testident(lex);
+		int index = pushcv(f);
+		f->d->cv.a[index].name = testident(lex);
 	}
 	while (checknext(lex, ','));
 	testnext(lex, TK_LARR);

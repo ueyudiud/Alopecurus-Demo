@@ -528,9 +528,10 @@ int alo_resume(astate T, astate from, int narg) {
 		if (T->status == ThreadStateRun)
 			return resume_error(from, "cannot resume a non-suspended coroutine.", narg);
 		else
-			return resume_error(from, "the coroutine is already dead.", narg);
+			goto dead;
 	}
 	else if (T->frame == &T->base_frame && T->top != T->base_frame.fun + 2) { /* check function not called yet */
+		dead:
 		return resume_error(from, "the coroutine is already dead.", narg);
 	}
 	api_checkelems(T, narg);
