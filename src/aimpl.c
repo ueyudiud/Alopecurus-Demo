@@ -353,6 +353,11 @@ size_t alo_rawlen(astate T, ssize_t index) {
 	}
 }
 
+size_t alo_len(astate T, ssize_t index) {
+	const atval_t* o = index2addr(T, index);
+	return aloV_length(T, o);
+}
+
 int alo_equal(astate T, ssize_t index1, ssize_t index2) {
 	const atval_t* o1 = index2addr(T, index1);
 	const atval_t* o2 = index2addr(T, index2);

@@ -29,6 +29,7 @@ ALO_IFUN int aloV_tofltx(const atval_t*, afloat*);
 ALO_IFUN ahash_t aloV_hashof(astate, const atval_t*);
 ALO_IFUN int aloV_compare(astate, const atval_t*, const atval_t*, int);
 ALO_IFUN int aloV_equal(astate, const atval_t*, const atval_t*);
+ALO_IFUN size_t aloV_length(astate, const atval_t*);
 ALO_IFUN astring_t* aloV_rawcat(astate, size_t);
 ALO_IFUN void aloV_concat(astate, size_t);
 ALO_IFUN void aloV_iterator(astate, const atval_t*, atval_t*);

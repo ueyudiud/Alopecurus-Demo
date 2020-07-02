@@ -781,20 +781,8 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_LEN: {
 			tb = X(B);
-			if (aloT_tryunr(T, tb, TM_LEN)) {
-				goto finish;
-			}
-			else {
-				size_t n;
-				switch (ttpnv(tb)) {
-				case ALO_TSTRING: n = aloS_len(tgetstr(tb)); break;
-				case ALO_TTUPLE : n = tgettup(tb)->length; break;
-				case ALO_TLIST  : n = tgetlis(tb)->length; break;
-				case ALO_TTABLE : n = tgettab(tb)->length; break;
-				default: goto notfound;
-				}
-				tsetint(S(A), n);
-			}
+			size_t len = aloV_length(T, tb);
+			tsetint(S(A), len);
 			break;
 		}
 		case OP_ITR: {

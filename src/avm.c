@@ -259,6 +259,38 @@ int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
 	}
 }
 
+/**
+ ** get length of object, the result value is integer expected.
+ */
+size_t aloV_length(astate T, const atval_t* t) {
+	switch (ttype(t)) {
+	case ALO_THSTRING:
+		return tgetstr(t)->lnglen;
+	case ALO_TISTRING:
+		return tgetstr(t)->shtlen;
+	case ALO_TLIST  : {
+		alist_t* v = tgetlis(t);
+		if (aloT_trylen(T, t, v->metatable))
+			break;
+		return v->length;
+	}
+	case ALO_TTABLE : {
+		atable_t* v = tgettab(t);
+		if (aloT_trylen(T, t, v->metatable))
+			break;
+		return v->length;
+	}
+	default: {
+		if (!aloT_trylen(T, t, aloT_getmt(t)))
+			aloU_mnotfound(T, t, "len");
+		break;
+	}
+	}
+	if (!ttisint(T->top))
+		aloU_rterror(T, "length should be integer value.");
+	return tgetint(T->top);
+}
+
 static int tuple_iterator(astate T) {
 	accl_t* c = tgetccl(T->frame->fun);
 	const atval_t* result = aloA_next(tgettup(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));

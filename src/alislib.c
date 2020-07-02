@@ -48,6 +48,21 @@ static int list_new(astate T) {
 }
 
 /**
+ ** add elements into list.
+ ** prototype: list.add(self, elements...)
+ */
+static int list_add(astate T) {
+	aloL_checktype(T, 0, ALO_TLIST);
+	size_t n = alo_gettop(T) - 1;
+	alo_sizehint(T, 0, n);
+	for (size_t i = 0; i < n; ++i) {
+		alo_push(T, i + 1);
+		alo_add(T, 0);
+	}
+	return 0;
+}
+
+/**
  ** return true if target is contained in list.
  ** prototype: list.contains(self, target)
  */
@@ -516,6 +531,7 @@ static int list_mkstr(astate T) {
 }
 
 static const acreg_t mod_funcs[] = {
+	{ "add", list_add },
 	{ "contains", list_contains },
 	{ "filter", list_filter },
 	{ "fold", list_fold },

@@ -133,5 +133,6 @@ ALO_IFUN void aloT_callbin(astate, const atval_t*, const atval_t*, const atval_t
 ALO_IFUN int aloT_callcmp(astate, const atval_t*, const atval_t*, const atval_t*);
 ALO_IFUN int aloT_tryunr(astate, const atval_t*, atmi);
 ALO_IFUN int aloT_trybin(astate, const atval_t*, const atval_t*, atmi);
+ALO_IFUN int aloT_trylen(astate, const atval_t*, atable_t*);
 
 #endif /* AMETA_H_ */

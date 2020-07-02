@@ -79,7 +79,7 @@ atable_t** aloT_getpmt(const atval_t* o) {
 /**
  ** get field in meta table with lookup.
  */
-static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* table, astring_t* name) {
+static const atval_t* aloT_fullgetis(astate T, atable_t* table, astring_t* name) {
 	aloE_assert(table, "meta table should not be NULL.");
 	const atval_t *result, *lookup;
 	Gd(T);
@@ -102,7 +102,7 @@ static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* ta
 						result = aloH_getis(tgettab(i), name);
 						break; /* no tagged method found */
 					case ALO_TFUNCTION: { /* dynamic target */
-						callbin(T, i, self, &tnewstr(name));
+						callunr(T, i, &tnewstr(name));
 						result = T->top;
 						break; /* no tagged method found */
 					}
@@ -117,7 +117,7 @@ static const atval_t* aloT_fullgetis(astate T, const atval_t* self, atable_t* ta
 			break;
 		}
 		case ALO_TFUNCTION: {
-			callbin(T, lookup, self, &tnewstr(name));
+			callunr(T, lookup, &tnewstr(name));
 			if (!ttisnil(T->top)) { /* find target? */
 				return T->top;
 			}
@@ -136,7 +136,7 @@ const atval_t* aloT_gettm(astate T, const atval_t* self, atmi id, int dolookup) 
 		return NULL;
 	Gd(T);
 	if (dolookup) {
-		return aloT_fullgetis(T, self, table, G->stagnames[id]);
+		return aloT_fullgetis(T, table, G->stagnames[id]);
 	}
 	else {
 		const atval_t* result = aloH_getis(table, G->stagnames[id]);
@@ -149,12 +149,7 @@ const atval_t* aloT_fastget(astate T, const atval_t* self, atmi id) {
 	return aloT_gfastget(T->g, table, id);
 }
 
-const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
-	aloE_assert(id < ALO_NUMTM && id != TM_LKUP, "invalid fast call tagged method id.");
-	atable_t* table = aloT_getmt(self);
-	if (table == NULL) {
-		return NULL;
-	}
+static const atval_t* fastgetx(astate T, atable_t* table, atmi id) {
 	const atval_t* result;
 	Gd(T);
 	find: /* find tagged method directly */
@@ -182,7 +177,7 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 					}
 					break; /* no tagged method found */
 				case ALO_TFUNCTION: { /* dynamic target */
-					callbin(T, i, self, &tnewstr(G->stagnames[id]));
+					callunr(T, i, &tnewstr(G->stagnames[id]));
 					if (!ttisnil(T->top)) { /* find target? */
 						return T->top;
 					}
@@ -195,7 +190,7 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 			break;
 		}
 		case ALO_TFUNCTION: {
-			callbin(T, lookup, self, &tnewstr(G->stagnames[id]));
+			callunr(T, lookup, &tnewstr(G->stagnames[id]));
 			if (!ttisnil(T->top)) { /* find target? */
 				return T->top;
 			}
@@ -206,6 +201,12 @@ const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
 		}
 	}
 	return NULL;
+}
+
+const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
+	aloE_assert(id < ALO_NUMTM && id != TM_LKUP, "invalid fast call tagged method id.");
+	atable_t* table = aloT_getmt(self);
+	return table ? fastgetx(T, table, id) : NULL;
 }
 
 const atval_t* aloT_index(astate T, const atval_t* self, const atval_t* key) {
@@ -344,7 +345,7 @@ int aloT_callcmp(astate T, const atval_t* f, const atval_t* t1, const atval_t* t
 }
 
 /**
- ** try take meta unary operation, return true if success and false for otherwise.
+ ** try take meta unary operation, return true if operation is exists.
  */
 int aloT_tryunr(astate T, const atval_t* t1, atmi id) {
 	const atval_t* tm = aloT_gettm(T, t1, id, true);
@@ -352,13 +353,11 @@ int aloT_tryunr(astate T, const atval_t* t1, atmi id) {
 		callunr(T, tm, t1);
 		return true;
 	}
-	else {
-		return false;
-	}
+	return false;
 }
 
 /**
- ** try take meta binary operation, return true if success and false for otherwise.
+ ** try take meta binary operation, return true if operation is exists.
  */
 int aloT_trybin(astate T, const atval_t* t1, const atval_t* t2, atmi id) {
 	const atval_t* tm = aloT_gettm(T, t1, id, true);
@@ -366,8 +365,20 @@ int aloT_trybin(astate T, const atval_t* t1, const atval_t* t2, atmi id) {
 		callbin(T, tm, t1, t2);
 		return true;
 	}
-	else {
-		return false;
-	}
+	return false;
 }
 
+/**
+ ** try call meta get length function, return true if function is exists.
+ */
+int aloT_trylen(astate T, const atval_t* t, atable_t* table) {
+	aloE_assert(aloT_getmt(t) == table, "meta table mismatched.");
+	if (table == NULL)
+		return false;
+	const atval_t* tm = fastgetx(T, table, TM_LEN);
+	if (tm) {
+		callunr(T, tm, t);
+		return true;
+	}
+	return false;
+}

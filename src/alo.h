@@ -128,6 +128,7 @@ ALO_API astate alo_tothread(astate, ssize_t);
 
 ALO_API void* alo_rawptr(astate, ssize_t);
 ALO_API size_t alo_rawlen(astate, ssize_t);
+ALO_API size_t alo_len(astate, ssize_t);
 ALO_API int alo_equal(astate, ssize_t, ssize_t);
 ALO_API void alo_arith(astate, int);
 ALO_API int alo_compare(astate, ssize_t, ssize_t, int);
