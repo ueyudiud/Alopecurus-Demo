@@ -12,6 +12,43 @@
 #include "aaux.h"
 #include "alibs.h"
 
+/**
+ ** allocate new table.
+ ** prototype: table.__alloc()
+ */
+static int table_alloc(astate T) {
+	alo_newtable(T, 0);
+	return 1;
+}
+
+/**
+ ** create a new table with capacity (the table is already allocated).
+ ** prototype: table.__new(initial_capacity)
+ */
+static int table_new(astate T) {
+	aloL_checktype(T, 0, ALO_TTABLE);
+	if (!alo_isnothing(T, 1)) {
+		if (alo_typeid(T, 1) == ALO_TTABLE) {
+			size_t n = alo_rawlen(T, 1);
+			alo_sizehint(T, 0, n);
+			aitr itr = alo_ibegin(T, 1);
+			while (alo_inext(T, 0, &itr)) {
+				alo_rawset(T, 0);
+			}
+		}
+		else {
+			alo_sizehint(T, 0, aloL_checkinteger(T, 1));
+		}
+	}
+	return 0;
+}
+
+static int table_clear(astate T) {
+	aloL_checktype(T, 0, ALO_TTABLE);
+	alo_rawclr(T, 0);
+	return 0;
+}
+
 static int table_filter(astate T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	aloL_checkcall(T, 1);
@@ -160,9 +197,12 @@ static int table_mkstr(astate T) {
 }
 
 static const acreg_t mod_funcs[] = {
+	{ "clear", table_clear },
 	{ "filter", table_filter },
 	{ "map", table_map },
 	{ "mkstr", table_mkstr },
+	{ "__alloc", table_alloc },
+	{ "__new", table_new },
 	{ NULL, NULL }
 };
 

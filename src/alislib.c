@@ -63,6 +63,16 @@ static int list_add(astate T) {
 }
 
 /**
+ ** clear element in list.
+ ** prototype: list.clear(self)
+ */
+static int list_clear(astate T) {
+	aloL_checktype(T, 0, ALO_TLIST);
+	alo_rawclr(T, 0);
+	return 0;
+}
+
+/**
  ** return true if target is contained in list.
  ** prototype: list.contains(self, target)
  */
@@ -597,6 +607,7 @@ static int list_mkstr(astate T) {
 static const acreg_t mod_funcs[] = {
 	{ "add", list_add },
 	{ "contains", list_contains },
+	{ "clear", list_clear },
 	{ "filter", list_filter },
 	{ "fold", list_fold },
 	{ "foldl", list_foldl },
