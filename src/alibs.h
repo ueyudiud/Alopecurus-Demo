@@ -29,6 +29,9 @@ ALO_API int aloopen_coro(astate);
 #define ALO_STRLIB_NAME "string"
 ALO_API int aloopen_str(astate);
 
+#define ALO_TUPLELIB_NAME "tuple"
+ALO_API int aloopen_tup(astate);
+
 #define ALO_LISTLIB_NAME "list"
 ALO_API int aloopen_lis(astate);
 

@@ -22,6 +22,7 @@ const amodinfo_t stdmods[] = {
 	{ ALO_MATHLIB_NAME, aloopen_math },
 	{ ALO_IOLIB_NAME, aloopen_io },
 	{ ALO_STRLIB_NAME, aloopen_str },
+	{ ALO_TUPLELIB_NAME, aloopen_tup },
 	{ ALO_LISTLIB_NAME, aloopen_lis },
 	{ ALO_TABLELIB_NAME, aloopen_tab },
 	{ ALO_SYSLIB_NAME, aloopen_sys },
