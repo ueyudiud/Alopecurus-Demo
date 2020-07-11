@@ -75,7 +75,7 @@
 /**
  ** number of tag available to use fast get function.
  */
-#define ALO_NUMTM (TM_HASH + 1)
+#define ALO_NUMTM CHAR_BIT
 
 /**
  ** number of type tags
