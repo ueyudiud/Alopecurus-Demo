@@ -7,6 +7,9 @@
  *      Author: ueyudiud
  */
 
+#define ATUPLELIB_C_
+#define ALO_LIB
+
 #include "alo.h"
 #include "aaux.h"
 #include "alibs.h"
