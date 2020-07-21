@@ -1392,15 +1392,17 @@ static void patmatch(alexer_t* lex, aestat_t* e, int multi, int* succ, int* fail
 		}
 		f->firstlocal = nact;
 	}
-	else if (f->d->cv.l == 1) {
+	else if (f->d->cv.nchild == 1) {
 		putvar(f, &ctx, &e2);
 	}
 	else {
-		*fail = aloK_jumpforward(f, *fail);
+		ctx.fail = aloK_jumpforward(f, *fail);
 	}
 	*fail = ctx.fail;
-	mergecasevar(f, nact, fail);
-	clearcv(f);
+	if (f->d->cv.nchild > 0) {
+		mergecasevar(f, nact, fail);
+		clearcv(f);
+	}
 
 	stats(lex);
 	leaveblock(f);
