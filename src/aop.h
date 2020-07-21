@@ -192,6 +192,8 @@ ALO_VDEC const char* const aloP_opname[OP_N];
  **      assignment), A has 3 kinds of mode: ignore, check and update mode.
  **
  ** <*3> for 'ret', if B = 0, return with variable argument.
+ **
+ ** <*4> for 'unbox', if xC is true, the pc will increase 1 if unbox failed.
  */
 
 #endif /* AOP_H_ */

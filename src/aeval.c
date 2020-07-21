@@ -671,12 +671,16 @@ void aloV_invoke(astate T, int dofinish) {
 				goto finish;
 			}
 			else {
+				int check = GET_xC(I);
 				if (!ttistup(tb)) {
+					if (check)
+						break;
 					goto notfound;
 				}
 				atuple_t* v = tgettup(tb);
 				int n = GET_C(I) - 1;
 				if (n == ALO_MULTIRET) {
+					pc += check;
 					askid_t s = R(A);
 					if (s + v->length > T->top) {
 						protect(aloD_growstack(T, s + v->length - T->top));
@@ -689,6 +693,11 @@ void aloV_invoke(astate T, int dofinish) {
 				}
 				else {
 					askid_t s = R(A);
+					if (check) {
+						if (v->length != n)
+							break;
+						pc += 1;
+					}
 					int i = 0;
 					for (i = 0; i < v->length && i < n; ++i) {
 						tsetobj(T, s + i, v->array + i);
@@ -1036,16 +1045,16 @@ void aloV_invoke(astate T, int dofinish) {
 	protect(I = pc[-1]); /* do protect */
 	switch (GET_i(I)) {
 	case OP_UNBOX: {
-		int succ;
-		int n = T->top - R(A);
 		if (GET_xC(I)) {
-			succ = GET_C(I) <= n;
+			if (GET_C(I) == T->top - R(A))
+				pc += 1;
 		}
 		else {
-			succ = GET_C(I) == n;
-			T->top = frame->top;
+			size_t n = GET_C(I);
+			askid_t ra = R(A);
+			for (size_t i = T->top - ra; i < n; tsetnil(ra + i), ++i);
 		}
-		pc += succ;
+		T->top = frame->top;
 		break;
 	}
 	case OP_CALL:

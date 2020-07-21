@@ -92,7 +92,7 @@ ALO_IFUN void aloK_singleret(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_fixedret(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_multiret(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_self(afstat_t*, aestat_t*, astring_t*);
-ALO_IFUN void aloK_unbox(afstat_t*, aestat_t*, int);
+ALO_IFUN void aloK_unbox(afstat_t*, aestat_t*, int, int);
 ALO_IFUN void aloK_boxt(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_newcol(afstat_t*, aestat_t*, int, size_t);
 ALO_IFUN void aloK_newitr(afstat_t*, aestat_t*);

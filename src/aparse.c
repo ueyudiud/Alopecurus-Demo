@@ -825,7 +825,7 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 		}
 		case TK_TDOT: { /* suffix -> '...' */
 			poll(lex);
-			aloK_unbox(f, e, ALO_MULTIRET);
+			aloK_unbox(f, e, ALO_MULTIRET, false);
 			break;
 		}
 		default:
@@ -1140,7 +1140,8 @@ static void multiput(afstat_t* f, acasevar_t* v, int* fail) {
 		/* unbox value first */
 		if (v->expr.t == E_VOID) { /* unit type: unbox by itself */
 			/* unbox directly */
-			aloK_unbox(f, e, v->nchild);
+			aloK_unbox(f, e, v->nchild, true);
+			*fail = aloK_jumpforward(f, *fail);
 			e->t = E_ALLOC;
 			aloK_nextR(f, e);
 		}
@@ -1213,7 +1214,7 @@ static void mergecasevar(afstat_t* f, int begin, int* fail) {
 
 	f->firstlocal = begin;
 	adjustcv(f, f->d->cv.a, 0);
-	aloE_assert(f->freelocal == f->firstlocal, "local value size not matched");
+	f->freelocal = f->firstlocal;
 }
 
 struct context_caseassign {
@@ -1370,31 +1371,37 @@ static void patmatch(alexer_t* lex, aestat_t* e, int multi, int* succ, int* fail
 	enterblock(f, &b, *succ, NULL);
 	aloE_assert(f->d->cv.l == 0, "case variable size is not 0.");
 	patterns(lex);
+	testnext(lex, TK_RARR);
 
 	/* extract variables */
 	struct context_caseassign ctx = { f->d->cv.a, NO_JUMP };
 	int nact = f->firstlocal;
 	aestat_t e2 = *e;
 	if (multi) {
-		aloK_unbox(f, &e2, f->d->cv.nchild);
+		aloK_unbox(f, &e2, f->d->cv.nchild, true);
+		*fail = aloK_jumpforward(f, *fail);
 		adjust_assign(f, f->d->cv.nchild, 1, &e2);
-		do {
-			aestat_t e3 = e2;
-			f->freelocal = e2.v.g + 1;
-			putvar(f, &ctx, &e3);
-			e2.v.g++;
+		if (f->d->cv.l > 0) {
+			do {
+				aestat_t e3 = e2;
+				f->freelocal = e2.v.g + 1;
+				putvar(f, &ctx, &e3);
+				e2.v.g++;
+			}
+			while (ctx.v);
 		}
-		while (ctx.v);
 		f->firstlocal = nact;
 	}
-	else {
+	else if (f->d->cv.l == 1) {
 		putvar(f, &ctx, &e2);
+	}
+	else {
+		*fail = aloK_jumpforward(f, *fail);
 	}
 	*fail = ctx.fail;
 	mergecasevar(f, nact, fail);
 	clearcv(f);
 
-	testnext(lex, TK_RARR);
 	stats(lex);
 	leaveblock(f);
 	*succ = aloK_jumpforward(f, b.lout);

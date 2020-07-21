@@ -630,10 +630,10 @@ void aloK_self(afstat_t* f, aestat_t* e, astring_t* name) {
 	aloK_incrstack(f, 2);
 }
 
-void aloK_unbox(afstat_t* f, aestat_t* e, int narg) {
+void aloK_unbox(afstat_t* f, aestat_t* e, int narg, int check) {
 	aloK_anyS(f, e);
 	freereg(f, e->v.g);
-	e->v.g = aloK_iABC(f, OP_UNBOX, false, e->v.g == E_CONST, false, 0, e->v.g, narg + 1);
+	e->v.g = aloK_iABC(f, OP_UNBOX, false, e->v.g == E_CONST, check, 0, e->v.g, narg + 1);
 	e->t = E_UNBOX;
 }
 
