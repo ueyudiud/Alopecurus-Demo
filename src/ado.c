@@ -288,7 +288,8 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		aloD_postcall(T, T->top - n, n);
 		return true;
 	case ALO_TACL: {
-		aproto_t* p = tgetclo(fun)->a.proto;
+		aacl_t* c = tgetacl(fun);
+		aproto_t* p = c->proto;
 		askid_t base = fun + 1;
 		int actual = T->top - base;
 		int off = 0;
@@ -318,7 +319,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		frame->fun = base - off;
 		frame->a.base = base;
 		frame->a.pc = p->code;
-		frame->env = tgetacl(base - 1)->array[0]->p;
+		frame->env = c->array[0]->p;
 		T->frame = frame;
 		T->top = frame->top = base + p->nstack;
 		if (T->hookmask & ALO_HMASKCALL) {

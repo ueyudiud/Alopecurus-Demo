@@ -57,9 +57,9 @@ static int class_meta_new(astate T) {
 	/* set 'lookup' entry */
 	alo_newlist(T, n);
 	alo_push(T, -1);
-	alo_rawsets(T, -3, "__lkup");
+	alo_rawsets(T, -3, "__look");
 	for (ssize_t i = n - 1; i >= 0; --i) {
-		switch (alo_rawgets(T, 2 + i, "__lkup")) {
+		switch (alo_rawgets(T, 2 + i, "__look")) {
 		case ALO_TLIST: { /* MRO lookup */
 			size_t m = alo_rawlen(T, -1);
 			for (size_t j = 0; j < m; ++j) {
@@ -95,13 +95,11 @@ static int class_meta_newindex(astate T) {
 
 static const acreg_t mod_funcs[] = {
 	{ "__call", class_meta_new },
-	{ "__nidx", class_meta_newindex },
+	{ "__set", class_meta_newindex },
 	{ NULL, NULL }
 };
 
 int aloopen_cls(astate T) {
-	alo_bind(T, "class.meta.__new", class_meta_new);
-	alo_bind(T, "class.meta.__nidx", class_meta_newindex);
 	alo_newtable(T, 16);
 	alo_newtable(T, 16);
 	aloL_setfuns(T, -1, mod_funcs);

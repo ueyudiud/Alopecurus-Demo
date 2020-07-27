@@ -937,7 +937,7 @@ void alo_add(astate T, ssize_t idown) {
 void alo_setx(astate T, ssize_t idown, int dodrop) {
 	api_checkelems(T, 2);
 	askid_t o = index2addr(T, idown);
-	const atval_t* tm = aloT_fastgetx(T, o, TM_NIDX);
+	const atval_t* tm = aloT_fastgetx(T, o, TM_SET);
 	if (tm) { /* call tagged method */
 		tsetobj(T, T->top    , T->top - 2);
 		tsetobj(T, T->top + 1, T->top - 1);

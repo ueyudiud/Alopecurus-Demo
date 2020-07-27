@@ -87,7 +87,7 @@ static const atval_t* aloT_fullgetis(astate T, atable_t* table, astring_t* name)
 	if (!ttisnil(result = aloH_getis(table, name))) {
 		return result;
 	}
-	if ((lookup = aloT_gfastget(G, table, TM_LKUP))) {
+	if ((lookup = aloT_gfastget(G, table, TM_LOOK))) {
 		switch (ttpnv(lookup)) {
 		case ALO_TTABLE: /* find method in parent meta table */
 			table = tgettab(lookup);
@@ -157,7 +157,7 @@ static const atval_t* fastgetx(astate T, atable_t* table, atmi id) {
 		return result;
 	}
 	/* failed get tagged method directly, call 'lookup' method */
-	const atval_t* lookup = aloT_gfastget(G, table, TM_LKUP);
+	const atval_t* lookup = aloT_gfastget(G, table, TM_LOOK);
 	if (lookup) {
 		switch (ttpnv(lookup)) {
 		case ALO_TTABLE: /* find method in parent meta table */
@@ -204,14 +204,14 @@ static const atval_t* fastgetx(astate T, atable_t* table, atmi id) {
 }
 
 const atval_t* aloT_fastgetx(astate T, const atval_t* self, atmi id) {
-	aloE_assert(id < ALO_NUMTM && id != TM_LKUP, "invalid fast call tagged method id.");
+	aloE_assert(id < ALO_NUMTM && id != TM_LOOK, "invalid fast call tagged method id.");
 	atable_t* table = aloT_getmt(self);
 	return table ? fastgetx(T, table, id) : NULL;
 }
 
 const atval_t* aloT_index(astate T, const atval_t* self, const atval_t* key) {
 	const atval_t *meta, *result;
-	meta = aloT_fastgetx(T, self, TM_IDX);
+	meta = aloT_fastgetx(T, self, TM_GET);
 	if (meta == NULL) {
 		return NULL;
 	}
@@ -226,7 +226,7 @@ const atval_t* aloT_index(astate T, const atval_t* self, const atval_t* key) {
 			return result;
 		}
 		self = meta;
-		meta = aloT_fastgetx(T, self, TM_IDX);
+		meta = aloT_fastgetx(T, self, TM_GET);
 		if (meta != NULL) {
 			goto find;
 		}
@@ -293,7 +293,7 @@ const atval_t* aloT_lookup(astate T, const atval_t* self, const atval_t* key) {
 			return result;
 		}
 		/* failed get tagged method directly, call 'lookup' method */
-		const atval_t* lookup = aloT_gfastget(T->g, table, TM_LKUP);
+		const atval_t* lookup = aloT_gfastget(T->g, table, TM_LOOK);
 		if (lookup) {
 			switch (ttpnv(lookup)) {
 			case ALO_TTABLE: /* find method in parent meta table */

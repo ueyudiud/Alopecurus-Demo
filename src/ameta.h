@@ -20,10 +20,10 @@
  ** all tagged methods.
  */
 #define TM_LIST \
-	TM(TM_LKUP, lkup), \
+	TM(TM_LOOK, look), \
 	TM(TM_DLGT, dlgt), \
-	TM(TM_IDX, idx), \
-	TM(TM_NIDX, nidx), \
+	TM(TM_GET, get), \
+	TM(TM_SET, set), \
 	TM(TM_MODE, mode), \
 	TM(TM_LEN, len), \
 	TM(TM_EQ, eq), \

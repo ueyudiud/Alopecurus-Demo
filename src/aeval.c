@@ -733,7 +733,7 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_SET: {
 			tb = X(B);
-			protect(tm = aloT_fastget(T, tb, TM_NIDX));
+			protect(tm = aloT_fastget(T, tb, TM_SET));
 			if (tm) {
 				aloT_vmput4(T, tm, S(A), tb, X(C));
 				aloD_call(T, T->top - 4, 0);

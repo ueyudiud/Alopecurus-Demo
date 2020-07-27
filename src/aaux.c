@@ -58,7 +58,7 @@ void aloL_pushscopedcfunction(astate T, acfun value) {
 	alo_newtable(T, 0);
 	alo_newtable(T, 1); /* meta table of scope */
 	alo_push(T, ALO_REGISTRY_INDEX); /* push current environment */
-	alo_rawsets(T, -2, "__idx"); /* set lookup table */
+	alo_rawsets(T, -2, "__get"); /* set lookup table */
 	alo_setmetatable(T, -2);
 	alo_pushcfunction(T, value, 1, true);
 }

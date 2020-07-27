@@ -180,7 +180,7 @@ static adlbox_t* l_preload(astate T) {
 	box->library = NULL;
 	if (aloL_getsimpleclass(T, "__file")) {
 		static const acreg_t funs[] = {
-				{ "__idx", dlbox_index },
+				{ "__get", dlbox_index },
 				{ "__del", dlbox_del },
 				{ NULL, NULL }
 		};
@@ -304,7 +304,7 @@ static int loader_l(astate T) {
 	alo_newtable(T, 0); /* delegate = [:]  */
 	alo_newtable(T, 1); /* meta = [:] */
 	alo_push(T, ALO_REGISTRY_INDEX); /* push environment */
-	alo_rawsets(T, 3, "__idx"); /* meta.__idx = _G */
+	alo_rawsets(T, 3, "__get"); /* meta.__get = _G */
 	alo_push(T, 0);
 	alo_rawsets(T, 3, PACKAGE_KEY); /* put package path */
 	alo_setmetatable(T, 2); /* setmeta(delegate, meta) */

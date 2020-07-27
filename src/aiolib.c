@@ -415,7 +415,7 @@ static const acreg_t cls_funcs[] = {
 };
 
 static const acreg_t mod_metafuncs[] = {
-	{ "__idx", io_index },
+	{ "__get", io_index },
 	{ NULL, NULL }
 };
 
@@ -428,12 +428,6 @@ static const acreg_t mod_funcs[] = {
 };
 
 int aloopen_io(astate T) {
-	alo_bind(T, "io.open", io_open);
-	alo_bind(T, "io.remove", io_remove);
-	alo_bind(T, "io.rename", io_rename);
-	alo_bind(T, "io.meta.__idx", io_index);
-	alo_bind(T, "file.flush", f_flush);
-	alo_bind(T, "file.puts", f_puts);
 	alo_newtable(T, 16);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_newtable(T, 16);
