@@ -16,7 +16,7 @@
 
 #include <ctype.h>
 #include <limits.h>
-#include <error.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

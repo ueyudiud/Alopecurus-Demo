@@ -319,7 +319,7 @@ static void enterblock(afstat_t* f, ablock_t* b, int label, astr lname) {
 		.nlocal = f->firstlocal, /* ignore all local value */
 		.fsymbol = f->d->ss.l,
 		.flabel = f->d->lb.l,
-		.fjump = f->d->lb.l,
+		.fjump = f->d->jp.l,
 		.lcon = label,
 		.lout = NO_JUMP,
 		.incap = false,
@@ -376,6 +376,7 @@ static void enterfunc(afstat_t* f, afstat_t* parent) {
 }
 
 static void leavefunc(afstat_t* f) {
+	aloE_assert(f->b == f->broot, "not at root block.");
 	leaveblock(f);
 	astate T = f->l->T;
 	closeproto(T, f);
@@ -587,7 +588,6 @@ static void primaryexpr(alexer_t* lex, aestat_t* e) {
 			}
 		}
 		f->freelocal++;
-		aloE_assert(!(e->t == E_LOCAL && e->v.g == f->freelocal - 2), "class cannot be a temporary value");
 		aloK_eval(f, e);
 		if (e->t == E_ALLOC) {
 			aloK_nextR(f, e);
@@ -699,8 +699,8 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 	case '{' : { /* funargs -> '{' (stats | partialfun) '}' */
 		n = 0;
 		func: {
-			afstat_t f;
-			enterfunc(&f, lex->f);
+			afstat_t f[1];
+			enterfunc(f, lex->f);
 			int line = lex->cl;
 			poll(lex); /* skip '}' */
 			if (check(lex, TK_CASE)) { /* partial function mode */
@@ -710,7 +710,7 @@ static int funargs(alexer_t* lex, aestat_t* e) {
 				rootstats(lex);
 			}
 			testenclose(lex, '{', '}', line);
-			leavefunc(&f);
+			leavefunc(f);
 			initexp(e, E_ALLOC);
 			e->v.g = aloK_iABx(lex->f, OP_LDP, false, true, 0, lex->f->nchild - 1);
 			n++;
@@ -844,8 +844,8 @@ static void suffixexpr(alexer_t* lex, aestat_t* e) {
 static void funcarg(alexer_t*);
 
 static void lambdaexpr(alexer_t* lex, aestat_t* e) {
-	afstat_t f;
-	enterfunc(&f, lex->f);
+	afstat_t f[1];
+	enterfunc(f, lex->f);
 	if (checknext(lex, '{')) {
 		/* lambdaexpr -> '\\' '{' stats '}' */
 		int line = lex->pl;
@@ -858,7 +858,7 @@ static void lambdaexpr(alexer_t* lex, aestat_t* e) {
 		testnext(lex, TK_RARR);
 		istat(lex);
 	}
-	leavefunc(&f);
+	leavefunc(f);
 	initexp(e, E_ALLOC);
 	e->v.g = aloK_iABx(lex->f, OP_LDP, false, true, 0, lex->f->nchild - 1);
 }
@@ -1765,12 +1765,12 @@ static void defstat(alexer_t* lex) {
 	int line = lex->cl;
 	int hasself;
 	aestat_t e1, e2;
-	afstat_t f2;
+	afstat_t f2[1];
 	astring_t* name = defname(lex, &e1, &hasself);
-	enterfunc(&f2, f);
-	f2.p->name = name; /* bind function name */
+	enterfunc(f2, f);
+	f2->p->name = name; /* bind function name */
 	if (hasself) {
-		regloc(&f2, lex->T->g->stagnames[TM_THIS]);
+		regloc(f2, lex->T->g->stagnames[TM_THIS]);
 	}
 	if (check(lex, '(')) {
 		int line = lex->cl;
@@ -1779,11 +1779,11 @@ static void defstat(alexer_t* lex) {
 		testenclose(lex, '(', ')', line);
 	}
 	fistat(lex);
-	leavefunc(&f2);
+	leavefunc(f2);
 	aloK_loadproto(f, &e2);
-	aloK_fixline(lex->f, line); /* fix line to function */
+	aloK_fixline(f, line); /* fix line to function */
 	aloK_assign(f, &e1, &e2);
-	aloK_fixline(lex->f, line); /* fix line to function */
+	aloK_fixline(f, line); /* fix line to function */
 	aloK_drop(f, &e1);
 }
 
@@ -1794,9 +1794,9 @@ static void localstat(alexer_t* lex) {
 	if (check(lex, '(') || check(lex, TK_RARR)) {
 		/* localstat -> 'local' IDENT { '(' funcarg ')' } fistat */
 		int index = regloc(f, name); /* add local name */
-		afstat_t f2;
-		enterfunc(&f2, f);
-		f2.p->name = name; /* bind function name */
+		afstat_t f2[1];
+		enterfunc(f2, f);
+		f2->p->name = name; /* bind function name */
 		if (check(lex, '(')) {
 			int line = lex->cl;
 			poll(lex);
@@ -1804,7 +1804,7 @@ static void localstat(alexer_t* lex) {
 			testenclose(lex, '(', ')', line);
 		}
 		fistat(lex);
-		leavefunc(&f2);
+		leavefunc(f2);
 		aloE_assert(f->freelocal == index, "illegal local variable index");
 		aestat_t e;
 		aloK_loadproto(f, &e);
@@ -1977,17 +1977,16 @@ struct alo_ParseContext {
 static void pparse(astate T, void* raw) {
 	struct alo_ParseContext* ctx = aloE_cast(struct alo_ParseContext*, raw);
 	ctx->data.p = aloF_newp(T);
-	ablock_t b;
-	afstat_t f = { .p = ctx->data.p, .e = NULL, .d = &ctx->data, .cjump = NO_JUMP };
-	ctx->lex.f = &f;
-	f.l = &ctx->lex;
+	afstat_t f[1] = { { .p = ctx->data.p, .e = NULL, .d = &ctx->data, .cjump = NO_JUMP } };
+	ctx->lex.f = f;
+	f->l = &ctx->lex;
 	poll(&ctx->lex);
-	initproto(T, &f);
-	enterblock(&f, &b, NO_JUMP, NULL);
+	initproto(T, f);
+	enterblock(f, f->broot, NO_JUMP, NULL);
 	rootstats(&ctx->lex);
 	test(&ctx->lex, TK_EOF); /* should compile to end of script */
-	leaveblock(&f);
-	closeproto(T, &f);
+	leaveblock(f);
+	closeproto(T, f);
 }
 
 static void destory_context(astate T, apdata_t* data) {
