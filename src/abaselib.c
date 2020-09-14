@@ -95,16 +95,6 @@ static int base_tonum(astate T) {
 }
 
 /**
- ** box arguments to a tuple
- ** prototype: boxarg({arg})
- */
-static int base_boxarg(astate T) {
-	size_t n = alo_gettop(T);
-	alo_newtuple(T, n);
-	return 1;
-}
-
-/**
  ** get element from structure.
  ** prototype: rawget(arg, idx)
  */
@@ -316,7 +306,6 @@ static int base_setmeta(astate T) {
 
 static const acreg_t mod_funcs[] = {
 	{ "assert", base_assert },
-	{ "boxarg", base_boxarg },
 	{ "print", base_print },
 	{ "println", base_println },
 	{ "newiterator", base_newiterator },
@@ -343,7 +332,6 @@ static const acreg_t mod_funcs[] = {
 
 int aloopen_base(astate T) {
 	alo_bind(T, "base.assert", base_assert);
-	alo_bind(T, "base.boxarg", base_boxarg);
 	alo_bind(T, "base.print", base_print);
 	alo_bind(T, "base.println", base_println);
 	alo_bind(T, "base.rawget", base_rawget);

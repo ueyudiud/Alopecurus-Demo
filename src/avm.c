@@ -215,48 +215,23 @@ int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
 		case ALO_TPOINTER: return tgetptr(t1) == tgetptr(t2);
 		case ALO_THSTRING: return aloS_hequal(tgetstr(t1), tgetstr(t2));
 		case ALO_TISTRING: return tgetstr(t1) == tgetstr(t2);
-		case ALO_TTUPLE  : {
-			if (tgettup(t1) == tgettup(t2))
-				return true;
-			break;
-		}
-		case ALO_TLIST   : {
-			if (tgetlis(t1) == tgetlis(t2))
-				return true;
-			break;
-		}
-		case ALO_TTABLE  : {
-			if (tgettab(t1) == tgettab(t2))
-				return true;
-			break;
-		}
-		case ALO_TRAWDATA: {
-			if (tgetrdt(t1) == tgetrdt(t2))
-				return true;
-			break;
-		}
 		case ALO_TLCF    : return tgetlcf(t1) == tgetlcf(t2);
-		case ALO_TCCL    : return tgetccl(t1) == tgetccl(t2);
-		case ALO_TACL    : return tgetacl(t1) == tgetacl(t2);
-		case ALO_TTHREAD : return tgetthr(t1) == tgetthr(t2);
-		default:
-			aloE_xassert(false);
-			return false;
+		default          : {
+			if (tgetref(t1) == tgetref(t2)) /* if two reference are equal, return true */
+				return true;
+			if (T == NULL) /* if no environment for meta method (equivalent to raw equal stop here), return false */
+				return false;
+			/* call meta method */
+			const atval_t* meta = aloT_fastgetx(T, t1, TM_EQ);
+			return meta && aloT_callcmp(T, meta, t1, t2);
 		}
-		if (T == NULL) { /* if no environment for meta method (equivalent to raw equal stop here), return false */
-			return false;
 		}
-		/* call meta method */
-		const atval_t* meta = aloT_fastgetx(T, t1, TM_EQ);
-		return meta && aloT_callcmp(T, meta, t1, t2);
 	}
-	else {
-		if (ttisnum(t1) && ttisnum(t2)) {
-			aint v1, v2;
-			return aloV_toint(t1, v1) && aloV_toint(t2, v2) && v1 == v2;
-		}
-		return false;
+	else if (ttisnum(t1) && ttisnum(t2)) { /* check number */
+		aint v1, v2;
+		return aloV_toint(t1, v1) && aloV_toint(t2, v2) && v1 == v2;
 	}
+	return false;
 }
 
 /**

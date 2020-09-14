@@ -21,6 +21,16 @@
 #define defaults(s,l,x) aloE_void((s) = ""x, (l) = (sizeof(x) / sizeof(char) - 1))
 
 /**
+ * wrap arguments into tuple.
+ * prototype: tuple.create(_,[args...])
+ */
+static int tup_create(astate T) {
+	size_t n = alo_gettop(T) - 1;
+	alo_newtuple(T, n);
+	return 1;
+}
+
+/**
  ** make string from tuple.
  ** prototype: tuple.mkstr(self,[sep]|[left,seq,right])
  */
@@ -76,6 +86,7 @@ static int tup_mkstr(astate T) {
 }
 
 static acreg_t mod_funcs[] = {
+	{ "create", tup_create },
 	{ "mkstr", tup_mkstr },
 	{ NULL, NULL }
 };
