@@ -621,14 +621,6 @@ static const acreg_t mod_funcs[] = {
 };
 
 int aloopen_lis(astate T) {
-	alo_bind(T, "list.contains", list_contains);
-	alo_bind(T, "list.filter", list_filter);
-	alo_bind(T, "list.fold", list_fold);
-	alo_bind(T, "list.foldl", list_foldl);
-	alo_bind(T, "list.foldr", list_foldr);
-	alo_bind(T, "list.map", list_map);
-	alo_bind(T, "list.mkstr", list_mkstr);
-	alo_bind(T, "list.sort", list_sort);
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TLIST);
 	aloL_setfuns(T, -1, mod_funcs);

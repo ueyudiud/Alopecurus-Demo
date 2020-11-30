@@ -271,7 +271,7 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		checkstack(T, ALO_MINSTACKSIZE, fun);
 		aframe_t* frame = nextframe(T);
 		frame->nresult = nresult;
-		frame->name = aloU_getcname(T, caller);
+		frame->name = "<native>";
 		frame->c.kfun = NULL;
 		frame->c.kctx = 0;
 		frame->c.oef = 0;

@@ -45,10 +45,6 @@ void alo_setalloc(astate T, aalloc alloc, void* ctx) {
 	G->context = ctx;
 }
 
-void alo_bind(astate T, astr name, acfun handle) {
-	aloU_bind(T, handle, aloS_newi(T, name, strlen(name)));
-}
-
 const aver_t* alo_version(astate T) {
 	return T ? T->g->version : &aloR_version;
 }

@@ -72,7 +72,6 @@ ALO_API void alo_deletestate(astate);
 ALO_API void alo_setpanic(astate, acfun);
 ALO_API aalloc alo_getalloc(astate, void**);
 ALO_API void alo_setalloc(astate, aalloc, void*);
-ALO_API void alo_bind(astate, astr, acfun);
 
 ALO_API const aver_t* alo_version(astate);
 

@@ -26,15 +26,6 @@ typedef struct {
 } aitable_t;
 
 /**
- ** table to store extra C function information.
- */
-typedef struct {
-	size_t capacity;
-	size_t length;
-	acreg_t* array;
-} actable_t;
-
-/**
  ** memory stack to allocate and free memory buffer.
  */
 typedef struct {
@@ -58,7 +49,6 @@ typedef struct alo_Global {
 	size_t mestimate; /* estimated memory for live objects */
 	size_t mtraced; /* traced memory (only used in GC) */
 	aitable_t itable; /* intern string table */
-	actable_t ctable; /* C function information table */
 	atval_t registry; /* global environment */
 	ahash_t seed; /* randomized seed for hash */
 	agct gnormal; /* list for normal objects */

@@ -46,6 +46,11 @@ ALO_API void aloL_checkcall(astate, ssize_t);
 ALO_API const char* aloL_tostring(astate, ssize_t, size_t*);
 ALO_API astr aloL_sreplace(astate, astr, astr, astr);
 
+typedef struct {
+	const char* name;
+	acfun handle;
+} acreg_t;
+
 ALO_API void aloL_setfuns(astate, ssize_t, const acreg_t*);
 
 ALO_API int aloL_getmetatable(astate, astr);

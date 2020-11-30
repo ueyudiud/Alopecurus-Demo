@@ -331,24 +331,6 @@ static const acreg_t mod_funcs[] = {
 #define NUM_DELEGATES (ALO_TRAWDATA + 1)
 
 int aloopen_base(astate T) {
-	alo_bind(T, "base.assert", base_assert);
-	alo_bind(T, "base.print", base_print);
-	alo_bind(T, "base.println", base_println);
-	alo_bind(T, "base.rawget", base_rawget);
-	alo_bind(T, "base.rawlen", base_rawlen);
-	alo_bind(T, "base.rawset", base_rawset);
-	alo_bind(T, "base.rawrem", base_rawrem);
-	alo_bind(T, "base.setmeta", base_setmeta);
-	alo_bind(T, "base.toint", base_toint);
-	alo_bind(T, "base.tonum", base_tonum);
-	alo_bind(T, "base.tostring", base_tostring);
-	alo_bind(T, "base.try", base_try);
-	alo_bind(T, "base.throw", base_throw);
-	alo_bind(T, "base.newiterator", base_newiterator);
-	alo_bind(T, "base.newiterator.sequence_next", base_inext);
-	alo_bind(T, "base.newiterator.table_next", base_mnext);
-	alo_bind(T, "base.typeof", base_typeof);
-	alo_bind(T, "base.delegate", base_delegate);
 	alo_push(T, ALO_GLOBAL_IDNEX);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_pushcstring(T, ALO_VERSION);

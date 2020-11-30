@@ -220,15 +220,6 @@ static const acreg_t mod_funcs[] = {
 };
 
 int aloopen_coro(astate T) {
-	alo_bind(T, "thread.create", coro_create);
-	alo_bind(T, "thread.current", coro_current);
-	alo_bind(T, "thread.isyieldable", coro_isyieldable);
-	alo_bind(T, "thread.presume", coro_presume);
-	alo_bind(T, "thread.resume", coro_resume);
-	alo_bind(T, "thread.tofun.resume", aux_resume_closure);
-	alo_bind(T, "thread.tofun", coro_tofun);
-	alo_bind(T, "thread.wrap", coro_wrap);
-	alo_bind(T, "thread.yield", coro_yield);
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TTHREAD);
 	aloL_setfuns(T, -1, mod_funcs);

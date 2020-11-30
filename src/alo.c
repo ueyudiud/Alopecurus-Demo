@@ -377,7 +377,6 @@ int main(int argc, astr argv[]) {
 
 		alo_pushlightcfunction(T, ferrmsg);
 		if (srcpath) {
-			alo_bind(T, "<run>", runf); /* put main function name */
 			aloL_pushscopedcfunction(T, runf);
 			alo_pushstring(T, srcpath);
 			if (alo_pcall(T, 1, 0, 0) != ThreadStateRun) {
@@ -385,7 +384,6 @@ int main(int argc, astr argv[]) {
 			}
 		}
 		else {
-			alo_bind(T, "<run>", runc); /* put main function name */
 			l_msg(ALO_COPYRIGHT"\n");
 			alo_settop(T, 0);
 			alo_pushlightcfunction(T, ferrmsg);

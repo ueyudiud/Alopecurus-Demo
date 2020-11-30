@@ -62,7 +62,6 @@ static void initialize(astate T, __attribute__((unused)) void* context) {
 	aloS_init(T);
 	aloT_init(T);
 	aloX_init(T);
-	aloU_init(T);
 	aloi_openthread(T, NULL);
 }
 
@@ -140,9 +139,6 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	G->itable.length = 0;
 	G->itable.capacity = 0;
 	G->itable.array = NULL;
-	G->ctable.length = 0;
-	G->ctable.capacity = 0;
-	G->ctable.array = NULL;
 	T->gcprev = NULL;
 	T->tt = ALO_TTHREAD;
 	T->mark = aloG_white1;

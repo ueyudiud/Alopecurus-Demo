@@ -81,11 +81,6 @@ typedef int (*areader)(astate, void*, const char**, size_t*);
  */
 typedef int (*awriter)(astate, void*, const void*, size_t);
 
-typedef struct alo_CRegistry {
-	astr name;
-	acfun handle;
-} acreg_t;
-
 /**
  ** type and operation tags.
  */

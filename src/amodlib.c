@@ -606,8 +606,6 @@ static void create_loaderlist(astate T) {
 }
 
 int aloopen_mod(astate T) {
-	alo_bind(T, "mod.loaddl", mod_loaddl);
-	alo_bind(T, "mod.import", mod_import);
 	alo_newtable(T, 8);
 	aloL_setfuns(T, -1, mod_funcs);
 	/* put current package */

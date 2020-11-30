@@ -10,10 +10,7 @@
 
 #include "aobj.h"
 
-ALO_IFUN void aloU_init(astate);
-ALO_IFUN astr aloU_getcname(astate, acfun);
 ALO_IFUN alineinfo_t* aloU_lineof(aproto_t*, const ainsn_t*);
-ALO_IFUN void aloU_bind(astate, acfun, astring_t*);
 ALO_IFUN void aloU_clearbuf(astate);
 
 ALO_IFUN anoret aloU_error(astate, int);

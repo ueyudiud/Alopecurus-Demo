@@ -246,29 +246,6 @@ static const acreg_t mod_funcs[] = {
 };
 
 int aloopen_math(astate T) {
-	alo_bind(T, "math.abs", math_abs);
-	alo_bind(T, "math.acos", math_acos);
-	alo_bind(T, "math.asin", math_asin);
-	alo_bind(T, "math.atan", math_atan);
-	alo_bind(T, "math.cbrt", math_cbrt);
-	alo_bind(T, "math.ceil", math_ceil);
-	alo_bind(T, "math.cos", math_cos);
-	alo_bind(T, "math.deg", math_deg);
-	alo_bind(T, "math.erf", math_erf);
-	alo_bind(T, "math.erfc", math_erfc);
-	alo_bind(T, "math.exp", math_exp);
-	alo_bind(T, "math.floor", math_floor);
-	alo_bind(T, "math.lgamma", math_lgamma);
-	alo_bind(T, "math.log", math_log);
-	alo_bind(T, "math.ln", math_ln);
-	alo_bind(T, "math.min", math_min);
-	alo_bind(T, "math.max", math_max);
-	alo_bind(T, "math.rad", math_rad);;
-	alo_bind(T, "math.random", math_random);
-	alo_bind(T, "math.sin", math_sin);
-	alo_bind(T, "math.sqrt", math_sqrt);
-	alo_bind(T, "math.tan", math_tan);
-	alo_bind(T, "math.tgamma", math_tgamma);
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_pushnumber(T, NAN);

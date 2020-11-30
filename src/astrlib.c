@@ -1504,15 +1504,6 @@ static const acreg_t mod_funcs[] = {
 };
 
 int aloopen_str(astate T) {
-	alo_bind(T, "string.byte", str_byte);
-	alo_bind(T, "string.char", str_char);
-	alo_bind(T, "string.repeat", str_repeat);
-	alo_bind(T, "string.replace", str_replace);
-	alo_bind(T, "string.reverse", str_reverse);
-	alo_bind(T, "string.split", str_split);
-	alo_bind(T, "string.trim", str_trim);
-	alo_bind(T, "string.match", str_match);
-	alo_bind(T, "string.matcher", str_matcher);
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TSTRING);
 	aloL_setfuns(T, -1, mod_funcs);

@@ -896,7 +896,6 @@ void aloG_clear(astate T) {
 	G->whitebit = 0; /* mark all objects are dead */
 	sweepall(T, &G->gnormal);
 	sweepall(T, &G->gfixed);
-	aloU_clearbuf(T);
 	aloE_assert(G->itable.length == 0, "some of intern string not delete yet.");
 	aloM_dela(T, G->itable.array, G->itable.capacity); /* delete intern string table */
 }
