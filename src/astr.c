@@ -17,8 +17,8 @@
 /**
  ** get raw hash from string.
  */
-ahash_t aloS_rhash(astr src, size_t len, uint64_t seed) {
-	ahash_t h = seed ^ len;
+a_hash aloS_rhash(a_cstr src, size_t len, uint64_t seed) {
+	a_hash h = seed ^ len;
 	uint64_t step = (len >> ALO_STRHASHLIMIT) + 1;
 	const char* const end = src + len;
 	for (const char* i = src; i < end; i += step)
@@ -29,7 +29,7 @@ ahash_t aloS_rhash(astr src, size_t len, uint64_t seed) {
 /**
  ** calculate hash or use cache to get hash of string.
  */
-ahash_t aloS_hash(astate T, astring_t* self) {
+a_hash aloS_hash(alo_State T, alo_Str* self) {
 	if (!self->fhash) {
 		self->hash = aloS_rhash(self->array, aloS_len(self), T->g->seed);
 		self->fhash = true;
@@ -40,10 +40,10 @@ ahash_t aloS_hash(astate T, astring_t* self) {
 /**
  ** create or reuse a string by a '\0' terminated source.
  */
-astring_t* aloS_of(astate T, astr value) {
+alo_Str* aloS_of(alo_State T, a_cstr value) {
 	Gd(T);
 	uintmax_t i = aloE_addr(value) % ALO_STRCACHE_N;
-	astring_t** array = G->scache[i];
+	alo_Str** array = G->scache[i];
 	for (int j = 0; j < ALO_STRCACHE_M; ++j)
 		if (strcmp(array[j]->array, value) == 0) /* equal? */
 			return array[j]; /* get string */
@@ -56,8 +56,8 @@ astring_t* aloS_of(astate T, astr value) {
 /**
  ** create raw string object.
  */
-static astring_t* create(astate T, int type, size_t len) {
-	astring_t* value = aloE_cast(astring_t*, aloM_malloc(T, astrsizel(len)));
+static alo_Str* create(alo_State T, int type, size_t len) {
+	alo_Str* value = aloE_cast(alo_Str*, aloM_malloc(T, astrsizel(len)));
 	value->extra = 0;
 	value->flags = 0;
 	value->array[len] = '\0'; /* let string ended with '\0' */
@@ -70,12 +70,12 @@ static astring_t* create(astate T, int type, size_t len) {
 /**
  ** double intern table capacity.
  */
-static void expandtable(astate T, aitable_t* table) {
+static void expandtable(alo_State T, aitable_t* table) {
 	size_t size = table->capacity;
 	size_t nsize = size * 2;
-	astring_t** array = table->array;
+	alo_Str** array = table->array;
 	array = aloM_adja(T, array, size, nsize);
-	astring_t **p, **q, *v;
+	alo_Str **p, **q, *v;
 	table->capacity = nsize;
 	for (size_t i = 0; i < size; ++i) {
 		p = array + i;
@@ -99,12 +99,12 @@ static void expandtable(astate T, aitable_t* table) {
 /**
  ** get or create a interned string object from table.
  */
-static astring_t* intern(astate T, const char* src, size_t len) {
+static alo_Str* intern(alo_State T, const char* src, size_t len) {
 	aloE_assert(src, "source should not be null.");
 	Gd(T);
-	ahash_t hash = aloS_rhash(src, len, G->seed);
-	astring_t** s = &G->itable.array[indexof(G->itable, hash)];
-	astring_t* v;
+	a_hash hash = aloS_rhash(src, len, G->seed);
+	alo_Str** s = &G->itable.array[indexof(G->itable, hash)];
+	alo_Str* v;
 	while ((v = *s)) {
 		if (v->hash == hash && aloS_requal(v, src, len)) {
 			if (aloG_isdead(G, v)) { /* if string is already dead but not collect yet. */
@@ -119,7 +119,7 @@ static astring_t* intern(astate T, const char* src, size_t len) {
 	}
 	s = &G->itable.array[indexof(G->itable, hash)];
 
-	astring_t* value = create(T, ALO_TISTRING, len);
+	alo_Str* value = create(T, ALO_VISTR, len);
 	value->fhash = true;
 	value->hash = hash;
 	value->shtlen = len;
@@ -134,9 +134,9 @@ static astring_t* intern(astate T, const char* src, size_t len) {
 /**
  ** create a long string object.
  */
-astring_t* aloS_createlng(astate T, size_t len) {
+alo_Str* aloS_createlng(alo_State T, size_t len) {
 	aloE_assert(len > ALO_MAXISTRLEN, "too short to store in heap");
-	astring_t* value = create(T, ALO_THSTRING, len);
+	alo_Str* value = create(T, ALO_VHSTR, len);
 	value->lnglen = len;
 	return value;
 }
@@ -144,8 +144,8 @@ astring_t* aloS_createlng(astate T, size_t len) {
 /**
  ** create a string object in heap.
  */
-static astring_t* heap(astate T, const char* src, size_t len) {
-	astring_t* value = aloS_createlng(T, len);
+static alo_Str* heap(alo_State T, const char* src, size_t len) {
+	alo_Str* value = aloS_createlng(T, len);
 	memcpy(value->array, src, len * sizeof(char));
 	return value;
 }
@@ -153,10 +153,10 @@ static astring_t* heap(astate T, const char* src, size_t len) {
 /**
  ** remove short string in cache.
  */
-void aloS_remove(astate T, astring_t* self) {
+void aloS_remove(alo_State T, alo_Str* self) {
 	Gd(T);
-	astring_t** s = &G->itable.array[indexof(G->itable, self->hash)];
-	astring_t* v;
+	alo_Str** s = &G->itable.array[indexof(G->itable, self->hash)];
+	alo_Str* v;
 	while ((v = *s)) {
 		if (v == self) {
 			*s = v->shtlist; /* remove string from list */
@@ -171,7 +171,7 @@ void aloS_remove(astate T, astring_t* self) {
 /**
  ** create a string with specific length.
  */
-astring_t* aloS_new(astate T, const char* src, size_t len) {
+alo_Str* aloS_new(alo_State T, const char* src, size_t len) {
 	return len == 0 ? T->g->sempty :
 			len <= ALO_MAXISTRLEN ? intern(T, src, len) : heap(T, src, len);
 }
@@ -179,11 +179,11 @@ astring_t* aloS_new(astate T, const char* src, size_t len) {
 /**
  ** create a fixed string.
  */
-astring_t* aloS_newi(astate T, const char* src, size_t len) {
+alo_Str* aloS_newi(alo_State T, const char* src, size_t len) {
 	if (len == 0) { /* empty string? */
 		return T->g->sempty;
 	}
-	astring_t* s = aloS_new(T, src, len);
+	alo_Str* s = aloS_new(T, src, len);
 	aloG_fix(T, s);
 	return s;
 }
@@ -191,9 +191,9 @@ astring_t* aloS_newi(astate T, const char* src, size_t len) {
 /**
  ** create new raw data value.
  */
-arawdata_t* aloS_newr(astate T, size_t len) {
-	arawdata_t* value = aloE_cast(arawdata_t*, aloM_malloc(T, ardsizel(len)));
-	aloG_register(T, value, ALO_TRAWDATA);
+alo_User* aloS_newr(alo_State T, size_t len) {
+	alo_User* value = aloE_cast(alo_User*, aloM_malloc(T, ardsizel(len)));
+	aloG_register(T, value, ALO_TUSER);
 	value->length = len;
 	value->metatable = NULL;
 	return value;
@@ -202,8 +202,8 @@ arawdata_t* aloS_newr(astate T, size_t len) {
 /**
  ** check two heap string are equal.
  */
-int aloS_hequal(astring_t* s1, astring_t* s2) {
-	aloE_assert(ttishstr(s1) && ttishstr(s2), "value should be heap string.");
+int aloS_hequal(alo_Str* s1, alo_Str* s2) {
+	aloE_assert(tishstr(s1) && tishstr(s2), "value should be heap string.");
 	return s1 == s2 ||
 			(s1->lnglen == s2->lnglen && memcmp(s1->array, s2->array, s1->lnglen) == 0);
 }
@@ -211,14 +211,14 @@ int aloS_hequal(astring_t* s1, astring_t* s2) {
 /**
  ** check string object and raw string are equal.
  */
-int aloS_requal(astring_t* self, astr src, size_t len) {
+int aloS_requal(alo_Str* self, a_cstr src, size_t len) {
 	return aloS_len(self) == len && memcmp(self->array, src, len * sizeof(char)) == 0;
 }
 
 /**
  ** compare between two string objects.
  */
-int aloS_compare(astring_t* s1, astring_t* s2) {
+int aloS_compare(alo_Str* s1, alo_Str* s2) {
 	size_t l1 = aloS_len(s1), l2 = aloS_len(s2);
 	size_t l = l1 <= l2 ? l1 : l2;
 	return memcmp(s1->array, s2->array, l * sizeof(char)) ?:
@@ -229,7 +229,7 @@ int aloS_compare(astring_t* s1, astring_t* s2) {
 /**
  ** initialize string cache and string constants.
  */
-void aloS_init(astate T) {
+void aloS_init(alo_State T) {
 	Gd(T);
 	aloS_resizecache(T, ALO_ITABLE_INITIAL_CAPACITY);
 	G->sempty = intern(T, "", 0);
@@ -247,7 +247,7 @@ void aloS_init(astate T) {
 /**
  ** resize short string cache.
  */
-void aloS_resizecache(astate T, size_t size) {
+void aloS_resizecache(alo_State T, size_t size) {
 	Gd(T);
 	aitable_t* table = &G->itable;
 	if (size > table->capacity) { /* grow table */
@@ -255,12 +255,12 @@ void aloS_resizecache(astate T, size_t size) {
 		for (size_t i = table->capacity; i < size; table->array[i++] = NULL);
 	}
 	for (size_t i = 0; i < table->capacity; ++i) {
-		astring_t* n = table->array[i];
-		astring_t* v;
+		alo_Str* n = table->array[i];
+		alo_Str* v;
 		table->array[i] = NULL;
 		while ((v = n)) {
 			n = v->shtlist;
-			astring_t** m = table->array + indexof(*table, v->hash);
+			alo_Str** m = table->array + indexof(*table, v->hash);
 			v->shtlist = *m;
 			*m = v;
 		}
@@ -274,7 +274,7 @@ void aloS_resizecache(astate T, size_t size) {
 /**
  ** clean short string cache.
  */
-void aloS_cleancache(astate T) {
+void aloS_cleancache(alo_State T) {
 	Gd(T);
 	if (T->g->itable.length == 0) { /* if string table is not initialized */
 		return;

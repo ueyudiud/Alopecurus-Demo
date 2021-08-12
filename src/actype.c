@@ -1,14 +1,14 @@
 /*
- * achr.c
+ * actype.c
  *
  *  Created on: 2019年8月18日
  *      Author: ueyudiud
  */
 
-#define ACHR_C_
+#define ACTYPE_C_
 #define ALO_CORE
 
-#include "achr.h"
+#include "actype.h"
 
 /**
  ** character data.

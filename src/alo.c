@@ -21,9 +21,9 @@
 #define l_msg(fmt,args...) (printf(fmt, ##args), fflush(stdout))
 #define l_err(fmt,args...) fprintf(stderr, fmt, ##args)
 
-static astate glbT;
+static alo_State glbT;
 
-static void l_stop(astate T, __attribute__((unused)) adbinfo_t* info) {
+static void l_stop(alo_State T, __attribute__((unused)) alo_DbgInfo* info) {
 	alo_sethook(T, NULL, 0);
 	aloL_error(T, "interrupted!");
 }
@@ -33,10 +33,10 @@ static void l_action(int id) {
 	alo_sethook(glbT, l_stop, ALO_HMASKCALL | ALO_HMASKRET);
 }
 
-static void compilef(astate T, astr name) {
+static void compilef(alo_State T, a_cstr name) {
 	int status = aloL_compilef(T, "__main__", name);
 	switch (status) {
-	case ThreadStateRun:
+	case ALO_STOK:
 		break;
 	case -1:
 		aloL_error(T, "fail to open file '%s'", name);
@@ -54,8 +54,8 @@ static void compilef(astate T, astr name) {
 /**
  ** return true if script is incomplete.
  */
-static int incomplete(astate T, int status) {
-	if (status == ThreadStateErrCompile) {
+static int incomplete(alo_State T, int status) {
+	if (status == ALO_STERRCOM) {
 		size_t lmsg;
 		const char* smsg = alo_tolstring(T, -1, &lmsg);
 		if (lmsg > marklen && strcmp(smsg + lmsg - marklen, EOFMARK) == 0) {
@@ -69,9 +69,9 @@ static int incomplete(astate T, int status) {
  ** compile script in top of stack, return true if compile success,
  ** return false if statement is incomplete and throw an error otherwise.
  */
-static int compilec(astate T, astr name, int strict) {
+static int compilec(alo_State T, a_cstr name, int strict) {
 	int status = aloL_compiles(T, -1, name, "<stdin>");
-	if (status == ThreadStateRun) {
+	if (status == ALO_STOK) {
 		return true;
 	}
 	else if (strict && !incomplete(T, status)) {
@@ -86,7 +86,7 @@ static int compilec(astate T, astr name, int strict) {
 /**
  ** read line from standard input stream.
  */
-static int readline(astate T, ambuf_t* buf) {
+static int readline(alo_State T, ambuf_t* buf) {
 	size_t l;
 	do {
 		aloL_bcheck(T, buf, MAXINPUT + 1);
@@ -109,7 +109,7 @@ static int readline(astate T, ambuf_t* buf) {
 	return true;
 }
 
-static int loadscript(astate T) {
+static int loadscript(alo_State T) {
 	int succ = false;
 	l_msg("> ");
 	aloL_usebuf(T, buf,
@@ -138,7 +138,7 @@ static int loadscript(astate T) {
 	return succ;
 }
 
-static void runscript(astate T) {
+static void runscript(alo_State T) {
 	glbT = T;
 	signal(SIGINT, l_action);
 	alo_call(T, 0, ALO_MULTIRET);
@@ -147,7 +147,7 @@ static void runscript(astate T) {
 	if (n > 0) {
 		alo_getreg(T, "println");
 		alo_insert(T, 0);
-		if (alo_pcall(T, n, 0, ALO_NOERRFUN) != ThreadStateRun) {
+		if (alo_pcall(T, n, 0, ALO_NOERRFUN) != ALO_STOK) {
 			l_msg("error calling 'println', %s\n", alo_tostring(T, -1));
 		}
 	}
@@ -156,7 +156,7 @@ static void runscript(astate T) {
 /**
  ** do REPL in console
  */
-static int runc(astate T) {
+static int runc(alo_State T) {
 	while (true) {
 		/* load and run run script */
 		if (loadscript(T)) {
@@ -170,15 +170,15 @@ static int runc(astate T) {
 /**
  ** run script from file.
  */
-static int runf(astate T) {
+static int runf(alo_State T) {
 	compilef(T, alo_tostring(T, 0));
 	alo_call(T, 0, 0); /* call function */
 	return 0;
 }
 
-static int movedir(astr f) {
-	astr p = f;
-	astr l = NULL;
+static int movedir(a_cstr f) {
+	a_cstr p = f;
+	a_cstr l = NULL;
 	while (*p) {
 		if (*p == '\\' || *p == '/') {
 			l = p;
@@ -197,9 +197,9 @@ static int movedir(astr f) {
 
 #define DEFAULT_LOG_DEPTH 5
 
-static astr prog;
-static astr srcpath;
-static astr rtpath;
+static a_cstr prog;
+static a_cstr srcpath;
+static a_cstr rtpath;
 static int logdepth = DEFAULT_LOG_DEPTH;
 
 static void prtusage() {
@@ -219,7 +219,7 @@ static void prtusage() {
 #define has_l	0x0008 /* -l exists */
 #define has_d	0x0010 /* -d level */
 
-static int check_args(int argc, const astr argv[]) {
+static int check_args(int argc, const a_cstr argv[]) {
 	prog = argv[0];
 	srcpath = NULL;
 	rtpath = NULL;
@@ -290,20 +290,20 @@ static int check_args(int argc, const astr argv[]) {
 	return mask;
 }
 
-static int openlib(astate T, astr name) {
+static int openlib(alo_State T, a_cstr name) {
 	alo_getreg(T, "import");
 	alo_pushstring(T, name);
-	if (alo_pcall(T, 1, 1, ALO_NOERRFUN) != ThreadStateRun)
+	if (alo_pcall(T, 1, 1, ALO_NOERRFUN) != ALO_STOK)
 		return false;
 	alo_rawsets(T, ALO_REGISTRY_INDEX, name);
 	alo_settop(T, 0);
 	return true;
 }
 
-static int openlibs(astate T, int argc, const astr argv[]) {
+static int openlibs(alo_State T, int argc, const a_cstr argv[]) {
 	for (int i = 1; i < argc; ++i) {
 		if (argv[i][0] == '-' && argv[i][1] == 'l') {
-			astr name = argv[i][2] ? argv[i] + 2 : argv[++i];
+			a_cstr name = argv[i][2] ? argv[i] + 2 : argv[++i];
 			if (!openlib(T, name)) {
 				l_err("%s\n", alo_tostring(T, -1));
 				return false;
@@ -315,19 +315,19 @@ static int openlibs(astate T, int argc, const astr argv[]) {
 
 /* the action after initialize */
 
-static int ferrmsg(astate T) {
+static int ferrmsg(alo_State T) {
 	if (!alo_isstring(T, 0)) {
 		int type = alo_getmeta(T, 0, "__tostr", true);
 		switch (type) {
-		case ALO_TFUNCTION: /* applied by function? */
+		case ALO_TFUNC: /* applied by function? */
 			/* call function */
 			alo_push(T, 0);
 			alo_call(T, 1, 1);
-			if (alo_typeid(T, -1) != ALO_TSTRING) {
+			if (alo_typeid(T, -1) != ALO_TSTR) {
 				goto error;
 			}
 			break;
-		case ALO_TSTRING:
+		case ALO_TSTR:
 			break;
 		default:
 			error:
@@ -342,8 +342,8 @@ static int ferrmsg(astate T) {
 	return 1;
 }
 
-int main(int argc, astr argv[]) {
-	astate T = aloL_newstate();
+int main(int argc, a_cstr argv[]) {
+	alo_State T = aloL_newstate();
 	aloE_log("alo in debug mode");
 	if (T == NULL) {
 		l_err("fail to initialize VM.\n");
@@ -379,7 +379,7 @@ int main(int argc, astr argv[]) {
 		if (srcpath) {
 			aloL_pushscopedcfunction(T, runf);
 			alo_pushstring(T, srcpath);
-			if (alo_pcall(T, 1, 0, 0) != ThreadStateRun) {
+			if (alo_pcall(T, 1, 0, 0) != ALO_STOK) {
 				l_err("%s\n", alo_tostring(T, -1));
 			}
 		}
@@ -389,7 +389,7 @@ int main(int argc, astr argv[]) {
 			alo_pushlightcfunction(T, ferrmsg);
 			while (true) {
 				alo_pushlightcfunction(T, runc);
-				if (alo_pcall(T, 0, 0, 0) != ThreadStateRun) {
+				if (alo_pcall(T, 0, 0, 0) != ALO_STOK) {
 					l_err("%s\n", alo_tostring(T, -1));
 					alo_settop(T, 1);
 				}

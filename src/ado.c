@@ -19,7 +19,7 @@
 
 #include <stdlib.h>
 
-#define iserrorstate(status) ((status) > ThreadStateYield)
+#define iserrorstate(status) ((status) > ALO_STYIELD)
 
 void aloD_setdebt(aglobal_t* G, ssize_t debt) {
 	ssize_t total = G->mbase + G->mdebt;
@@ -30,10 +30,10 @@ void aloD_setdebt(aglobal_t* G, ssize_t debt) {
 /* some extra spaces for error handling */
 #define ERRORSTACKSIZE (ALO_MAXSTACKSIZE + 100)
 
-void aloD_growstack(astate T, size_t need) {
+void aloD_growstack(alo_State T, size_t need) {
 	size_t oldsize = T->stacksize;
 	if (oldsize > ALO_MAXSTACKSIZE) {
-		aloD_throw(T, ThreadStateErrError);
+		aloD_throw(T, ALO_STERRERR);
 	}
 	size_t require = aloE_cast(size_t, T->top - T->stack) + need + EXTRA_STACK;
 	if (require > ALO_MAXSTACKSIZE) {
@@ -52,9 +52,9 @@ void aloD_growstack(astate T, size_t need) {
 	}
 }
 
-static void correct_stack(astate T, ptrdiff_t off) {
+static void correct_stack(alo_State T, ptrdiff_t off) {
 	T->top += off;
-	acap_t* cap = T->captures;
+	alo_Capture* cap = T->captures;
 	while (cap) {
 		cap->p += off;
 		cap = cap->prev;
@@ -70,16 +70,16 @@ static void correct_stack(astate T, ptrdiff_t off) {
 	}
 }
 
-void aloD_reallocstack(astate T, size_t newsize) {
-	atval_t* stack = T->stack;
+void aloD_reallocstack(alo_State T, size_t newsize) {
+	alo_TVal* stack = T->stack;
 	aloE_assert(newsize <= ALO_MAXSTACKSIZE || newsize == ERRORSTACKSIZE, "invalid stack size.");
 	aloM_update(T, T->stack, T->stacksize, newsize, tsetnil);
 	correct_stack(T, T->stack - stack);
 }
 
-static size_t usedstackcount(astate T) {
+static size_t usedstackcount(alo_State T) {
 	aframe_t* frame = T->frame;
-	askid_t lim = T->top;
+	alo_StkId lim = T->top;
 	while (frame) {
 		if (lim < frame->top) {
 			lim = frame->top;
@@ -89,7 +89,7 @@ static size_t usedstackcount(astate T) {
 	return lim - T->stack;
 }
 
-static void shrinkframe(astate T) {
+static void shrinkframe(alo_State T) {
 	if (T->stacksize > ALO_MAXSTACKSIZE) { /* had been handling stack overflow? */
 		/* delete all frame above */
 		aframe_t* frame = T->frame->next;
@@ -115,7 +115,7 @@ static void shrinkframe(astate T) {
 	}
 }
 
-void aloD_shrinkstack(astate T) {
+void aloD_shrinkstack(alo_State T) {
 	shrinkframe(T);
 	size_t inuse = usedstackcount(T);
 	size_t estimate = inuse + (inuse / 8) + 1 + 2 * EXTRA_STACK;
@@ -133,7 +133,7 @@ void aloD_shrinkstack(astate T) {
 /**
  ** run function in protection.
  */
-int aloD_prun(astate T, apfun fun, void* ctx) {
+int aloD_prun(alo_State T, apfun fun, void* ctx) {
 	/* store current thread state */
 	uint16_t nccall = T->nccall;
 	ambuf_t* buf = T->memstk.top; /* store memory buffer */
@@ -153,8 +153,8 @@ int aloD_prun(astate T, apfun fun, void* ctx) {
 /**
  ** throw an error.
  */
-anoret aloD_throw(astate T, int status) {
-	aloE_assert(status >= ThreadStateErrRuntime, "can only throw error status by this function.");
+a_none aloD_throw(alo_State T, int status) {
+	aloE_assert(status >= ALO_STERRRT, "can only throw error status by this function.");
 	rethrow:
 	if (T->label) {
 		aloi_throw(T, *T->label, status);
@@ -163,7 +163,7 @@ anoret aloD_throw(astate T, int status) {
 		T->status = aloE_byte(status); /* set coroutine status */
 		if (T->caller) {
 			tsetobj(T, T->caller->top++, T->top - 1); /* move error message */
-			astate Tcaller = T->caller;
+			alo_State Tcaller = T->caller;
 			T->caller = NULL; /* remove caller */
 			T = Tcaller;
 			goto rethrow; /* handle error function by caller */
@@ -178,13 +178,13 @@ anoret aloD_throw(astate T, int status) {
 	}
 }
 
-void aloD_hook(astate T, int event, int line) {
+void aloD_hook(alo_State T, int event, int line) {
 	ahfun hook = T->hook;
 	if (hook && T->fallowhook) {
 		aframe_t* frame = T->frame;
 		ptrdiff_t top = getstkoff(T, T->top);
 		ptrdiff_t ftop = getstkoff(T, frame->top);
-		adbinfo_t info;
+		alo_DbgInfo info;
 		info.event = event;
 		info.line = line;
 		info._frame = frame;
@@ -210,7 +210,7 @@ void aloD_hook(astate T, int event, int line) {
 /**
  ** move result to correct place.
  */
-static int moveresults(astate T, askid_t dest, askid_t src, int nresult, int expected) {
+static int moveresults(alo_State T, alo_StkId dest, alo_StkId src, int nresult, int expected) {
 	aloE_assert(dest <= src, "illegal stack structure.");
 	switch (expected) {
 	case 0: /* no result */
@@ -252,17 +252,17 @@ static int moveresults(astate T, askid_t dest, askid_t src, int nresult, int exp
  ** prepares function call, if it is C function, call it directly, or wait
  ** for 'aloV_excute' calling function
  */
-int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
-	acfun caller;
-	atval_t* env;
+int aloD_rawcall(alo_State T, alo_StkId fun, int nresult, int* nactual) {
+	a_cfun caller;
+	alo_TVal* env;
 	switch (ttype(fun)) {
-	case ALO_TLCF: {
-		caller = tgetlcf(fun);
+	case ALO_VLCF: {
+		caller = taslcf(fun);
 		env = T->frame->env;
 		goto C;
 	}
-	case ALO_TCCL: {
-		accl_t* c = tgetccl(fun);
+	case ALO_VCCL: {
+		alo_CCl* c = tgetccl(fun);
 		caller = c->handle;
 		env = c->fenv ? c->array : T->frame->env;
 		goto C;
@@ -287,10 +287,10 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 		aloE_assert(frame->fun + n <= T->top, "no enough elements in stack.");
 		aloD_postcall(T, T->top - n, n);
 		return true;
-	case ALO_TACL: {
-		aacl_t* c = tgetacl(fun);
-		aproto_t* p = c->proto;
-		askid_t base = fun + 1;
+	case ALO_VACL: {
+		alo_ACl* c = tgetacl(fun);
+		alo_Proto* p = c->proto;
+		alo_StkId base = fun + 1;
 		int actual = T->top - base;
 		int off = 0;
 		if (p->fvararg) { /* handling for variable arguments */
@@ -330,11 +330,11 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 	default: { /* not a function, try call meta method */
 		/* prepare stack for meta method */
 		checkstack(T, 1, fun);
-		const atval_t* tm = aloT_gettm(T, fun, TM_CALL, true); /* get tagged method */
-		if (tm == NULL || !ttisfun(tm)) { /* not a function? */
+		const alo_TVal* tm = aloT_gettm(T, fun, TM_CALL, true); /* get tagged method */
+		if (tm == NULL || !tisfun(tm)) { /* not a function? */
 			aloU_rterror(T, "fail to call object with '%s' type", aloT_typenames[ttpnv(fun)]);
 		}
-		for (askid_t p = T->top; p > fun; --p) {
+		for (alo_StkId p = T->top; p > fun; --p) {
 			tsetobj(T, p, p - 1);
 		}
 		T->top++;
@@ -344,19 +344,19 @@ int aloD_rawcall(astate T, askid_t fun, int nresult, int* nactual) {
 	}
 }
 
-int aloD_precall(astate T, askid_t fun, int nresult) {
+int aloD_precall(alo_State T, alo_StkId fun, int nresult) {
 	int dummy;
 	return aloD_rawcall(T, fun, nresult, &dummy);
 }
 
-void aloD_postcall(astate T, askid_t ret, int nresult) {
+void aloD_postcall(alo_State T, alo_StkId ret, int nresult) {
 	aframe_t* const frame = T->frame;
 	if (T->hookmask & ALO_HMASKRET) {
 		ptrdiff_t r = getstkoff(T, ret);
 		aloD_hook(T, ALO_HMASKRET, -1);
 		ret = putstkoff(T, r);
 	}
-	askid_t res = frame->fun;
+	alo_StkId res = frame->fun;
 	int expected = frame->nresult;
 	T->frame = frame->prev; /* back to previous frame */
 	aloR_closeframe(T, frame); /* close current frame */
@@ -366,7 +366,7 @@ void aloD_postcall(astate T, askid_t ret, int nresult) {
 
 #define EXTRAERRCALL (ALO_MAXCCALL >> 3)
 
-static void stackerror(astate T) {
+static void stackerror(alo_State T) {
 	if (T->nccall == ALO_MAXCCALL) {
 		aloU_rterror(T, "C stack overflow");
 	}
@@ -375,7 +375,7 @@ static void stackerror(astate T) {
 	}
 }
 
-void aloD_call(astate T, askid_t fun, int nresult) {
+void aloD_call(alo_State T, alo_StkId fun, int nresult) {
 	if (T->nccall >= ALO_MAXCCALL)
 		stackerror(T);
 	T->nccall++;
@@ -389,7 +389,7 @@ void aloD_call(astate T, askid_t fun, int nresult) {
 	T->nccall--;
 }
 
-void aloD_callnoyield(astate T, askid_t fun, int nresult) {
+void aloD_callnoyield(alo_State T, alo_StkId fun, int nresult) {
 	T->nxyield++;
 	aloD_call(T, fun, nresult);
 	T->nxyield--;
@@ -397,26 +397,26 @@ void aloD_callnoyield(astate T, askid_t fun, int nresult) {
 
 /* protected call information */
 struct PCI {
-	askid_t fun;
+	alo_StkId fun;
 	int nres;
 };
 
-static void pcall_unsafe(astate T, void* context) {
+static void pcall_unsafe(alo_State T, void* context) {
 	struct PCI* pci = aloE_cast(struct PCI*, context);
 	aloD_callnoyield(T, pci->fun, pci->nres);
 }
 
-int aloD_pcall(astate T, askid_t fun, int nres, ptrdiff_t ef) {
+int aloD_pcall(alo_State T, alo_StkId fun, int nres, ptrdiff_t ef) {
 	/* store current frame state */
 	aframe_t* const frame = T->frame;
 	uint16_t nxyield = T->nxyield;
-	abyte allowhook = T->fallowhook;
+	a_byte allowhook = T->fallowhook;
 	ptrdiff_t oldef = T->errfun;
 	ptrdiff_t oldtop = getstkoff(T, fun);
 	T->errfun = ef;
 	int status = aloD_prun(T, pcall_unsafe, &(struct PCI) { fun, nres });
-	if (status != ThreadStateRun) {
-		askid_t top = putstkoff(T, oldtop);
+	if (status != ALO_STOK) {
+		alo_StkId top = putstkoff(T, oldtop);
 		aloF_close(T, top);
 		tsetobj(T, top++, T->top - 1);
 		T->top = top;
@@ -432,11 +432,11 @@ int aloD_pcall(astate T, askid_t fun, int nres, ptrdiff_t ef) {
 	return status;
 }
 
-static void postpcc(astate T, int status) {
+static void postpcc(alo_State T, int status) {
 	aframe_t* frame = T->frame;
 
 	aloE_assert(frame->c.kfun != NULL && T->nxyield == 0, "the continuation is not available.");
-	aloE_assert(frame->fypc || status != ThreadStateYield, "error can only be caught by protector.");
+	aloE_assert(frame->fypc || status != ALO_STYIELD, "error can only be caught by protector.");
 
 	aloD_adjustresult(T, frame->nresult);
 	int n = (*frame->c.kfun)(T, status, frame->c.kctx);
@@ -447,25 +447,25 @@ static void postpcc(astate T, int status) {
 /**
  * execute remained continuations.
  */
-static void unroll(astate T) {
+static void unroll(alo_State T) {
 	aframe_t* frame;
 	while ((frame = T->frame) != &T->base_frame) {
 		if (frame->falo) { /* is yielded in script? */
 			aloV_invoke(T, true); /* call with finished previous */
 		}
 		else {
-			postpcc(T, ThreadStateYield);
+			postpcc(T, ALO_STYIELD);
 		}
 	}
 }
 
-static void unroll_unsafe(astate T, void* context) {
+static void unroll_unsafe(alo_State T, void* context) {
 	int status = *aloE_cast(int*, context);
 	postpcc(T, status);
 	unroll(T);
 }
 
-static aframe_t* rewind_protector(astate T) {
+static aframe_t* rewind_protector(alo_State T) {
 	aframe_t* frame = T->frame;
 	do {
 		if (frame->fypc) {
@@ -479,12 +479,12 @@ static aframe_t* rewind_protector(astate T) {
 /**
  * attempt to recover the function in error by protector.
  */
-static int recover(astate T) {
+static int recover(alo_State T) {
 	/* find yieldable protector */
 	aframe_t* frame = rewind_protector(T);
 	if (frame == NULL)
 		return false;
-	askid_t oldtop = frame->top;
+	alo_StkId oldtop = frame->top;
 	aloF_close(T, frame->top);
 	tsetobj(T, oldtop - 1, frame->top - 1);
 	T->frame = frame;
@@ -493,7 +493,7 @@ static int recover(astate T) {
 	return true;
 }
 
-static void resume_unsafe(astate T, void* context) {
+static void resume_unsafe(alo_State T, void* context) {
 	int narg = *aloE_cast(int*, context);
 	aframe_t* frame = T->frame;
 	if (T->frame == &T->base_frame) {
@@ -506,7 +506,7 @@ static void resume_unsafe(astate T, void* context) {
 		}
 		else {
 			if (frame->c.kfun) { /* does frame have a continuation? */
-				narg = (*frame->c.kfun)(T, ThreadStateYield, frame->c.kctx);
+				narg = (*frame->c.kfun)(T, ALO_STYIELD, frame->c.kctx);
 				api_checkelems(T, narg);
 			}
 			aloD_postcall(T, T->top - narg, narg);
@@ -517,7 +517,7 @@ static void resume_unsafe(astate T, void* context) {
 
 #define resume_error(T,msg,narg) ({ T->top -= (narg); tsetstr(T, T->top, aloS_newl(T, msg)); T->top++; -1; })
 
-int alo_resume(astate T, astate from, int narg) {
+int alo_resume(alo_State T, alo_State from, int narg) {
 	Gd(T);
 	aloi_check(T, from->g == G, "two coroutine from different state.");
 	aloi_check(T, G->trun == from, "the coroutine is not running.");
@@ -525,8 +525,8 @@ int alo_resume(astate T, astate from, int narg) {
 	if (T == G->tmain) { /* the main thread can not resumed */
 		return resume_error(from, "the main coroutine is not resumable.", narg);
 	}
-	else if (T->status != ThreadStateYield) { /* check coroutine status */
-		if (T->status == ThreadStateRun)
+	else if (T->status != ALO_STYIELD) { /* check coroutine status */
+		if (T->status == ALO_STOK)
 			return resume_error(from, "cannot resume a non-suspended coroutine.", narg);
 		else
 			goto dead;
@@ -545,11 +545,11 @@ int alo_resume(astate T, astate from, int narg) {
 	G->trun = T;
 	T->caller = from;
 	T->nxyield = 0;
-	T->status = ThreadStateRun;
+	T->status = ALO_STOK;
 	aloi_resumethread(T, narg); /* call user's resume action */
 	int status = aloD_prun(T, resume_unsafe, &narg);
-	if (status != ThreadStateRun) { /* does function invoke to the end? */
-		if (status != ThreadStateYield) { /* error occurred? */
+	if (status != ALO_STOK) { /* does function invoke to the end? */
+		if (status != ALO_STYIELD) { /* error occurred? */
 			while (iserrorstate(status) && recover(T)) { /* try to recover the error by yieldable error protector */
 				status = aloD_prun(T, unroll_unsafe, &status);
 			}
@@ -559,7 +559,7 @@ int alo_resume(astate T, astate from, int narg) {
 			else aloE_assert(status == T->status, "status mismatched.");
 		}
 	}
-	T->status = status == ThreadStateRun ? ThreadStateYield : aloE_byte(status); /* mark thread status */
+	T->status = status == ALO_STOK ? ALO_STYIELD : aloE_byte(status); /* mark thread status */
 	G->trun = from;
 	T->nccall--;
 	T->nxyield = oldnxy;
@@ -567,7 +567,7 @@ int alo_resume(astate T, astate from, int narg) {
 	return status;
 }
 
-void alo_yieldk(astate T, int nres, akfun kfun, akctx kctx) {
+void alo_yieldk(alo_State T, int nres, a_kfun kfun, a_kctx kctx) {
 	aframe_t* frame = T->frame;
 	api_checkelems(T, nres);
 	aloE_assert(T == T->g->trun, "the current coroutine is not running.");
@@ -576,7 +576,7 @@ void alo_yieldk(astate T, int nres, akfun kfun, akctx kctx) {
 				"attempt to yield across a C-call boundary." :
 				"attempt to yield from a outside coroutine.");
 	}
-	T->status = ThreadStateYield;
+	T->status = ALO_STYIELD;
 	aloi_yieldthread(T, nres); /* call user's yield procedure */
 	/* user yield failed, call default yield procedure */
 	if (frame->falo) {
@@ -603,10 +603,10 @@ void alo_yieldk(astate T, int nres, akfun kfun, akctx kctx) {
 	aloi_yield(T, *T->label); /* yield coroutine */
 }
 
-int alo_status(astate T) {
+int alo_status(alo_State T) {
 	return T->status;
 }
 
-int alo_isyieldable(astate T) {
+int alo_isyieldable(alo_State T) {
 	return T->nxyield == 0;
 }

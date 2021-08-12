@@ -12,10 +12,10 @@
 
 #include "avm.h"
 
-ALO_IFUN void aloV_invoke(astate, int);
+ALO_IFUN void aloV_invoke(alo_State, int);
 
-ALO_IFUN int aloV_binop(astate, int, atval_t*, const atval_t*, const atval_t*);
-ALO_IFUN int aloV_unrop(astate, int, atval_t*, const atval_t*);
-ALO_IFUN int aloV_cmpop(astate, int, int*, const atval_t*, const atval_t*);
+ALO_IFUN int aloV_binop(alo_State, int, alo_TVal*, const alo_TVal*, const alo_TVal*);
+ALO_IFUN int aloV_unrop(alo_State, int, alo_TVal*, const alo_TVal*);
+ALO_IFUN int aloV_cmpop(alo_State, int, int*, const alo_TVal*, const alo_TVal*);
 
 #endif /* AEVAL_H_ */

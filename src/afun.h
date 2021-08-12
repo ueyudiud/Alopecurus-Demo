@@ -12,18 +12,18 @@
 
 #include "aobj.h"
 
-#define acclsizel(l) (sizeof(accl_t) + (l) * sizeof(atval_t))
+#define acclsizel(l) (sizeof(alo_CCl) + (l) * sizeof(alo_TVal))
 #define acclsize(o) acclsizel((o)->length)
 
-#define aaclsizel(l) (sizeof(aacl_t) + (l) * sizeof(acap_t*))
+#define aaclsizel(l) (sizeof(alo_ACl) + (l) * sizeof(alo_Capture*))
 #define aaclsize(o) aaclsizel((o)->length)
 
-ALO_IFUN aacl_t* aloF_new(astate, size_t);
-ALO_IFUN accl_t* aloF_newc(astate, acfun, size_t);
-ALO_IFUN aproto_t* aloF_newp(astate);
-ALO_IFUN acap_t* aloF_envcap(astate);
-ALO_IFUN acap_t* aloF_find(astate, askid_t);
-ALO_IFUN void aloF_close(astate, askid_t);
-ALO_IFUN void aloF_deletep(astate, aproto_t*);
+ALO_IFUN alo_ACl* aloF_new(alo_State, size_t);
+ALO_IFUN alo_CCl* aloF_newc(alo_State, a_cfun, size_t);
+ALO_IFUN alo_Proto* aloF_newp(alo_State);
+ALO_IFUN alo_Capture* aloF_envcap(alo_State);
+ALO_IFUN alo_Capture* aloF_find(alo_State, alo_StkId);
+ALO_IFUN void aloF_close(alo_State, alo_StkId);
+ALO_IFUN void aloF_deletep(alo_State, alo_Proto*);
 
 #endif /* AFUN_H_ */

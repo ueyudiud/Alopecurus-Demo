@@ -26,12 +26,12 @@
 
 #include <string.h>
 
-void alo_setpanic(astate T, acfun panic) {
+void alo_setpanic(alo_State T, a_cfun panic) {
 	Gd(T);
 	G->panic = panic;
 }
 
-aalloc alo_getalloc(astate T, void** pctx) {
+alo_Alloc alo_getalloc(alo_State T, void** pctx) {
 	Gd(T);
 	if (pctx) {
 		*pctx = G->context;
@@ -39,30 +39,30 @@ aalloc alo_getalloc(astate T, void** pctx) {
 	return G->alloc;
 }
 
-void alo_setalloc(astate T, aalloc alloc, void* ctx) {
+void alo_setalloc(alo_State T, alo_Alloc alloc, void* ctx) {
 	Gd(T);
 	G->alloc = alloc;
 	G->context = ctx;
 }
 
-const aver_t* alo_version(astate T) {
+const aver_t* alo_version(alo_State T) {
 	return T ? T->g->version : &aloR_version;
 }
 
 #define isinstk(index) ((index) > ALO_GLOBAL_IDNEX)
 #define stackoff(top,base) (aloi_check(T, (top) >= (base), "illegal stack"), aloE_cast(size_t, (top) - (base)))
 
-ssize_t alo_absindex(astate T, ssize_t index) {
+a_isize alo_absindex(alo_State T, a_isize index) {
 	return index < 0 && isinstk(index) ?
 			(T->top - (T->frame->fun + 1)) + index : index;
 }
 
-static void growstack(astate T, void* context) {
+static void growstack(alo_State T, void* context) {
 	size_t* psize = aloE_cast(size_t*, context);
 	aloD_growstack(T, *psize);
 }
 
-int alo_ensure(astate T, size_t size) {
+a_bool alo_ensure(alo_State T, a_usize size) {
 	aframe_t* const frame = T->frame;
 	if (stackoff(frame->top, T->top) < size) {
 		if (stackoff(T->stack + T->stacksize, T->top) < size) {
@@ -70,7 +70,7 @@ int alo_ensure(astate T, size_t size) {
 			if (capacity + size > ALO_MAXSTACKSIZE) {
 				return false;
 			}
-			else if (aloD_prun(T, growstack, &size) != ThreadStateRun) { /* try grow stack. */
+			else if (aloD_prun(T, growstack, &size) != ALO_STOK) { /* try grow stack. */
 				return false;
 			}
 		}
@@ -79,16 +79,16 @@ int alo_ensure(astate T, size_t size) {
 	return true;
 }
 
-ssize_t alo_gettop(astate T) {
+a_isize alo_gettop(alo_State T) {
 	return T->top - (T->frame->fun + 1);
 }
 
-void alo_settop(astate T, ssize_t index) {
+void alo_settop(alo_State T, a_isize index) {
 	if (index >= 0) { /* resize stack size */
 		aloi_check(T, index < T->frame->top - (T->frame->fun + 1), "stack overflow");
-		askid_t newtop = (T->frame->fun + 1) + index;
+		alo_StkId newtop = (T->frame->fun + 1) + index;
 		/* set expand stack value to nil */
-		for (askid_t i = T->top; i < newtop; ++i) {
+		for (alo_StkId i = T->top; i < newtop; ++i) {
 			tsetnil(i);
 		}
 		T->top = newtop;
@@ -100,12 +100,12 @@ void alo_settop(astate T, ssize_t index) {
 	}
 }
 
-#define INVALID_ADDR aloE_cast(atval_t*, aloO_tnil)
+#define INVALID_ADDR aloE_cast(alo_TVal*, aloO_tnil)
 
 #define iscapture(index) ((index) < ALO_REGISTRY_INDEX)
 #define isvalid(o) ((o) != aloO_tnil)
 
-static atval_t* index2addr(astate T, ssize_t index) {
+static alo_TVal* index2addr(alo_State T, a_isize index) {
 	if (index >= 0) {
 		aloi_check(T, index <= (T->top - (T->frame->fun + 1)), "stack index out of bound.");
 		return T->frame->fun + 1 + index;
@@ -122,16 +122,16 @@ static atval_t* index2addr(astate T, ssize_t index) {
 		return T->frame->env; /* place current registry into stack. */
 	}
 	else if (index >= ALO_CAPTURE_INDEX(0)) { /* capture mode. */
-		askid_t fun = T->frame->fun;
+		alo_StkId fun = T->frame->fun;
 		index -= ALO_CAPTURE_INDEX(0);
 		switch (ttype(fun)) {
-		case ALO_TACL: {
-			aacl_t* v = tgetacl(fun);
+		case ALO_VACL: {
+			alo_ACl* v = tgetacl(fun);
 			aloi_check(T, index < v->length, "capture index out of bound.");
 			return v->array[index]->p;
 		}
-		case ALO_TCCL: {
-			accl_t* v = tgetccl(fun);
+		case ALO_VCCL: {
+			alo_CCl* v = tgetccl(fun);
 			aloi_check(T, index < v->length, "capture index out of bound.");
 			return v->array + index;
 		}
@@ -147,36 +147,36 @@ static atval_t* index2addr(astate T, ssize_t index) {
 	}
 }
 
-void alo_copy(astate T, ssize_t fromidx, ssize_t toidx) {
-	atval_t* to = index2addr(T, toidx);
+void alo_copy(alo_State T, a_isize fromidx, a_isize toidx) {
+	alo_TVal* to = index2addr(T, toidx);
 	tsetobj(T, to, index2addr(T, fromidx));
 	if (iscapture(toidx)) { /* if it is capture */
-		aloG_barriert(T, tgetclo(T->frame->fun), to);
+		aloG_barriert(T, tasclo(T->frame->fun), to);
 	}
 }
 
 /**
  ** push value to top of stack.
  */
-void alo_push(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+void alo_push(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	tsetobj(T, api_incrtop(T), o);
 }
 
 /**
  ** pop top value into stack.
  */
-void alo_pop(astate T, ssize_t index) {
-	atval_t* o = index2addr(T, index);
+void alo_pop(alo_State T, a_isize index) {
+	alo_TVal* o = index2addr(T, index);
 	tsetobj(T, o, api_decrtop(T));
 }
 
 /**
  ** erase one value in stack
  */
-void alo_erase(astate T, ssize_t index) {
+void alo_erase(alo_State T, a_isize index) {
 	aloi_check(T, isinstk(index), "invalid stack index.");
-	askid_t i = index2addr(T, index);
+	alo_StkId i = index2addr(T, index);
 	while (++i < T->top) {
 		tsetobj(T, i - 1, i);
 	}
@@ -186,13 +186,13 @@ void alo_erase(astate T, ssize_t index) {
 /**
  ** insert value at the top of stack into specific index of stack
  */
-void alo_insert(astate T, ssize_t index) {
+void alo_insert(alo_State T, a_isize index) {
 	api_checkslots(T, 1);
 	aloi_check(T, isinstk(index), "invalid stack index.");
-	askid_t bot = index2addr(T, index);
-	askid_t top = T->top - 1;
-	atval_t cache = *top;
-	askid_t i = top - 1;
+	alo_StkId bot = index2addr(T, index);
+	alo_StkId top = T->top - 1;
+	alo_TVal cache = *top;
+	alo_StkId i = top - 1;
 	while (i >= bot) {
 		tsetobj(T, i + 1, i);
 		i--;
@@ -203,72 +203,72 @@ void alo_insert(astate T, ssize_t index) {
 /**
  ** move stack from one state to another state.
  */
-void alo_xmove(astate from, astate to, size_t n) {
+void alo_xmove(alo_State from, alo_State to, a_usize n) {
 	if (from == to)
 		return;
 	api_checkelems(from, n);
 	api_checkslots(to, n);
 	aloi_check(T, from->g == to->g, "two thread from different state.");
 	from->top -= n;
-	for (size_t i = 0; i < n; ++i) {
+	for (a_usize i = 0; i < n; ++i) {
 		tsetobj(to, to->top++, from->top + i);
 	}
 }
 
-int alo_isinteger(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
-	return ttisint(o) || (ttisflt(o) && aloO_flt2int(tgetflt(o), NULL, 0));
+a_bool alo_isinteger(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
+	return tisint(o) || (tisflt(o) && aloO_flt2int(tasflt(o), NULL, 0));
 }
 
-int alo_isnumber(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
-	return ttisnum(o);
+a_bool alo_isnumber(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
+	return tisnum(o);
 }
 
-int alo_iscfunction(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
-	return ttislcf(o) || ttisccl(o);
+a_bool alo_iscfunction(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
+	return tislcf(o) || tisccl(o);
 }
 
-int alo_israwdata(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
-	return ttisptr(o) || ttisrdt(o);
+a_bool alo_israwdata(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
+	return tisptr(o) || tisusr(o);
 }
 
-int alo_typeid(astate T, ssize_t index) {
-	askid_t b = T->frame->fun + 1;
+int alo_typeid(alo_State T, a_isize index) {
+	alo_StkId b = T->frame->fun + 1;
 	if (isinstk(index) && (index + T->top < b || index + b >= T->top)) {
 		return ALO_TUNDEF;
 	}
-	const atval_t* o = index2addr(T, index);
+	const alo_TVal* o = index2addr(T, index);
 	return isvalid(o) ? ttpnv(o) : ALO_TUNDEF;
 }
 
-astr alo_typename(astate T, ssize_t index) {
-	askid_t b = T->frame->fun + 1;
+a_cstr alo_typename(alo_State T, a_isize index) {
+	alo_StkId b = T->frame->fun + 1;
 	if (isinstk(index) && (index + T->top < b || index + b >= T->top)) {
 		return alo_tpidname(T, ALO_TUNDEF);
 	}
-	const atval_t* o = index2addr(T, index);
+	const alo_TVal* o = index2addr(T, index);
 	if (!isvalid(o)) {
 		return alo_tpidname(T, ALO_TUNDEF);
 	}
 	return aloV_typename(T, o);
 }
 
-astr alo_tpidname(__attribute__((unused)) astate T, int id) {
+a_cstr alo_tpidname(__attribute__((unused)) alo_State T, int id) {
 	aloE_assert(id >= ALO_TUNDEF && id < ALO_NUMTYPE, "illegal type id.");
 	return id == ALO_TUNDEF ? "none" : aloT_typenames[id];
 }
 
-int alo_toboolean(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+int alo_toboolean(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	return aloV_getbool(o);
 }
 
-aint alo_tointegerx(astate T, ssize_t index, int* p) {
-	const atval_t* o = index2addr(T, index);
-	aint out;
+a_int alo_tointegerx(alo_State T, a_isize index, a_bool* p) {
+	const alo_TVal* o = index2addr(T, index);
+	a_int out;
 	int isint = aloV_toint(o, out);
 	if (!isint)
 		out = 0;
@@ -277,9 +277,9 @@ aint alo_tointegerx(astate T, ssize_t index, int* p) {
 	return out;
 }
 
-afloat alo_tonumberx(astate T, ssize_t index, int* p) {
-	const atval_t* o = index2addr(T, index);
-	afloat out;
+a_float alo_tonumberx(alo_State T, a_isize index, a_bool* p) {
+	const alo_TVal* o = index2addr(T, index);
+	a_float out;
 	int isnum = aloV_toflt(o, out);
 	if (!isnum)
 		out = 0;
@@ -288,79 +288,79 @@ afloat alo_tonumberx(astate T, ssize_t index, int* p) {
 	return out;
 }
 
-astr alo_tolstring(astate T, ssize_t index, size_t* plen) {
-	const atval_t* o = index2addr(T, index);
-	astring_t* value = tgetstr(o);
+a_cstr alo_tolstring(alo_State T, a_isize index, a_usize* plen) {
+	const alo_TVal* o = index2addr(T, index);
+	alo_Str* value = tasstr(o);
 	if (plen) {
 		*plen = aloS_len(value);
 	}
 	return value->array;
 }
 
-acfun alo_tocfunction(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+a_cfun alo_tocfunction(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	switch (ttype(o)) {
-	case ALO_TCCL: return tgetclo(o)->c.handle;
-	case ALO_TLCF: return tgetlcf(o);
+	case ALO_VCCL: return tasclo(o)->c.handle;
+	case ALO_VLCF: return taslcf(o);
 	default      : return NULL;
 	}
 }
 
-void* alo_torawdata(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+void* alo_torawdata(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	switch (ttype(o)) {
-	case ALO_TPOINTER: return tgetptr(o);
-	case ALO_TRAWDATA: return tgetrdt(o)->array;
+	case ALO_TPTR: return tasptr(o);
+	case ALO_TUSER: return tgetrdt(o)->array;
 	default          : return NULL;
 	}
 }
 
-astate alo_tothread(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+alo_State alo_tothread(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	return tgetthr(o);
 }
 
-void* alo_rawptr(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+void* alo_rawptr(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE  : return tgetrptr(o);
 	case ALO_TLIST   : return tgetrptr(o);
 	case ALO_TTABLE  : return tgetrptr(o);
 	case ALO_TTHREAD : return tgetrptr(o);
-	case ALO_TLCF    : return tgetrptr(o);
-	case ALO_TCCL    : return tgetrptr(o);
-	case ALO_TACL    : return tgetrptr(o);
-	case ALO_TPOINTER: return tgetrptr(o);
-	case ALO_TRAWDATA: return tgetrdt(o)->array;
+	case ALO_VLCF    : return tgetrptr(o);
+	case ALO_VCCL    : return tgetrptr(o);
+	case ALO_VACL    : return tgetrptr(o);
+	case ALO_TPTR: return tgetrptr(o);
+	case ALO_TUSER: return tgetrdt(o)->array;
 	default          : return NULL;
 	}
 }
 
-size_t alo_rawlen(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+size_t alo_rawlen(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	switch (ttype(o)) {
-	case ALO_THSTRING: return tgetstr(o)->lnglen;
-	case ALO_TISTRING: return tgetstr(o)->shtlen;
-	case ALO_TTUPLE  : return tgettup(o)->length;
-	case ALO_TLIST   : return tgetlis(o)->length;
-	case ALO_TTABLE  : return tgettab(o)->length;
-	case ALO_TRAWDATA: return tgetrdt(o)->length;
+	case ALO_VHSTR: return tasstr(o)->lnglen;
+	case ALO_VISTR: return tasstr(o)->shtlen;
+	case ALO_TTUPLE  : return tastup(o)->length;
+	case ALO_TLIST   : return taslis(o)->length;
+	case ALO_TTABLE  : return tastab(o)->length;
+	case ALO_TUSER: return tgetrdt(o)->length;
 	default          : return 0;
 	}
 }
 
-size_t alo_len(astate T, ssize_t index) {
-	const atval_t* o = index2addr(T, index);
+size_t alo_len(alo_State T, a_isize index) {
+	const alo_TVal* o = index2addr(T, index);
 	return aloV_length(T, o);
 }
 
-int alo_equal(astate T, ssize_t index1, ssize_t index2) {
-	const atval_t* o1 = index2addr(T, index1);
-	const atval_t* o2 = index2addr(T, index2);
+a_bool alo_equal(alo_State T, a_isize index1, a_isize index2) {
+	const alo_TVal* o1 = index2addr(T, index1);
+	const alo_TVal* o2 = index2addr(T, index2);
 	return aloV_equal(T, o1, o2);
 }
 
-void alo_arith(astate T, int op) {
+void alo_arith(alo_State T, int op) {
 	switch (op) {
 	case ALO_OPADD ... ALO_OPBXOR: { /* binary operation */
 		api_checkelems(T, 2);
@@ -386,98 +386,98 @@ void alo_arith(astate T, int op) {
 	}
 }
 
-int alo_compare(astate T, ssize_t index1, ssize_t index2, int op) {
-	const atval_t* o1 = index2addr(T, index1);
-	const atval_t* o2 = index2addr(T, index2);
+a_bool alo_compare(alo_State T, a_isize index1, a_isize index2, int op) {
+	const alo_TVal* o1 = index2addr(T, index1);
+	const alo_TVal* o2 = index2addr(T, index2);
 	return aloV_compare(T, o1, o2, op);
 }
 
-void alo_pushnil(astate T) {
-	askid_t t = api_incrtop(T);
+void alo_pushnil(alo_State T) {
+	alo_StkId t = api_incrtop(T);
 	tsetnil(t);
 }
 
-void alo_pushboolean(astate T, int value) {
-	askid_t t = api_incrtop(T);
+void alo_pushboolean(alo_State T, a_bool value) {
+	alo_StkId t = api_incrtop(T);
 	tsetbool(t, !!value);
 }
 
-void alo_pushinteger(astate T, aint value) {
-	askid_t t = api_incrtop(T);
+void alo_pushinteger(alo_State T, a_int value) {
+	alo_StkId t = api_incrtop(T);
 	tsetint(t, value);
 }
 
-void alo_pushnumber(astate T, afloat value) {
-	askid_t t = api_incrtop(T);
+void alo_pushnumber(alo_State T, a_float value) {
+	alo_StkId t = api_incrtop(T);
 	tsetflt(t, value);
 }
 
-astr alo_pushlstring(astate T, const char* src, size_t len) {
-	astring_t* v = aloS_new(T, src, len);
-	askid_t t = api_incrtop(T);
+a_cstr alo_pushlstring(alo_State T, const char* src, size_t len) {
+	alo_Str* v = aloS_new(T, src, len);
+	alo_StkId t = api_incrtop(T);
 	tsetstr(T, t, v);
 	aloG_check(T);
 	return v->array;
 }
 
-astr alo_pushstring(astate T, astr value) {
-	astring_t* v = value ? aloS_of(T, value) : T->g->sempty;
-	askid_t t = api_incrtop(T);
+a_cstr alo_pushstring(alo_State T, a_cstr value) {
+	alo_Str* v = value ? aloS_of(T, value) : T->g->sempty;
+	alo_StkId t = api_incrtop(T);
 	tsetstr(T, t, v);
 	aloG_check(T);
 	return v->array;
 }
 
-astr alo_pushfstring(astate T, astr fmt, ...) {
+a_cstr alo_pushfstring(alo_State T, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	astr result = alo_pushvfstring(T, fmt, varg);
+	a_cstr result = alo_pushvfstring(T, fmt, varg);
 	va_end(varg);
 	return result;
 }
 
-astr alo_pushvfstring(astate T, astr fmt, va_list varg) {
-	astr result = aloV_pushvfstring(T, fmt, varg);
+a_cstr alo_pushvfstring(alo_State T, a_cstr fmt, va_list varg) {
+	a_cstr result = aloV_pushvfstring(T, fmt, varg);
 	aloG_check(T);
 	return result;
 }
 
-void alo_pushcfunction(astate T, acfun handle, size_t ncapture, int hasenv) {
+void alo_pushcfunction(alo_State T, a_cfun handle, a_usize ncapture, int hasenv) {
 	api_checkelems(T, ncapture);
 	aloi_check(T, ncapture > 0 || !hasenv, "a closure has environment size must greater than 0.");
 	if (ncapture == 0) {
-		askid_t t = api_incrtop(T);
+		alo_StkId t = api_incrtop(T);
 		tsetlcf(t, handle);
 	}
 	else {
-		accl_t* c = aloF_newc(T, handle, ncapture);
+		alo_CCl* c = aloF_newc(T, handle, ncapture);
 		c->fenv = hasenv;
 		T->top -= ncapture;
 		for (size_t i = 0; i < ncapture; ++i) { /* move captures */
 			tsetobj(T, c->array + i, T->top + i);
 		}
-		askid_t t = api_incrtop(T);
+		alo_StkId t = api_incrtop(T);
 		tsetccl(T, t, c);
 		aloG_check(T);
 	}
 }
 
-void alo_pushpointer(astate T, void* value) {
-	askid_t t = api_incrtop(T);
+void alo_pushpointer(alo_State T, void* value) {
+	alo_StkId t = api_incrtop(T);
 	tsetptr(t, value);
 }
 
-int alo_pushthread(astate T) {
-	askid_t t = api_incrtop(T);
+int alo_pushthread(alo_State T) {
+	alo_StkId t = api_incrtop(T);
 	tsetthr(T, t, T);
 	return T == T->g->tmain;
 }
 
-void alo_rawcat(astate T, size_t size) {
-	astring_t* s;
+void alo_rawcat(alo_State T, size_t size) {
+	alo_Str* s;
 
-	if (size == 1 && ttisstr(T->top - 1)) {
-		s = tgetstr(T->top - 1);
+	if (size == 1 && tisstr(T->top - 1)) {
+		s = tasstr(T->top - 1);
 		T->top -= 1;
 	}
 	else if (size > 0) {
@@ -489,28 +489,28 @@ void alo_rawcat(astate T, size_t size) {
 		s = T->g->sempty;
 	}
 
-	askid_t t = api_incrtop(T);
+	alo_StkId t = api_incrtop(T);
 	tsetstr(T, t, s);
 }
 
 /**
  ** iterate to next element in collection.
  */
-int alo_inext(astate T, ssize_t idown, aitr* poff) {
+int alo_inext(alo_State T, a_isize idown, a_itr* poff) {
 	api_checkslots(T, 2);
-	askid_t o = index2addr(T, idown);
-	const atval_t* t;
+	alo_StkId o = index2addr(T, idown);
+	const alo_TVal* t;
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE: {
-		t = aloA_next(tgettup(o), &poff->offset);
+		t = aloA_next(tastup(o), &poff->offset);
 		goto ielement;
 	}
 	case ALO_TLIST: {
-		t = aloI_next(tgetlis(o), &poff->offset);
+		t = aloI_next(taslis(o), &poff->offset);
 		goto ielement;
 	}
 	case ALO_TTABLE: {
-		const aentry_t* e = aloH_next(tgettab(o), &poff->offset);
+		const alo_Entry* e = aloH_next(tastab(o), &poff->offset);
 		if (e) {
 			tsetobj(T, T->top    , amkey(e));
 			tsetobj(T, T->top + 1, amval(e));
@@ -539,20 +539,20 @@ int alo_inext(astate T, ssize_t idown, aitr* poff) {
 /**
  ** remove current element in collection.
  */
-void alo_iremove(astate T, ssize_t idown, aitr* itr) {
+void alo_iremove(alo_State T, a_isize idown, a_itr* itr) {
 	api_checkslots(T, 2);
-	askid_t o = index2addr(T, idown);
+	alo_StkId o = index2addr(T, idown);
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE: {
 		aloE_assert(false, "can not remove element from tuple .");
 		break;
 	}
 	case ALO_TLIST: {
-		aloI_removei(T, tgetlis(o), itr->offset, NULL);
+		aloI_removei(T, taslis(o), itr->offset, NULL);
 		break;
 	}
 	case ALO_TTABLE: {
-		aloH_rawrem(T, tgettab(o), &itr->offset, NULL);
+		aloH_rawrem(T, tastab(o), &itr->offset, NULL);
 		break;
 	}
 	default: {
@@ -563,29 +563,29 @@ void alo_iremove(astate T, ssize_t idown, aitr* itr) {
 
 }
 
-int alo_rawget(astate T, ssize_t idown) {
+int alo_rawget(alo_State T, a_isize idown) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, idown);
-	askid_t k = T->top - 1;
-	const atval_t* v = aloO_get(T, o, k);
+	alo_StkId o = index2addr(T, idown);
+	alo_StkId k = T->top - 1;
+	const alo_TVal* v = aloO_get(T, o, k);
 	tsetobj(T, k, v);
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
 
-int alo_rawgeti(astate T, ssize_t idown, aint key) {
+int alo_rawgeti(alo_State T, a_isize idown, a_int key) {
 	api_checkslots(T, 1);
-	askid_t o = index2addr(T, idown);
-	const atval_t* v;
+	alo_StkId o = index2addr(T, idown);
+	const alo_TVal* v;
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE:
-		v = aloA_geti(tgettup(o), key);
+		v = aloA_geti(tastup(o), key);
 		break;
 	case ALO_TLIST: {
-		v = aloI_geti(tgetlis(o), key);
+		v = aloI_geti(taslis(o), key);
 		break;
 	}
 	case ALO_TTABLE: {
-		v = aloH_geti(tgettab(o), key);
+		v = aloH_geti(tastab(o), key);
 		break;
 	}
 	default: {
@@ -597,20 +597,20 @@ int alo_rawgeti(astate T, ssize_t idown, aint key) {
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
 
-int alo_rawgets(astate T, ssize_t idown, astr key) {
+int alo_rawgets(alo_State T, a_isize idown, a_cstr key) {
 	api_checkslots(T, 1);
-	askid_t o = index2addr(T, idown);
-	aloi_check(T, ttistab(o), "illegal owner for 'rawgets'");
-	const atval_t* v = aloH_gets(T, tgettab(o), key, strlen(key));
+	alo_StkId o = index2addr(T, idown);
+	aloi_check(T, tistab(o), "illegal owner for 'rawgets'");
+	const alo_TVal* v = aloH_gets(T, tastab(o), key, strlen(key));
 	tsetobj(T, api_incrtop(T), v);
 	return v != aloO_tnil ? ttpnv(v) : ALO_TUNDEF;
 }
 
-int alo_get(astate T, ssize_t idown) {
-	askid_t o = index2addr(T, idown);
-	askid_t k = T->top - 1;
-	const atval_t* v;
-	if (ttiscol(o)) {
+int alo_get(alo_State T, a_isize idown) {
+	alo_StkId o = index2addr(T, idown);
+	alo_StkId k = T->top - 1;
+	const alo_TVal* v;
+	if (tiscol(o)) {
 		v = aloO_get(T, o, k);
 	}
 	else goto find;
@@ -633,18 +633,18 @@ int alo_get(astate T, ssize_t idown) {
 	}
 }
 
-int alo_gets(astate T, ssize_t idown, astr key) {
+int alo_gets(alo_State T, a_isize idown, a_cstr key) {
 	api_checkslots(T, 1);
-	askid_t o = index2addr(T, idown);
-	if (ttistab(o)) {
-		const atval_t* v = aloH_gets(T, tgettab(o), key, strlen(key));
+	alo_StkId o = index2addr(T, idown);
+	if (tistab(o)) {
+		const alo_TVal* v = aloH_gets(T, tastab(o), key, strlen(key));
 		if (v != aloO_tnil) {
 			tsetobj(T, api_incrtop(T), v);
 			return ttpnv(v);
 		}
 	}
 	tsetstr(T, api_incrtop(T), aloS_of(T, key));
-	const atval_t* v = aloT_index(T, o, T->top - 1);
+	const alo_TVal* v = aloT_index(T, o, T->top - 1);
 	if (v) {
 		tsetobj(T, T->top - 1, v);
 		return ttpnv(v);
@@ -655,18 +655,18 @@ int alo_gets(astate T, ssize_t idown, astr key) {
 	}
 }
 
-int alo_put(astate T, ssize_t idown) {
+int alo_put(alo_State T, a_isize idown) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, idown);
-	aloi_check(T, ttislis(o), "only list can take 'put' operation.");
-	int result = aloI_put(T, tgetlis(o), T->top - 1);
+	alo_StkId o = index2addr(T, idown);
+	aloi_check(T, tislis(o), "only list can take 'put' operation.");
+	int result = aloI_put(T, taslis(o), T->top - 1);
 	api_decrtop(T);
 	return result;
 }
 
-int alo_getmetatable(astate T, ssize_t index) {
+int alo_getmetatable(alo_State T, a_isize index) {
 	api_checkslots(T, 1);
-	askid_t o = index2addr(T, index);
+	alo_StkId o = index2addr(T, index);
 	atable_t* mt = aloT_getmt(o);
 	if (mt) {
 		tsettab(T, api_incrtop(T), mt);
@@ -675,11 +675,11 @@ int alo_getmetatable(astate T, ssize_t index) {
 	return false;
 }
 
-int alo_getmeta(astate T, ssize_t index, astr name, int lookup) {
+int alo_getmeta(alo_State T, a_isize index, a_cstr name, int lookup) {
 	api_checkslots(T, 1);
-	astring_t* s = aloS_of(T, name);
-	askid_t o = index2addr(T, index);
-	const atval_t* tm;
+	alo_Str* s = aloS_of(T, name);
+	alo_StkId o = index2addr(T, index);
+	const alo_TVal* tm;
 	if (s->ftagname) { /* inner tagged method. */
 		if (s->extra < ALO_NUMTM) {
 			tm = lookup ? aloT_fastgetx(T, o, s->extra) : aloT_fastget(T, o, s->extra);
@@ -687,7 +687,7 @@ int alo_getmeta(astate T, ssize_t index, astr name, int lookup) {
 		else {
 			tm = aloT_gettm(T, o, s->extra, lookup);
 		}
-		if (tm && !ttisnil(tm)) {
+		if (tm && !tisnil(tm)) {
 			tsetobj(T, T->top++, tm);
 		}
 		else {
@@ -696,7 +696,7 @@ int alo_getmeta(astate T, ssize_t index, astr name, int lookup) {
 	}
 	else {
 		tsetstr(T, api_incrtop(T), s); /* bind string into thread */
-		if ((tm = aloT_lookup(T, o, T->top - 1)) && !ttisnil(tm)) {
+		if ((tm = aloT_lookup(T, o, T->top - 1)) && !tisnil(tm)) {
 			tsetobj(T, T->top - 1, tm);
 		}
 		else {
@@ -707,14 +707,14 @@ int alo_getmeta(astate T, ssize_t index, astr name, int lookup) {
 	return ttpnv(tm);
 }
 
-int alo_getdelegate(astate T, ssize_t index) {
+int alo_getdelegate(alo_State T, a_isize index) {
 	api_checkslots(T, 1);
-	askid_t o = index2addr(T, index);
+	alo_StkId o = index2addr(T, index);
 	switch (ttype(o)) {
-	case ALO_TACL:
+	case ALO_VACL:
 		tsetobj(T, api_incrtop(T), tgetacl(o)->array[0]->p);
 		return true;
-	case ALO_TCCL:
+	case ALO_VCCL:
 		tsetobj(T, api_incrtop(T), tgetccl(o)->array);
 		return true;
 	default:
@@ -722,25 +722,25 @@ int alo_getdelegate(astate T, ssize_t index) {
 	}
 }
 
-amem alo_newdata(astate T, size_t size) {
+a_mem alo_newdata(alo_State T, a_usize size) {
 	api_checkslots(T, 1);
-	arawdata_t* value = aloS_newr(T, size);
+	alo_User* value = aloS_newr(T, size);
 	tsetrdt(T, api_incrtop(T), value);
 	aloG_check(T);
 	return value->array;
 }
 
-void alo_newtuple(astate T, size_t size) {
+void alo_newtuple(alo_State T, a_usize size) {
 	api_checkelems(T, size);
-	atuple_t* value = aloA_new(T, size, T->top - size);
+	alo_Tuple* value = aloA_new(T, size, T->top - size);
 	T->top -= size;
 	tsettup(T, api_incrtop(T), value);
 	aloG_check(T);
 }
 
-void alo_newlist(astate T, size_t size) {
+void alo_newlist(alo_State T, a_usize size) {
 	api_checkslots(T, 1);
-	alist_t* value = aloI_new(T);
+	alo_List* value = aloI_new(T);
 	tsetlis(T, api_incrtop(T), value);
 	if (size > 0) { /* call 'ensure' function if initialize capacity is not 0 */
 		aloI_ensure(T, value, size);
@@ -748,7 +748,7 @@ void alo_newlist(astate T, size_t size) {
 	aloG_check(T);
 }
 
-void alo_newtable(astate T, size_t size) {
+void alo_newtable(alo_State T, a_usize size) {
 	api_checkslots(T, 1);
 	atable_t* value = aloH_new(T);
 	tsettab(T, api_incrtop(T), value);
@@ -761,16 +761,16 @@ void alo_newtable(astate T, size_t size) {
 /**
  ** give a hint of how many size of extra elements will be put into the collection.
  */
-void alo_sizehint(astate T, ssize_t index, size_t size) {
+void alo_sizehint(alo_State T, a_isize index, a_usize size) {
 	if (size == 0) /* skip check when no extra elements */
 		return;
-	atval_t* t = index2addr(T, index);
+	alo_TVal* t = index2addr(T, index);
 	switch (ttpnv(t)) {
 	case ALO_TLIST:
-		aloI_ensure(T, tgetlis(t), size);
+		aloI_ensure(T, taslis(t), size);
 		break;
 	case ALO_TTABLE:
-		aloH_ensure(T, tgettab(t), size);
+		aloH_ensure(T, tastab(t), size);
 		break;
 	default:
 		aloi_check(T, false, "invalid collection.");
@@ -781,14 +781,14 @@ void alo_sizehint(astate T, ssize_t index, size_t size) {
 /**
  ** trim object, and make it takes lower memory cost.
  */
-void alo_trim(astate T, ssize_t idown) {
-	askid_t o = index2addr(T, idown);
+void alo_trim(alo_State T, a_isize idown) {
+	alo_StkId o = index2addr(T, idown);
 	switch (ttype(o)) {
 	case ALO_TLIST:
-		aloI_trim(T, tgetlis(o));
+		aloI_trim(T, taslis(o));
 		break;
 	case ALO_TTABLE:
-		aloH_trim(T, tgettab(o));
+		aloH_trim(T, tastab(o));
 		break;
 	}
 }
@@ -796,23 +796,23 @@ void alo_trim(astate T, ssize_t idown) {
 /**
  ** trim object
  */
-void alo_triml(astate T, ssize_t idown, size_t len) {
-	askid_t o = index2addr(T, idown);
-	alist_t* list = tgetlis(o);
+void alo_triml(alo_State T, a_isize idown, size_t len) {
+	alo_StkId o = index2addr(T, idown);
+	alo_List* list = taslis(o);
 	aloE_assert(len <= list->length, "the length should less than current length.");
 	list->length = len;
 	aloI_trim(T, list); /* trim list size. */
 }
 
-void alo_rawsetx(astate T, ssize_t idown, int drop) {
+void alo_rawsetx(alo_State T, a_isize idown, int drop) {
 	api_checkelems(T, 2);
-	askid_t o = index2addr(T, idown);
-	askid_t k = T->top - 2;
-	askid_t v = T->top - 1;
+	alo_StkId o = index2addr(T, idown);
+	alo_StkId k = T->top - 2;
+	alo_StkId v = T->top - 1;
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		alist_t* owner = tgetlis(o);
-		atval_t* v1 = aloI_find(T, owner, k);
+		alo_List* owner = taslis(o);
+		alo_TVal* v1 = aloI_find(T, owner, k);
 		aloG_barrierbackt(T, owner, v);
 		if (drop) {
 			tsetobj(T, k, v1);
@@ -821,8 +821,8 @@ void alo_rawsetx(astate T, ssize_t idown, int drop) {
 		break;
 	}
 	case ALO_TTABLE: {
-		atable_t* owner = tgettab(o);
-		atval_t* v1 = aloH_find(T, owner, k);
+		atable_t* owner = tastab(o);
+		alo_TVal* v1 = aloH_find(T, owner, k);
 		aloG_barrierbackt(T, owner, k);
 		aloG_barrierbackt(T, owner, v);
 		if (drop) {
@@ -841,18 +841,18 @@ void alo_rawsetx(astate T, ssize_t idown, int drop) {
 	aloG_check(T);
 }
 
-void alo_rawseti(astate T, ssize_t idown, aint key) {
+void alo_rawseti(alo_State T, a_isize idown, a_int key) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, idown);
-	askid_t v = T->top - 1;
+	alo_StkId o = index2addr(T, idown);
+	alo_StkId v = T->top - 1;
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		aloI_seti(T, tgetlis(o), key, v);
+		aloI_seti(T, taslis(o), key, v);
 		break;
 	}
 	case ALO_TTABLE: {
-		atable_t* owner = tgettab(o);
-		atval_t k = tnewint(key);
+		atable_t* owner = tastab(o);
+		alo_TVal k = tnewint(key);
 		aloH_set(T, owner, &k, v);
 		break;
 	}
@@ -865,30 +865,30 @@ void alo_rawseti(astate T, ssize_t idown, aint key) {
 	aloG_check(T);
 }
 
-void alo_rawsets(astate T, ssize_t idown, astr key) {
+void alo_rawsets(alo_State T, a_isize idown, a_cstr key) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, idown);
-	askid_t v = T->top - 1;
-	aloi_check(T, ttistab(o), "illegal owner for 'rawsets'");
-	atable_t* table = tgettab(o);
+	alo_StkId o = index2addr(T, idown);
+	alo_StkId v = T->top - 1;
+	aloi_check(T, tistab(o), "illegal owner for 'rawsets'");
+	atable_t* table = tastab(o);
 	tsetobj(T, aloH_finds(T, table, key, strlen(key)), v);
 	aloG_barrierbackt(T, table, v);
 	T->top -= 1;
 	aloG_check(T);
 }
 
-int alo_rawrem(astate T, ssize_t idown) {
+int alo_rawrem(alo_State T, a_isize idown) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, idown);
-	askid_t k = T->top - 1;
+	alo_StkId o = index2addr(T, idown);
+	alo_StkId k = T->top - 1;
 	int succ;
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		succ = aloI_remove(T, tgetlis(o), k, k);
+		succ = aloI_remove(T, taslis(o), k, k);
 		break;
 	}
 	case ALO_TTABLE: {
-		succ = aloH_remove(T, tgettab(o), k, k);
+		succ = aloH_remove(T, tastab(o), k, k);
 		break;
 	}
 	default: {
@@ -904,15 +904,15 @@ int alo_rawrem(astate T, ssize_t idown) {
 	return succ ? ttpnv(k) : ALO_TUNDEF; /* return removed value type or 'none' if nothing is removed */
 }
 
-void alo_rawclr(astate T, ssize_t idown) {
-	askid_t o = index2addr(T, idown);
+void alo_rawclr(alo_State T, a_isize idown) {
+	alo_StkId o = index2addr(T, idown);
 	switch (ttpnv(o)) {
 	case ALO_TLIST: {
-		aloI_clear(T, tgetlis(o));
+		aloI_clear(T, taslis(o));
 		break;
 	}
 	case ALO_TTABLE: {
-		aloH_clear(T, tgettab(o));
+		aloH_clear(T, tastab(o));
 		break;
 	}
 	default: {
@@ -922,18 +922,18 @@ void alo_rawclr(astate T, ssize_t idown) {
 	}
 }
 
-void alo_add(astate T, ssize_t idown) {
+void alo_add(alo_State T, a_isize idown) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, idown);
-	aloi_check(T, ttislis(o), "illegal owner for 'add'");
-	aloI_add(T, tgetlis(o), T->top - 1);
+	alo_StkId o = index2addr(T, idown);
+	aloi_check(T, tislis(o), "illegal owner for 'add'");
+	aloI_add(T, taslis(o), T->top - 1);
 	api_decrtop(T);
 }
 
-void alo_setx(astate T, ssize_t idown, int dodrop) {
+void alo_setx(alo_State T, a_isize idown, int dodrop) {
 	api_checkelems(T, 2);
-	askid_t o = index2addr(T, idown);
-	const atval_t* tm = aloT_fastgetx(T, o, TM_SET);
+	alo_StkId o = index2addr(T, idown);
+	const alo_TVal* tm = aloT_fastgetx(T, o, TM_SET);
 	if (tm) { /* call tagged method */
 		tsetobj(T, T->top    , T->top - 2);
 		tsetobj(T, T->top + 1, T->top - 1);
@@ -947,10 +947,10 @@ void alo_setx(astate T, ssize_t idown, int dodrop) {
 	}
 }
 
-int alo_remove(astate T, ssize_t idown) {
+int alo_remove(alo_State T, a_isize idown) {
 	api_checkelems(T, 2);
-	askid_t o = index2addr(T, idown);
-	const atval_t* tm = aloT_gettm(T, o, TM_REM, true);
+	alo_StkId o = index2addr(T, idown);
+	const alo_TVal* tm = aloT_gettm(T, o, TM_REM, true);
 	if (tm) { /* call tagged method */
 		tsetobj(T, T->top + 1, T->top - 1);
 		tsetobj(T, T->top    , o);
@@ -958,7 +958,7 @@ int alo_remove(astate T, ssize_t idown) {
 		T->top += 2;
 		ptrdiff_t res = getstkoff(T, T->top - 3);
 		aloD_callnoyield(T, o, ALO_MULTIRET);
-		askid_t r = putstkoff(T, res);
+		alo_StkId r = putstkoff(T, res);
 		return T->top != r ? /* successfully removed value? */
 				ttpnv(r) : /* get object type */
 				ALO_TUNDEF; /* return 'none' */
@@ -968,15 +968,15 @@ int alo_remove(astate T, ssize_t idown) {
 	}
 }
 
-int alo_setmetatable(astate T, ssize_t index) {
-	atval_t* o = index2addr(T, index);
+int alo_setmetatable(alo_State T, a_isize index) {
+	alo_TVal* o = index2addr(T, index);
 	atable_t* mt;
-	if (ttisnil(T->top - 1)) {
+	if (tisnil(T->top - 1)) {
 		mt = NULL;
 	}
 	else {
-		aloi_check(T, ttistab(T->top - 1), "value is not meta table.");
-		mt = tgettab(T->top - 1);
+		aloi_check(T, tistab(T->top - 1), "value is not meta table.");
+		mt = tastab(T->top - 1);
 	}
 	atable_t** pmt = aloT_getpmt(o);
 	if (pmt == NULL) {
@@ -984,30 +984,30 @@ int alo_setmetatable(astate T, ssize_t index) {
 		return false;
 	}
 	*pmt = mt;
-	agct g = tgetref(o);
+	alo_Obj* g = tasobj(o);
 	aloG_barrier(T, g, mt);
 	aloG_checkfnzobj(T, g, mt);
 	T->top -= 1;
 	return true;
 }
 
-int alo_setdelegate(astate T, ssize_t index) {
+int alo_setdelegate(alo_State T, a_isize index) {
 	api_checkelems(T, 1);
-	askid_t o = index2addr(T, index);
-	const atval_t* t = api_decrtop(T);
-	if (ttisnil(t)) {
+	alo_StkId o = index2addr(T, index);
+	const alo_TVal* t = api_decrtop(T);
+	if (tisnil(t)) {
 		t = T->frame->env;
 	}
-	aloi_check(T, ttistab(t), "delegate should be table");
+	aloi_check(T, tistab(t), "delegate should be table");
 	switch (ttype(o)) {
-	case ALO_TACL: {
-		aacl_t* closure = tgetacl(o);
+	case ALO_VACL: {
+		alo_ACl* closure = tgetacl(o);
 		tsetobj(T, closure->array[0]->p, t);
 		aloG_barriert(T, closure, t);
 		return true;
 	}
-	case ALO_TCCL: {
-		accl_t* closure = tgetccl(o);
+	case ALO_VCCL: {
+		alo_CCl* closure = tgetccl(o);
 		tsetobj(T, closure->array, t);
 		aloG_barriert(T, closure, t);
 		return true;
@@ -1017,12 +1017,12 @@ int alo_setdelegate(astate T, ssize_t index) {
 	}
 }
 
-void alo_callk(astate T, int narg, int nres, akfun kfun, akctx kctx) {
+void alo_callk(alo_State T, int narg, int nres, a_kfun kfun, a_kctx kctx) {
 	aloi_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
 	aloi_check(T, T->g->trun == T, "thread is not running.");
-	aloi_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
-	askid_t fun = T->top - (narg + 1);
+	aloi_check(T, T->status == ALO_STOK, "thread is in non-normal state.");
+	alo_StkId fun = T->top - (narg + 1);
 	if (kfun && T->nxyield == 0) { /* is available for continuation? */
 		aframe_t* const frame = T->frame;
 		frame->c.kfun = kfun;
@@ -1035,15 +1035,15 @@ void alo_callk(astate T, int narg, int nres, akfun kfun, akctx kctx) {
 	aloD_adjustresult(T, nres);
 }
 
-int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, akctx kctx) {
+int alo_pcallk(alo_State T, int narg, int nres, ssize_t errfun, a_kfun kfun, a_kctx kctx) {
 	aloi_check(T, kfun == NULL || !T->frame->falo, "can not use continuation inside hooks");
 	api_checkelems(T, 1 + narg);
 	aloi_check(T, T->g->trun == T, "thread is not running.");
-	aloi_check(T, T->status == ThreadStateRun, "thread is in non-normal state.");
+	aloi_check(T, T->status == ALO_STOK, "thread is in non-normal state.");
 	aloi_check(T, errfun == ALO_NOERRFUN || errfun == ALO_LASTERRFUN || isinstk(errfun),
 			"illegal error function index.");
 	aframe_t* const frame = T->frame;
-	askid_t fun = T->top - (narg + 1);
+	alo_StkId fun = T->top - (narg + 1);
 	ptrdiff_t ef = errfun == ALO_NOERRFUN ? 0 :
 			errfun == ALO_LASTERRFUN ? T->errfun :
 			getstkoff(T, index2addr(T, errfun));
@@ -1060,7 +1060,7 @@ int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, akctx k
 		aloD_call(T, fun, nres); /* call function in protection */
 		frame->fypc = false;
 		T->errfun = frame->c.oef;
-		status = ThreadStateRun;
+		status = ALO_STOK;
 	}
 	aloD_adjustresult(T, nres);
 	return status;
@@ -1069,23 +1069,23 @@ int alo_pcallk(astate T, int narg, int nres, ssize_t errfun, akfun kfun, akctx k
 /**
  ** create a new closure and push into top of stack, used to avoid memory error.
  */
-static void pnewclosure(astate T, void* context) {
-	aacl_t** p = aloE_cast(aacl_t**, context);
+static void pnewclosure(alo_State T, void* context) {
+	alo_ACl** p = aloE_cast(alo_ACl**, context);
 	*p = aloF_new(T, 1);
 	tsetacl(T, api_incrtop(T), *p); /* put closure into stack to avoid GC */
 }
 
-int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
-	aacl_t* c = NULL;
+int alo_compile(alo_State T, a_cstr name, a_cstr src, alo_Reader reader, void* context) {
+	alo_ACl* c = NULL;
 	int status = aloD_prun(T, pnewclosure, &c);
-	if (status != ThreadStateRun) {
+	if (status != ALO_STOK) {
 		return status;
 	}
-	astring_t* s;
+	alo_Str* s;
 	aibuf_t buf;
 	aloB_iopen(&buf, reader, context);
 	status = aloP_parse(T, src, &buf, &c->proto, &s);
-	if (status == ThreadStateRun) { /* compile success */
+	if (status == ALO_STOK) { /* compile success */
 		aloE_assert(c->proto->ncap == 1, "top prototype should only have 1 capture.");
 		c->proto->name = aloS_of(T, name);
 		c->array[0] = aloF_envcap(T);
@@ -1097,33 +1097,33 @@ int alo_compile(astate T, astr name, astr src, areader reader, void* context) {
 	return status;
 }
 
-int alo_load(astate T, astr src, areader reader, void* context) {
-	aacl_t* c = aloF_new(T, 0);
+int alo_load(alo_State T, a_cstr src, alo_Reader reader, void* context) {
+	alo_ACl* c = aloF_new(T, 0);
 	tsetacl(T, api_incrtop(T), c);
 	int status = aloZ_load(T, &c->proto, src, reader, context);
-	if (status != ThreadStateRun) {
+	if (status != ALO_STOK) {
 		api_decrtop(T);
 	}
 	return status;
 }
 
-int alo_save(astate T, awriter writer, void* context, int debug) {
-	aclosure_t* c = tgetclo(T->top - 1);
-	aloE_assert(ttisacl(c), "not a Alopecurus closure");
+int alo_save(alo_State T, alo_Writer writer, void* context, int debug) {
+	alo_Closure* c = tasclo(T->top - 1);
+	aloE_assert(tisacl(c), "not a Alopecurus closure");
 	return aloZ_save(T, c->a.proto, writer, context, debug);
 }
 
-anoret alo_error(astate T) {
+a_none alo_error(alo_State T) {
 	api_checkelems(T, 1);
-	aloU_error(T, ThreadStateErrRuntime);
+	aloU_error(T, ALO_STERRRT);
 }
 
-anoret alo_throw(astate T) {
+a_none alo_throw(alo_State T) {
 	api_checkelems(T, 1);
-	aloD_throw(T, ThreadStateErrRuntime);
+	aloD_throw(T, ALO_STERRRT);
 }
 
-size_t alo_gcconf(astate T, int what, size_t data) {
+a_usize alo_gcconf(alo_State T, int what, a_usize data) {
 	Gd(T);
 	size_t result = 0;
 	switch (what) {
@@ -1162,10 +1162,10 @@ size_t alo_gcconf(astate T, int what, size_t data) {
 	return result;
 }
 
-void alo_fullgc(astate T) {
+void alo_fullgc(alo_State T) {
 	aloG_fullgc(T, GCKindNormal);
 }
 
-void alo_checkgc(astate T) {
+void alo_checkgc(alo_State T) {
 	aloG_check(T);
 }

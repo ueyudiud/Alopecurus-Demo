@@ -63,21 +63,21 @@ enum {
 #define aloG_unfix(T,g) aloG_unfix_(T, r2g(g))
 
 #define aloG_barrier(T,owner,value) if (aloG_isblack(owner) && aloG_iswhite(value)) aloG_barrier_(T, r2g(owner), r2g(value))
-#define aloG_barriert(T,owner,value) if (ttisref(value)) aloG_barrier(T, owner, tgetref(value))
+#define aloG_barriert(T,owner,value) if (tisref(value)) aloG_barrier(T, owner, tasobj(value))
 #define aloG_barrierback(T,owner,value) if (aloG_isblack(owner) && aloG_iswhite(value)) aloG_barrierback_(T, r2g(owner))
-#define aloG_barrierbackt(T,owner,value) if (ttisref(value)) aloG_barrierback(T, owner, tgetref(value))
+#define aloG_barrierbackt(T,owner,value) if (tisref(value)) aloG_barrierback(T, owner, tasobj(value))
 
 #define aloG_xcheck(T,pre,post) if ((T)->g->mdebt > 0) { pre; aloG_step(T); post; }
 #define aloG_check(T) aloG_xcheck(T,,)
 
-ALO_IFUN void aloG_register_(astate, agct, abyte);
-ALO_IFUN void aloG_fix_(astate, agct);
-ALO_IFUN void aloG_unfix_(astate, agct);
-ALO_IFUN void aloG_checkfnzobj(astate, agct, atable_t*);
-ALO_IFUN void aloG_barrier_(astate, agct, agct);
-ALO_IFUN void aloG_barrierback_(astate, agct);
-ALO_IFUN void aloG_step(astate);
-ALO_IFUN void aloG_fullgc(astate, int);
-ALO_IFUN void aloG_clear(astate);
+ALO_IFUN void aloG_register_(alo_State, alo_Obj*, a_byte);
+ALO_IFUN void aloG_fix_(alo_State, alo_Obj*);
+ALO_IFUN void aloG_unfix_(alo_State, alo_Obj*);
+ALO_IFUN void aloG_checkfnzobj(alo_State, alo_Obj*, atable_t*);
+ALO_IFUN void aloG_barrier_(alo_State, alo_Obj*, alo_Obj*);
+ALO_IFUN void aloG_barrierback_(alo_State, alo_Obj*);
+ALO_IFUN void aloG_step(alo_State);
+ALO_IFUN void aloG_fullgc(alo_State, int);
+ALO_IFUN void aloG_clear(alo_State);
 
 #endif /* AGC_H_ */

@@ -32,14 +32,14 @@
 #include <stdlib.h>
 
 #ifndef alo_assert
-void alo_assert(astr msg, astr file, int line) {
+void alo_assert(a_cstr msg, a_cstr file, int line) {
 	fprintf(stderr, "%s:%d %s\n", file, line, msg);
 	exit(EXIT_FAILURE);
 }
 #endif
 
 #ifndef alo_log
-void alo_log(astr msg, astr file, int line, ...) {
+void alo_log(a_cstr msg, a_cstr file, int line, ...) {
 	va_list varg;
 	char buf[256];
 	va_start(varg, line);
@@ -52,8 +52,8 @@ void alo_log(astr msg, astr file, int line, ...) {
 
 #endif
 
-alineinfo_t* aloU_lineof(aproto_t* proto, const ainsn_t* pc) {
-	alineinfo_t* ls = proto->lineinfo;
+alo_LineInfo* aloU_lineof(alo_Proto* proto, const a_insn* pc) {
+	alo_LineInfo* ls = proto->lineinfo;
 	if (ls == NULL)
 		return NULL; /* no line information provided */
 	ptrdiff_t index = pc - proto->code;
@@ -74,11 +74,11 @@ alineinfo_t* aloU_lineof(aproto_t* proto, const ainsn_t* pc) {
 	return ls + l;
 }
 
-#define lineof(p,i) ({ alineinfo_t* _info = aloU_lineof(p,i); _info ? _info->line : 0; })
+#define lineof(p,i) ({ alo_LineInfo* _info = aloU_lineof(p,i); _info ? _info->line : 0; })
 
-anoret aloU_error(astate T, int status) {
+a_none aloU_error(alo_State T, int status) {
 	if (T->errfun) { /* error handling function exists, handle the error */
-		askid_t fun = putstkoff(T, T->errfun);
+		alo_StkId fun = putstkoff(T, T->errfun);
 		tsetobj(T, T->top, T->top - 1); /* move error message */
 		tsetobj(T, T->top - 1, fun); /* move error handling function */
 		T->top++;
@@ -90,15 +90,15 @@ anoret aloU_error(astate T, int status) {
 /**
  ** throw an runtime error.
  */
-anoret aloU_rterror(astate T, astr fmt, ...) {
+a_none aloU_rterror(alo_State T, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	aloG_check(T); /* GC checking point */
 	aloB_decl(T, buf);
 	alo_vformat(T, aloB_bwrite, &buf, fmt, varg); /* format error message */
-	astring_t* value = aloB_tostr(T, buf);
+	alo_Str* value = aloB_tostr(T, buf);
 	tsetstr(T, T->top++, value); /* push error message to stack. */
-	aloU_error(T, ThreadStateErrRuntime);
+	aloU_error(T, ALO_STERRRT);
 	/* unreachable code */
 	aloB_close(T, buf);
 	va_end(varg);
@@ -107,21 +107,21 @@ anoret aloU_rterror(astate T, astr fmt, ...) {
 /**
  ** throw an error error.
  */
-anoret aloU_ererror(astate T, astr fmt, ...) {
+a_none aloU_ererror(alo_State T, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	aloB_decl(T, buf);
 	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
-	astring_t* value = aloB_tostr(T, buf);
+	alo_Str* value = aloB_tostr(T, buf);
 	tsetstr(T, T->top++, value); /* push error message to stack. */
-	aloD_throw(T, ThreadStateErrError);
+	aloD_throw(T, ALO_STERRERR);
 	/* unreachable code */
 	aloB_close(T, buf);
 	va_end(varg);
 }
 
 #if defined(ALOI_DEBUG)
-static int isvalidframe(astate T, void* raw) {
+static int isvalidframe(alo_State T, void* raw) {
 	aframe_t* frame;
 	for (frame = T->frame; frame; frame = frame->prev) {
 		if (frame == raw)
@@ -131,7 +131,7 @@ static int isvalidframe(astate T, void* raw) {
 }
 #endif
 
-static void getinfo(aframe_t* frame, astr what, aclosure_t* cl, adbinfo_t* i) {
+static void getinfo(aframe_t* frame, a_cstr what, alo_Closure* cl, alo_DbgInfo* i) {
 	i->_frame = frame;
 	for (; *what; ++what) {
 		switch (*what) {
@@ -142,8 +142,8 @@ static void getinfo(aframe_t* frame, astr what, aclosure_t* cl, adbinfo_t* i) {
 					frame->falo ? "alo" : "C";
 			break;
 		case 's': /* source information */
-			if (cl && ttisacl(cl)) {
-				aproto_t* proto = cl->a.proto;
+			if (cl && tisacl(cl)) {
+				alo_Proto* proto = cl->a.proto;
 				i->src = proto->src->array ?: NATIVE_SOURCE;
 				i->linefdef = proto->linefdef;
 				i->lineldef = proto->lineldef;
@@ -154,20 +154,20 @@ static void getinfo(aframe_t* frame, astr what, aclosure_t* cl, adbinfo_t* i) {
 			}
 			break;
 		case 'a': /* argument information */
-			if (cl && ttisacl(cl)) {
-				aproto_t* proto = cl->a.proto;
+			if (cl && tisacl(cl)) {
+				alo_Proto* proto = cl->a.proto;
 				i->nargument = proto->nargs;
 				i->ncapture = proto->ncap;
 				i->vararg = proto->fvararg;
 			}
 			else {
 				i->nargument = 0;
-				i->ncapture = ttisccl(frame->fun) ? tgetclo(frame->fun)->length : 0;
+				i->ncapture = tisccl(frame->fun) ? tasclo(frame->fun)->length : 0;
 				i->vararg = true; /* C function always allows variable arguments */
 			}
 			break;
 		case 'l': /* line information */
-			i->line = frame->falo ? lineof(tgetclo(frame->fun)->a.proto, frame->a.pc - 1) : -1;
+			i->line = frame->falo ? lineof(tasclo(frame->fun)->a.proto, frame->a.pc - 1) : -1;
 			break;
 		case 'c': /* call information */
 			i->istailc = frame->mode == FrameModeTail;
@@ -177,9 +177,9 @@ static void getinfo(aframe_t* frame, astr what, aclosure_t* cl, adbinfo_t* i) {
 	}
 }
 
-int alo_getinfo(astate T, int from, astr what, adbinfo_t* info) {
+int alo_getinfo(alo_State T, int from, a_cstr what, alo_DbgInfo* info) {
 	aframe_t* frame = T->frame;
-	atval_t* fun;
+	alo_TVal* fun;
 	switch (from) {
 	case ALO_INFPREV: { /* previous frame */
 		aloi_check(T, isvalidframe(T, info->_frame), "invalid stack frame.");
@@ -192,7 +192,7 @@ int alo_getinfo(astate T, int from, astr what, adbinfo_t* info) {
 	case ALO_INFSTACK: { /* function in stack */
 		api_checkelems(T, 1);
 		fun = T->frame->top - 1;
-		if (!ttisclo(fun))
+		if (!tasclo(fun))
 			return false;
 		break;
 	}
@@ -207,11 +207,11 @@ int alo_getinfo(astate T, int from, astr what, adbinfo_t* info) {
 		aloi_check(T, false, "invalid 'from' for alo_getinfo.");
 	}
 	}
-	getinfo(frame, what, ttisclo(fun) ? tgetclo(fun) : NULL, info);
+	getinfo(frame, what, tasclo(fun) ? tasclo(fun) : NULL, info);
 	return true;
 }
 
-void alo_sethook(astate T, ahfun fun, int mask) {
+void alo_sethook(alo_State T, ahfun fun, int mask) {
 	if (fun == NULL || mask == 0) {
 		fun = NULL;
 		mask = 0;
@@ -220,10 +220,10 @@ void alo_sethook(astate T, ahfun fun, int mask) {
 	T->hookmask = aloE_byte(mask);
 }
 
-ahfun alo_gethook(astate T) {
+ahfun alo_gethook(alo_State T) {
 	return T->hook;
 }
 
-int alo_gethookmask(astate T) {
+int alo_gethookmask(alo_State T) {
 	return T->hookmask;
 }

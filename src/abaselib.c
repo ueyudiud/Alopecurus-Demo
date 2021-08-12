@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 
-static void base_print_impl(astate T) {
+static void base_print_impl(alo_State T) {
 	ssize_t n = alo_gettop(T);
 	const char* src;
 	size_t len;
@@ -36,7 +36,7 @@ static void base_print_impl(astate T) {
  ** print string into the screen.
  ** prototype: print({args})
  */
-static int base_print(astate T) {
+static int base_print(alo_State T) {
 	base_print_impl(T);
 	aloL_fflush(stdout);
 	return 0;
@@ -46,7 +46,7 @@ static int base_print(astate T) {
  ** print string into the screen, and move to next line.
  ** prototype: println({args})
  */
-static int base_println(astate T) {
+static int base_println(alo_State T) {
 	base_print_impl(T);
 	aloL_fputln(stdout);
 	return 0;
@@ -56,7 +56,7 @@ static int base_println(astate T) {
  ** transform object to string.
  ** prototype: tostring(arg)
  */
-static int base_tostring(astate T) {
+static int base_tostring(alo_State T) {
 	aloL_checkany(T, 0);
 	aloL_tostring(T, 0, NULL);
 	return 1;
@@ -67,10 +67,10 @@ static int base_tostring(astate T) {
  ** if the object cannot cast to integer, an error will be thrown.
  ** prototype: toint(arg)
  */
-static int base_toint(astate T) {
+static int base_toint(alo_State T) {
 	aloL_checkany(T, 0);
-	int flag;
-	aint value = alo_tointegerx(T, 0, &flag);
+	a_bool flag;
+	a_int value = alo_tointegerx(T, 0, &flag);
 	if (!flag) {
 		aloL_error(T, "can not cast object to integer.");
 	}
@@ -83,10 +83,10 @@ static int base_toint(astate T) {
  ** if the object cannot cast to number, an error will be thrown.
  ** prototype: tonum(arg)
  */
-static int base_tonum(astate T) {
+static int base_tonum(alo_State T) {
 	aloL_checkany(T, 0);
-	int flag;
-	afloat value = alo_tonumberx(T, 0, &flag);
+	a_bool flag;
+	a_float value = alo_tonumberx(T, 0, &flag);
 	if (!flag) {
 		aloL_error(T, "can not cast object to number.");
 	}
@@ -98,7 +98,7 @@ static int base_tonum(astate T) {
  ** get element from structure.
  ** prototype: rawget(arg, idx)
  */
-static int base_rawget(astate T) {
+static int base_rawget(alo_State T) {
 	aloL_checkany(T, 1);
 	int succ = alo_rawget(T, 0) != ALO_TUNDEF;
 	return succ ? 1 : 0;
@@ -108,7 +108,7 @@ static int base_rawget(astate T) {
  ** set element to structure.
  ** prototype: rawset(arg, idx, key)
  */
-static int base_rawset(astate T) {
+static int base_rawset(alo_State T) {
 	aloL_checkany(T, 2);
 	alo_rawsetx(T, 0, true);
 	return 1;
@@ -119,7 +119,7 @@ static int base_rawset(astate T) {
  ** if nothing is removed, return no elements.
  ** prototype: rawrem(arg, idx)
  */
-static int base_rawrem(astate T) {
+static int base_rawrem(alo_State T) {
 	aloL_checkany(T, 1);
 	int succ = alo_rawrem(T, 0) != ALO_TUNDEF;
 	return succ ? 1 : 0;
@@ -129,7 +129,7 @@ static int base_rawrem(astate T) {
  ** get length of structure.
  ** prototype: rawlen(arg)
  */
-static int base_rawlen(astate T) {
+static int base_rawlen(alo_State T) {
 	aloL_checkany(T, 1);
 	alo_pushinteger(T, alo_rawlen(T, 0));
 	return 1;
@@ -140,7 +140,7 @@ static int base_rawlen(astate T) {
  ** throw an error if there is no parameter or parameter can cast to false.
  ** prototype: assert([arg])
  */
-static int base_assert(astate T) {
+static int base_assert(alo_State T) {
 	if (alo_gettop(T) == 0 || !alo_toboolean(T, 0)) { /* when assertion failed */
 		aloL_error(T, "assertion failed.");
 	}
@@ -152,7 +152,7 @@ static int base_assert(astate T) {
  ** error message (a string value).
  ** prototype: throw([msg])
  */
-static int base_throw(astate T) {
+static int base_throw(alo_State T) {
 	switch (alo_typeid(T, 0)) {
 	case ALO_TNIL:
 		alo_pushstring(T, "no error message.");
@@ -160,7 +160,7 @@ static int base_throw(astate T) {
 	case ALO_TINT:
 		alo_pushfstring(T, "error code: %i", alo_tointeger(T, 0));
 		break;
-	case ALO_TSTRING:
+	case ALO_TSTR:
 		alo_settop(T, 1);
 		break;
 	default:
@@ -172,8 +172,8 @@ static int base_throw(astate T) {
 	return 0;
 }
 
-static int finish_try(astate T, int status, akctx context) {
-	if (status == ThreadStateRun || status == ThreadStateYield) {
+static int finish_try(alo_State T, int status, a_kctx context) {
+	if (status == ALO_STOK || status == ALO_STYIELD) {
 		return alo_gettop(T) - context;
 	}
 	else { /*catch an error */
@@ -183,7 +183,7 @@ static int finish_try(astate T, int status, akctx context) {
 	}
 }
 
-static int base_try(astate T) {
+static int base_try(alo_State T) {
 	aloL_checkcall(T, 0);
 	alo_pushboolean(T, true); /* true is first result if no error */
 	alo_insert(T, 0);
@@ -191,7 +191,7 @@ static int base_try(astate T) {
 	return finish_try(T, status, 0);
 }
 
-static int base_xtry(astate T) {
+static int base_xtry(alo_State T) {
 	aloL_checkcall(T, 1);
 	int lastfun = !alo_isnonnil(T, 0);
 	if (!lastfun) {
@@ -207,8 +207,8 @@ static int base_xtry(astate T) {
  ** iterate to next element for tuple or list.
  ** prototype: [list, idx] inext()
  */
-static int base_inext(astate T) {
-	aitr itr = alo_toiterator(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
+static int base_inext(alo_State T) {
+	a_itr itr = alo_toiterator(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
 	if (alo_inext(T, ALO_CAPTURE_INDEX(0), &itr) != ALO_TUNDEF) {
 		/* erase unused value */
 		alo_erase(T, -2);
@@ -224,8 +224,8 @@ static int base_inext(astate T) {
  ** iterate to next element for table.
  ** prototype: [list, idx] mnext()
  */
-static int base_mnext(astate T) {
-	aitr itr = alo_toiterator(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
+static int base_mnext(alo_State T) {
+	a_itr itr = alo_toiterator(T, ALO_CAPTURE_INDEX(1)); /* get offset from capture */
 	if (alo_inext(T, ALO_CAPTURE_INDEX(0), &itr) != ALO_TUNDEF) {
 		/* update offset to capture */
 		alo_pushiterator(T, itr);
@@ -239,7 +239,7 @@ static int base_mnext(astate T) {
  ** create new iterator for object.
  ** prototype: newiterator(iterable)
  */
-static int base_newiterator(astate T) {
+static int base_newiterator(alo_State T) {
 	if (alo_getmeta(T, 1, "__itr", true) != ALO_TUNDEF) { /* call meta method */
 		alo_push(T, 0); /* push self */
 		alo_call(T, 1, 1);
@@ -266,7 +266,7 @@ static int base_newiterator(astate T) {
  ** return the type name of argument
  ** prototype: typeof(arg)
  */
-static int base_typeof(astate T) {
+static int base_typeof(alo_State T) {
 	aloL_checkany(T, 0);
 	alo_pushstring(T, alo_typename(T, 0));
 	return 1;
@@ -276,7 +276,7 @@ static int base_typeof(astate T) {
  ** get default functions collection (used look up table for primitive values).
  ** prototype: __dlgt(arg, key)
  */
-static int base_delegate(astate T) {
+static int base_delegate(alo_State T) {
 	aloL_checkany(T, 0);
 	if (alo_getreg(T, "__basic_delegates") != ALO_TLIST) {
 		aloL_tagerror(T, -1, ALO_TLIST);
@@ -291,7 +291,7 @@ static int base_delegate(astate T) {
  ** set meta table for object.
  ** prototype: setmeta(obj, metatable)
  */
-static int base_setmeta(astate T) {
+static int base_setmeta(alo_State T) {
 	aloL_checkany(T, 0);
 	if (alo_isnonnil(T, 1)) {
 		aloL_checktype(T, 1, ALO_TTABLE);
@@ -328,9 +328,9 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-#define NUM_DELEGATES (ALO_TRAWDATA + 1)
+#define NUM_DELEGATES (ALO_TUSER + 1)
 
-int aloopen_base(astate T) {
+int aloopen_base(alo_State T) {
 	alo_push(T, ALO_GLOBAL_IDNEX);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_pushcstring(T, ALO_VERSION);

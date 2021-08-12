@@ -16,7 +16,7 @@
  ** allocate new table.
  ** prototype: table.__alloc()
  */
-static int table_alloc(astate T) {
+static int table_alloc(alo_State T) {
 	alo_newtable(T, 0);
 	return 1;
 }
@@ -25,13 +25,13 @@ static int table_alloc(astate T) {
  ** create a new table with capacity (the table is already allocated).
  ** prototype: table.__new(initial_capacity)
  */
-static int table_new(astate T) {
+static int table_new(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	if (!alo_isnothing(T, 1)) {
 		if (alo_typeid(T, 1) == ALO_TTABLE) {
 			size_t n = alo_rawlen(T, 1);
 			alo_sizehint(T, 0, n);
-			aitr itr = alo_ibegin(T, 1);
+			a_itr itr = alo_ibegin(T, 1);
 			while (alo_inext(T, 0, &itr)) {
 				alo_rawset(T, 0);
 			}
@@ -43,13 +43,13 @@ static int table_new(astate T) {
 	return 0;
 }
 
-static int table_clear(astate T) {
+static int table_clear(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	alo_rawclr(T, 0);
 	return 0;
 }
 
-static int table_filter(astate T) {
+static int table_filter(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	aloL_checkcall(T, 1);
 	int flag = aloL_getoptbool(T, 2, true);
@@ -60,7 +60,7 @@ static int table_filter(astate T) {
 		if (n == 0) {
 			return 1;
 		}
-		aitr i = alo_ibegin(T, 0);
+		a_itr i = alo_ibegin(T, 0);
 		while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
 			alo_push(T, 1);
 			alo_push(T, 3);
@@ -78,7 +78,7 @@ static int table_filter(astate T) {
 	}
 	else { /* put in it self */
 		if (n > 0) {
-			aitr i = alo_ibegin(T, 0);
+			a_itr i = alo_ibegin(T, 0);
 			while (alo_push(T, 1), alo_inext(T, 0, &i) != ALO_TUNDEF) {
 				alo_call(T, 2, 1);
 				if (!alo_toboolean(T, 2)) {
@@ -94,7 +94,7 @@ static int table_filter(astate T) {
 	return 1;
 }
 
-static int table_map(astate T) {
+static int table_map(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	aloL_checkcall(T, 1);
 	int flag = aloL_getoptbool(T, 2, true);
@@ -109,7 +109,7 @@ static int table_map(astate T) {
 	if (n == 0) { /* no elements contained */
 		return 1; /* return empty table directly */
 	}
-	aitr i = alo_ibegin(T, 0);
+	a_itr i = alo_ibegin(T, 0);
 	while (alo_inext(T, 0, &i) != ALO_TUNDEF) {
 		alo_push(T, 1);
 		alo_push(T, 3);
@@ -129,7 +129,7 @@ static int table_map(astate T) {
 
 #define defaults(s,l,x) aloE_void((s) = ""x, (l) = (sizeof(x) / sizeof(char) - 1))
 
-static int table_mkstr(astate T) {
+static int table_mkstr(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	size_t l1, l2, l3, l4, l5;
 	const char *s1, *s2, *s3, *s4, *s5;
@@ -168,7 +168,7 @@ static int table_mkstr(astate T) {
 		}
 		else {
 			aloL_bputls(T, buf, s2, l2);
-			aitr i = alo_ibegin(T, 0);
+			a_itr i = alo_ibegin(T, 0);
 			/* append first element */
 			alo_inext(T, 0, &i);
 			s5 = aloL_tostring(T, -2, &l5);
@@ -206,7 +206,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_tab(astate T) {
+int aloopen_tab(alo_State T) {
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TTABLE);
 	aloL_setfuns(T, -1, mod_funcs);

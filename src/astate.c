@@ -28,19 +28,19 @@ ALO_VDEF const aver_t aloR_version = { ALO_VERSION_NUM };
  ** the real thread allocated for each thread.
  */
 typedef struct {
-	abyte extra[ALO_THREAD_EXTRASPACE]; /* extra thread space for user uses */
-	athread_t state; /* the actual thread object */
+	a_byte extra[ALO_THREAD_EXTRASPACE]; /* extra thread space for user uses */
+	alo_Thread state; /* the actual thread object */
 } TX;
 
 /* get raw thread pointer from thread object */
-#define getraw(T) aloE_cast(TX*, aloE_cast(abyte*, T) - offsetof(TX, state))
+#define getraw(T) aloE_cast(TX*, aloE_cast(a_byte*, T) - offsetof(TX, state))
 
 typedef struct {
 	TX t;
 	aglobal_t g;
 } TG;
 
-static void init_stack(astate T, athread_t* thread) {
+static void init_stack(alo_State T, alo_Thread* thread) {
 	aloM_newb(T, thread->stack, thread->stacksize, ALO_BASESTACKSIZE);
 	thread->top = thread->stack + 1; /* reserve for function slot */
 	/* initialize base frame stack */
@@ -49,14 +49,14 @@ static void init_stack(astate T, athread_t* thread) {
 	tsetnil(thread->base_frame.fun); /* no function for base stack */
 }
 
-static void init_registry(astate T) {
+static void init_registry(alo_State T) {
 	Gd(T);
 	atable_t* registry = aloH_new(T);
 	tsettab(T, &G->registry, registry);
 	aloH_ensure(T, registry, ALO_GLOBAL_INITIALIZESIZE);
 }
 
-static void initialize(astate T, __attribute__((unused)) void* context) {
+static void initialize(alo_State T, __attribute__((unused)) void* context) {
 	init_stack(T, T);
 	init_registry(T);
 	aloS_init(T);
@@ -65,7 +65,7 @@ static void initialize(astate T, __attribute__((unused)) void* context) {
 	aloi_openthread(T, NULL);
 }
 
-static ahash_t newseed(astate T) {
+static a_hash newseed(alo_State T) {
 	/* first random sequence generate */
 	uintptr_t pool[4] = {
 		aloE_addr(T),
@@ -77,8 +77,8 @@ static ahash_t newseed(astate T) {
 	return aloS_rhash(aloE_cast(const char*, pool), sizeof(pool), time(NULL) ^ ALO_MASKSEED);
 }
 
-static void preinit(astate T, aglobal_t* G) {
-	T->status = ThreadStateYield;
+static void preinit(alo_State T, aglobal_t* G) {
+	T->status = ALO_STYIELD;
 	T->caller = NULL;
 	T->g = G;
 	T->frame = &T->base_frame;
@@ -108,11 +108,11 @@ static void preinit(astate T, aglobal_t* G) {
 	T->memstk.len = 0;
 }
 
-astate alo_newstate(aalloc alloc, void* ctx) {
+alo_State alo_newstate(alo_Alloc alloc, void* ctx) {
 	TG* tg = aloE_cast(TG*, alloc(ctx, NULL, 0, sizeof(TG)));
 	if (tg == NULL)
 		return NULL;
-	athread_t* T = &tg->t.state;
+	alo_Thread* T = &tg->t.state;
 	aglobal_t* G = &tg->g;
 	G->alloc = alloc;
 	G->context = ctx;
@@ -144,7 +144,7 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	T->mark = aloG_white1;
 	preinit(T, G);
 	/* run initializer with memory allocation, if failed, delete thread directly */
-	if (aloD_prun(T, initialize, NULL) != ThreadStateRun) {
+	if (aloD_prun(T, initialize, NULL) != ALO_STOK) {
 		alo_deletestate(T);
 		return NULL;
 	}
@@ -152,15 +152,15 @@ astate alo_newstate(aalloc alloc, void* ctx) {
 	aloE_log("new alo state initialized, seed: %"PRId64, G->seed);
 
 	G->fgc = true; /* enable GC */
-	T->status = ThreadStateRun;
+	T->status = ALO_STOK;
 	return T;
 }
 
-astate alo_newthread(astate T) {
+alo_State alo_newthread(alo_State T) {
 	Gd(T);
 	aloG_check(T);
 	api_checkslots(T, 1);
-	athread_t* thread = &aloM_newo(T, TX)->state;
+	alo_Thread* thread = &aloM_newo(T, TX)->state;
 	preinit(thread, G);
 	aloG_register(T, thread, ALO_TTHREAD);
 	tsetthr(T, api_incrtop(T), thread);
@@ -173,13 +173,13 @@ astate alo_newthread(astate T) {
 /**
  ** close frame and free all references in the frame.
  */
-void aloR_closeframe(__attribute__((unused)) astate T, aframe_t* frame) {
+void aloR_closeframe(__attribute__((unused)) alo_State T, aframe_t* frame) {
 	frame->flags = 0; /* clear frame flags, the frame will regard as a C functions calling frame now. */
 	/* make old context unreachable */
 	frame->c.kfun = NULL;
 }
 
-static void destory_thread(astate T, athread_t* v, int close) {
+static void destory_thread(alo_State T, alo_Thread* v, int close) {
 	aframe_t* frame = aloR_topframe(v);
 	while (frame->prev) { /* true if frame is not base frame */
 		aframe_t* current = frame;
@@ -191,7 +191,7 @@ static void destory_thread(astate T, athread_t* v, int close) {
 		aloF_close(T, T->stack);
 	}
 	else {
-		acap_t *c, *n = T->captures;
+		alo_Capture *c, *n = T->captures;
 		while ((c = n)) {
 			n = c->prev;
 			aloM_delo(T, c); /* delete capture */
@@ -201,9 +201,9 @@ static void destory_thread(astate T, athread_t* v, int close) {
 	aloM_free(T, v->memstk.ptr, v->memstk.cap);
 }
 
-void alo_deletestate(astate rawT) {
+void alo_deletestate(alo_State rawT) {
 	Gd(rawT);
-	astate T = G->tmain;
+	alo_State T = G->tmain;
 	aloi_closethread(T);
 	aloG_clear(T); /* clean all objects */
 	destory_thread(T, T, false);
@@ -214,7 +214,7 @@ void alo_deletestate(astate rawT) {
 /**
  ** delete thread.
  */
-void aloR_deletethread(astate T, athread_t* v) {
+void aloR_deletethread(alo_State T, alo_Thread* v) {
 	aloi_closethread(T);
 	destory_thread(T, v, true);
 	aloM_delo(T, getraw(v));
@@ -223,7 +223,7 @@ void aloR_deletethread(astate T, athread_t* v) {
 /**
  ** get top of frames.
  */
-aframe_t* aloR_topframe(astate T) {
+aframe_t* aloR_topframe(alo_State T) {
 	aframe_t* frame = T->frame;
 	while (frame->next) {
 		frame = frame->next;
@@ -231,7 +231,7 @@ aframe_t* aloR_topframe(astate T) {
 	return frame;
 }
 
-aframe_t* aloR_pushframe(astate T) {
+aframe_t* aloR_pushframe(alo_State T) {
 	aframe_t* oldframe = T->frame;
 	aloE_assert(oldframe->next == NULL, "not reach top of frame yet.");
 	aframe_t* newframe = aloM_newo(T, aframe_t);

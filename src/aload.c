@@ -23,17 +23,17 @@
 #include <string.h>
 
 typedef struct {
-	astate T;
-	astr src;
+	alo_State T;
+	a_cstr src;
 	aibuf_t buf;
 } I;
 
 typedef struct {
 	I in;
-	aproto_t* p;
+	alo_Proto* p;
 } PContext;
 
-void aloZ_delete(astate T, aproto_t* p) {
+void aloZ_delete(alo_State T, alo_Proto* p) {
 	if (p == NULL) {
 		return;
 	}
@@ -43,9 +43,9 @@ void aloZ_delete(astate T, aproto_t* p) {
 	aloF_deletep(T, p);
 }
 
-static void error(I* in, astr msg) {
+static void error(I* in, a_cstr msg) {
 	aloV_pushfstring(in->T, "%s: %s precompiled chunk", in->src, msg);
-	aloD_throw(in->T, ThreadStateErrSerialize);
+	aloD_throw(in->T, ALO_STERRCOM);
 }
 
 #define loadb(in,b,s) ({ if (aloB_iread((in)->T, &(in)->buf, b, s)) error(in, "truncated"); })
@@ -56,9 +56,9 @@ static void error(I* in, astr msg) {
 #define loadt(in,t) ({ t _block; loadr(in, _block); _block; })
 #define checkl(in,l,msg) checkl_(in, l, sizeof(l) - sizeof(char), msg)
 
-static astring_t* bind(I* in, astring_t* s) {
-	astate T = in->T;
-	alist_t* list = tgetlis(T->top - 1);
+static alo_Str* bind(I* in, alo_Str* s) {
+	alo_State T = in->T;
+	alo_List* list = taslis(T->top - 1);
 	tsetstr(T, T->top++, s); /* push string into stack to avoid GC */
 	aloI_ensure(T, list, 1);
 	tsetstr(T, list->array + list->length++, s);
@@ -73,7 +73,7 @@ static uint8_t loadu8(I* in) {
 	return ch;
 }
 
-static astring_t* loads(I* in) {
+static alo_Str* loads(I* in) {
 	int c = loadu8(in);
 	if (c == 0) {
 		return NULL;
@@ -86,7 +86,7 @@ static astring_t* loads(I* in) {
 		else {
 			loadr(in, len);
 		}
-		astring_t* s;
+		alo_Str* s;
 		if (--len <= ALO_MAXISTRLEN) {
 			char buf[len];
 			loada(in, buf, len);
@@ -100,13 +100,13 @@ static astring_t* loads(I* in) {
 	}
 }
 
-static void loadconsts(I* in, aproto_t* p) {
+static void loadconsts(I* in, alo_Proto* p) {
 	size_t n;
 	loadr(in, n);
 	initl(in, p->consts, n);
 	p->nconst = n;
 	for (size_t i = 0; i < n; ++i) {
-		atval_t* t = p->consts + i;
+		alo_TVal* t = p->consts + i;
 		switch (loadu8(in)) {
 		case CT_NIL:
 			tsetnil(t);
@@ -118,10 +118,10 @@ static void loadconsts(I* in, aproto_t* p) {
 			tsetbool(t, true);
 			break;
 		case CT_INT:
-			tsetint(t, loadt(in, aint));
+			tsetint(t, loadt(in, a_int));
 			break;
 		case CT_FLT:
-			tsetflt(t, loadt(in, afloat));
+			tsetflt(t, loadt(in, a_float));
 			break;
 		case CT_XSTR:
 			tsetstr(in->T, t, in->T->g->sempty);
@@ -138,7 +138,7 @@ static void loadconsts(I* in, aproto_t* p) {
 		case CT_LSTR:
 			len = loadt(in, size_t);
 			hstr: {
-				astring_t* s = aloS_createlng(in->T, len);
+				alo_Str* s = aloS_createlng(in->T, len);
 				loada(in, s->array, len);
 				tsetstr(in->T, t, s);
 			}
@@ -151,20 +151,20 @@ static void loadconsts(I* in, aproto_t* p) {
 
 }
 
-static void loadcaptures(I* in, aproto_t* p) {
+static void loadcaptures(I* in, alo_Proto* p) {
 	uint16_t n = loadt(in, uint16_t);
 	initl(in, p->captures, n);
 	p->ncap = n;
 	for (int i = 0; i < n; ++i) {
-		acapinfo_t* info = p->captures + i;
+		alo_CapInfo* info = p->captures + i;
 		loadr(in, info->index);
 		info->finstack = loadu8(in);
 	}
 }
 
-static void loadfun(I*, aproto_t**, astring_t*);
+static void loadfun(I*, alo_Proto**, alo_Str*);
 
-static void loadchildren(I* in, aproto_t* p) {
+static void loadchildren(I* in, alo_Proto* p) {
 	size_t n;
 	loadr(in, n);
 	initl(in, p->children, n);
@@ -176,7 +176,7 @@ static void loadchildren(I* in, aproto_t* p) {
 	}
 }
 
-static void loaddebug(I* in, aproto_t* p) {
+static void loaddebug(I* in, alo_Proto* p) {
 	loadr(in, p->linefdef);
 	loadr(in, p->lineldef);
 	size_t n;
@@ -202,8 +202,8 @@ static void loaddebug(I* in, aproto_t* p) {
 	}
 }
 
-static void loadfun(I* in, aproto_t** slot, astring_t* src) {
-	aproto_t* p = *slot = aloF_newp(in->T);
+static void loadfun(I* in, alo_Proto** slot, alo_Str* src) {
+	alo_Proto* p = *slot = aloF_newp(in->T);
 	p->name = loads(in);
 	/* load parameter information */
 	loadr(in, p->nargs);
@@ -223,7 +223,7 @@ static void loadfun(I* in, aproto_t** slot, astring_t* src) {
 	loaddebug(in, p);
 }
 
-static void checkl_(I* in, const void* src, size_t len, astr msg) {
+static void checkl_(I* in, const void* src, size_t len, a_cstr msg) {
 	char buf[len];
 	loadb(in, buf, len);
 	if (memcmp(buf, src, len) != 0) {
@@ -232,9 +232,9 @@ static void checkl_(I* in, const void* src, size_t len, astr msg) {
 }
 
 static void checkversion(I* in) {
-	abyte version = loadu8(in);
-	abyte major = version / 16;
-	abyte minor = version % 16;
+	a_byte version = loadu8(in);
+	a_byte major = version / 16;
+	a_byte minor = version % 16;
 	const aver_t* current = in->T->g->version;
 	if (major != current->major || minor < current->minor) {
 		error(in, "version mismatch in");
@@ -248,15 +248,15 @@ static void checkhead(I* in) {
 		error(in, "format mismatch in");
 	}
 	checkl(in, ALOZ_DATA, "corrupted");
-	if (loadt(in, aint) != ALOZ_INT) {
+	if (loadt(in, a_int) != ALOZ_INT) {
 		error(in, "endianness mismatch in");
 	}
-	if (loadt(in, afloat) != ALOZ_FLT) {
+	if (loadt(in, a_float) != ALOZ_FLT) {
 		error(in, "float format mismatch in");
 	}
 }
 
-static void pload(astate T, void* rcontext) {
+static void pload(alo_State T, void* rcontext) {
 	PContext* context = aloE_cast(PContext*, rcontext);
 	checkhead(&context->in);
 	loadfun(&context->in, &context->p, bind(&context->in, aloS_of(T, context->in.src)));
@@ -265,12 +265,12 @@ static void pload(astate T, void* rcontext) {
 /**
  ** load chunk from binary file.
  */
-int aloZ_load(astate T, aproto_t** p, astr src, areader reader, void* context) {
+int aloZ_load(alo_State T, alo_Proto** p, a_cstr src, alo_Reader reader, void* context) {
 	PContext c = { { T, src, { NULL, 0, reader, context } }, NULL };
 	tsetlis(T, T->top, aloI_new(T)); /* create reference for avoiding GC */
 	T->top ++;
 	int status = aloD_prun(T, pload, &c);
-	if (status == ThreadStateRun) {
+	if (status == ALO_STOK) {
 		*p = c.p;
 		aloG_register(T, c.p, ALO_TPROTO); /* register prototype */
 	}

@@ -22,11 +22,11 @@
 
 #define alo_pusherrcode alo_pushinteger
 
-static int sys_setlocale(astate T) {
+static int sys_setlocale(alo_State T) {
 	static const int catindices[] = {
 			LC_ALL, LC_COLLATE, LC_CTYPE, LC_MONETARY, LC_NUMERIC, LC_TIME
 	};
-	static const astr catnames[] = {
+	static const a_cstr catnames[] = {
 			"all", "collate", "ctype", "monetary", "numeric", "time", NULL
 	};
 	const char* locale = aloL_getoptstring(T, 0, NULL);
@@ -42,7 +42,7 @@ static int sys_setlocale(astate T) {
  ** this function will not return.
  ** prototype: sys.exit(status, emergency)
  */
-static int sys_exit(astate T) {
+static int sys_exit(alo_State T) {
 	int status;
 	if (alo_isboolean(T, 0)) {
 		status = alo_toboolean(T, 0) ? EXIT_SUCCESS : EXIT_FAILURE;
@@ -57,12 +57,12 @@ static int sys_exit(astate T) {
 	return 0;
 }
 
-static int sys_getenv(astate T) {
+static int sys_getenv(alo_State T) {
 	alo_pushstring(T, getenv(aloL_checkstring(T, 0)));
 	return 1;
 }
 
-static int sys_clock(astate T) {
+static int sys_clock(alo_State T) {
 	alo_pushinteger(T, clock() / CLOCKS_PER_SEC);
 	return 1;
 }
@@ -72,10 +72,10 @@ static int sys_clock(astate T) {
  ** January 1st, 1970 UTC 0:00 to current time.
  ** prototype: sys.time()
  */
-static int sys_time(astate T) {
+static int sys_time(alo_State T) {
 	struct timeval t;
 	gettimeofday(&t, NULL);
-	alo_pushinteger(T, aloE_cast(aint, t.tv_sec) * 1000 + aloE_cast(aint, t.tv_usec) / 1000);
+	alo_pushinteger(T, aloE_cast(a_int, t.tv_sec) * 1000 + aloE_cast(a_int, t.tv_usec) / 1000);
 	return 1;
 }
 
@@ -86,8 +86,8 @@ static int sys_time(astate T) {
  ** run meet an error, it return false.
  ** prototype: sys.run([cmd])
  */
-static int sys_run(astate T) {
-	astr cmd = aloL_getoptstring(T, 0, NULL);
+static int sys_run(alo_State T) {
+	a_cstr cmd = aloL_getoptstring(T, 0, NULL);
 	int stat = system(cmd);
 	if (cmd) {
 		if (stat == -1) { /* error? */
@@ -107,13 +107,13 @@ static int sys_run(astate T) {
 	}
 }
 
-static int sys_rand(astate T) {
+static int sys_rand(alo_State T) {
 	alo_pushinteger(T, rand());
 	return 1;
 }
 
-static int sys_srand(astate T) {
-	aint value = aloL_checkinteger(T, 0);
+static int sys_srand(alo_State T) {
+	a_int value = aloL_checkinteger(T, 0);
 	srand(value);
 	return 0;
 }
@@ -130,7 +130,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_sys(astate T) {
+int aloopen_sys(alo_State T) {
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	return 1;

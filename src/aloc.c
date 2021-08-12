@@ -17,26 +17,26 @@
 
 #include "aall.h"
 
-static int fwriter(__attribute__((unused)) astate T, void* buf, const void* src, size_t len) {
+static int fwriter(__attribute__((unused)) alo_State T, void* buf, const void* src, size_t len) {
 	fwrite(src, 1, len, aloE_cast(FILE*, buf));
 	return 0;
 }
 
-static aproto_t* proto = NULL;
+static alo_Proto* proto = NULL;
 
 static void prtkst(int index, __attribute__((unused)) int off) {
 	if (index > (int) proto->nconst) {
 		printf("<error>");
 		return;
 	}
-	const atval_t* o = proto->consts + index;
+	const alo_TVal* o = proto->consts + index;
 	switch (ttpnv(o)) {
 	case ALO_TNIL  : printf("nil"); break;
-	case ALO_TBOOL : printf("%s", tgetbool(o) ? "true" : "false"); break;
-	case ALO_TINT  : printf(ALO_INT_FORMAT, tgetint(o)); break;
-	case ALO_TFLOAT: printf(ALO_FLT_FORMAT, tgetflt(o)); break;
-	case ALO_TSTRING: {
-		astring_t* s = tgetstr(o);
+	case ALO_TBOOL : printf("%s", tasbool(o) ? "true" : "false"); break;
+	case ALO_TINT  : printf(ALO_INT_FORMAT, tasint(o)); break;
+	case ALO_TFLOAT: printf(ALO_FLT_FORMAT, tasflt(o)); break;
+	case ALO_TSTR: {
+		alo_Str* s = tasstr(o);
 		alo_format(NULL, fwriter, stdout, "\"%\"\"", s->array, aloS_len(s));
 		break;
 	}
@@ -58,7 +58,7 @@ static void prtreg(int index, int off) {
 		/* find register name */
 		off++;
 		for (int i = 0; i < proto->nlocvar; ++i) {
-			alocvar_t* var = &proto->locvars[i];
+			alo_LocVarInfo* var = &proto->locvars[i];
 			if (off >= var->start && off <= var->end && var->index == index) {
 				printf("%%%s", var->name->array);
 				return;
@@ -75,7 +75,7 @@ static int detail = false;
 
 #define nameof(name) (*(name)->array ? (name)->array : "<anonymous>")
 
-static void dump(astate T, aproto_t* p) {
+static void dump(alo_State T, alo_Proto* p) {
 	proto = p;
 	printf("%s (%s:%d,%d) %d instructions at %p\n",
 			nameof(p->name), p->src->array, p->linefdef, p->lineldef, p->ncode, p);
@@ -90,23 +90,23 @@ static void dump(astate T, aproto_t* p) {
 		}
 		printf("captures (%d) for %p:\n", p->ncap, p);
 		for (int i = 0; i < p->ncap; ++i) {
-			acapinfo_t* info = p->captures + i;
+			alo_CapInfo* info = p->captures + i;
 			printf("\t[%d]\t%s\t%s%d\n", i + 1, nameof(info->name), info->finstack ? "%" : "#", info->index);
 		}
 		printf("local (%d) for %p:\n", p->nlocvar, p);
 		for (int i = 0; i < p->nlocvar; ++i) {
-			alocvar_t* info = p->locvars + i;
+			alo_LocVarInfo* info = p->locvars + i;
 			printf("\t[%d]\t%s\n", info->index, nameof(info->name));
 		}
 	}
-	alineinfo_t* info = p->lineinfo;
+	alo_LineInfo* info = p->lineinfo;
 	int m = -1;
 	for (int i = 0; i < p->ncode; ++i) {
 		if (m + 1 < p->nlineinfo && i >= info->begin) {
 			printf("line %d:\n", (info++)->line);
 			m++;
 		}
-		ainsn_t code = p->code[i];
+		a_insn code = p->code[i];
 		int insn = GET_i(code);
 		printf("\t%-5d %5s ", i + 1, aloP_opname[insn]);
 		switch (insn) {
@@ -141,7 +141,7 @@ static void dump(astate T, aproto_t* p) {
 			break;
 		case OP_LDP:
 			prtreg(GET_A(code), i);
-			aproto_t* proto = p->children[GET_Bx(code)];
+			alo_Proto* proto = p->children[GET_Bx(code)];
 			if (*proto->name->array) {
 				printf(" %s", proto->name->array);
 			}
@@ -233,20 +233,20 @@ static void dump(astate T, aproto_t* p) {
 
 #define MASK_INFO	0x0100
 
-static astr name = "<main>";
-static astr src = NULL;
-static astr dest = "out.aloc";
+static a_cstr name = "<main>";
+static a_cstr src = NULL;
+static a_cstr dest = "out.aloc";
 
 static unsigned mask = 0;
 
-static int tmain(astate T) {
+static int tmain(alo_State T) {
 	int flag = aloL_compilef(T, name, src);
-	if (flag == ThreadStateRun) {
+	if (flag == ALO_STOK) {
 		if (mask & MASK_INFO) {
-			dump(T, tgetclo(T->top - 1)->a.proto);
+			dump(T, tasclo(T->top - 1)->a.proto);
 		}
 		else {
-			if (aloL_savef(T, dest, true) != ThreadStateRun) {
+			if (aloL_savef(T, dest, true) != ALO_STOK) {
 				fprintf(stderr, "fail to save to file %s", dest);
 				return 0;
 			}
@@ -260,9 +260,9 @@ static int tmain(astate T) {
 
 #define checkmask(m,msg) if ((m) & mask) { fputs(msg"\n", stderr); return false; } mask |= (m)
 
-static int parsearg(int argc, const astr argv[]) {
+static int parsearg(int argc, const a_cstr argv[]) {
 	for (int i = 1; i < argc; ++i) {
-		astr s = argv[i];
+		a_cstr s = argv[i];
 		if (s[0] == '-') {
 			if (strcmp(s + 1, "o") == 0) {
 				checkmask(MASK_DEST, "Destination already settled.");
@@ -299,8 +299,8 @@ static int parsearg(int argc, const astr argv[]) {
 	return true;
 }
 
-int main(int argc, astr argv[]) {
-	astate T = aloL_newstate();
+int main(int argc, a_cstr argv[]) {
+	alo_State T = aloL_newstate();
 	if (T == NULL) {
 		fputs("fail to initialize VM.\n", stderr);
 		return EXIT_FAILURE;

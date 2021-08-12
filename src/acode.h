@@ -43,9 +43,9 @@ enum {
 #define aloK_iABx(f,i,xA,xB,A,Bx) aloK_insn(f, CREATE_iABx(i, xA, xB, A, Bx))
 #define aloK_iAsBx(f,i,xA,xC,A,Bx) aloK_insn(f, CREATE_iAsBx(i, xA, xC, A, Bx))
 
-ALO_IFUN size_t aloK_insn(afstat_t*, ainsn_t);
-ALO_IFUN int aloK_kstr(afstat_t*, astring_t*);
-ALO_IFUN void aloK_loadstr(afstat_t*, aestat_t*, astring_t*);
+ALO_IFUN size_t aloK_insn(afstat_t*, a_insn);
+ALO_IFUN int aloK_kstr(afstat_t*, alo_Str*);
+ALO_IFUN void aloK_loadstr(afstat_t*, aestat_t*, alo_Str*);
 
 /**
  ** stack manipulation.
@@ -91,7 +91,7 @@ ALO_IFUN void aloK_loadproto(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_singleret(afstat_t*, aestat_t*);
 ALO_IFUN void aloK_fixedret(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_multiret(afstat_t*, aestat_t*);
-ALO_IFUN void aloK_self(afstat_t*, aestat_t*, astring_t*);
+ALO_IFUN void aloK_self(afstat_t*, aestat_t*, alo_Str*);
 ALO_IFUN void aloK_unbox(afstat_t*, aestat_t*, int, int);
 ALO_IFUN void aloK_boxt(afstat_t*, aestat_t*, int);
 ALO_IFUN void aloK_newcol(afstat_t*, aestat_t*, int, size_t);

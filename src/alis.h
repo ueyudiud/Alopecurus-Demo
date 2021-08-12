@@ -17,17 +17,17 @@
 #define aloI_set(T,self,key,value) { tsetobj(T, aloI_find(T, self, key), value); aloG_barrierbackt(T, self, value); }
 #define aloI_clear(T,self) { aloE_void(T); (self)->length = 0; }
 
-ALO_IFUN alist_t* aloI_new(astate);
-ALO_IFUN void aloI_ensure(astate, alist_t*, size_t);
-ALO_IFUN void aloI_trim(astate, alist_t*);
-ALO_IFUN const atval_t* aloI_geti(alist_t*, aint);
-ALO_IFUN const atval_t* aloI_get(astate, alist_t*, const atval_t*);
-ALO_IFUN void aloI_add(astate, alist_t*, const atval_t*);
-ALO_IFUN int aloI_put(astate, alist_t*, const atval_t*);
-ALO_IFUN atval_t* aloI_findi(astate, alist_t*, aint);
-ALO_IFUN atval_t* aloI_find(astate, alist_t*, const atval_t*);
-ALO_IFUN void aloI_removei(astate, alist_t*, aint, atval_t*);
-ALO_IFUN int aloI_remove(astate, alist_t*, const atval_t*, atval_t*);
-ALO_IFUN const atval_t* aloI_next(alist_t*, ptrdiff_t*);
+ALO_IFUN alo_List* aloI_new(alo_State);
+ALO_IFUN void aloI_ensure(alo_State, alo_List*, size_t);
+ALO_IFUN void aloI_trim(alo_State, alo_List*);
+ALO_IFUN const alo_TVal* aloI_geti(alo_List*, a_int);
+ALO_IFUN const alo_TVal* aloI_get(alo_State, alo_List*, const alo_TVal*);
+ALO_IFUN void aloI_add(alo_State, alo_List*, const alo_TVal*);
+ALO_IFUN int aloI_put(alo_State, alo_List*, const alo_TVal*);
+ALO_IFUN alo_TVal* aloI_findi(alo_State, alo_List*, a_int);
+ALO_IFUN alo_TVal* aloI_find(alo_State, alo_List*, const alo_TVal*);
+ALO_IFUN void aloI_removei(alo_State, alo_List*, a_int, alo_TVal*);
+ALO_IFUN int aloI_remove(alo_State, alo_List*, const alo_TVal*, alo_TVal*);
+ALO_IFUN const alo_TVal* aloI_next(alo_List*, ptrdiff_t*);
 
 #endif /* ALIS_H_ */

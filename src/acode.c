@@ -20,7 +20,7 @@
 #define getoffset(a,b) aloE_cast(int, (a) - (b) - 1)
 
 static void fixjmp(afstat_t* f, size_t pc, size_t dest) {
-	ainsn_t* insn = &f->p->code[pc];
+	a_insn* insn = &f->p->code[pc];
 	SET_sBx(*insn, getoffset(dest, pc));
 	if (GET_i(*insn) == OP_JMP) {
 		int lnact = GET_A(*insn);
@@ -56,13 +56,13 @@ static void checkline(afstat_t* f) {
 	int line = f->l->pl;
 	if (f->lastline != line) {
 		aloM_chkb(f->l->T, f->p->lineinfo, f->p->nlineinfo, f->nline, ALO_MAX_BUFSIZE);
-		alineinfo_t* info = f->p->lineinfo + f->nline++;
+		alo_LineInfo* info = f->p->lineinfo + f->nline++;
 		info->begin = f->ncode;
 		f->lastline = info->line = line; /* settle line number */
 	}
 }
 
-size_t aloK_insn(afstat_t* f, ainsn_t insn) {
+size_t aloK_insn(afstat_t* f, a_insn insn) {
 	if (f->cjump != NO_JUMP) {
 		int list = f->cjump;
 		if (list != f->ncode - 1 || !isinsnreducible(f) || (list = nextjump(f, list)) != NO_JUMP) {
@@ -77,13 +77,13 @@ size_t aloK_insn(afstat_t* f, ainsn_t insn) {
 	return pc;
 }
 
-static atval_t* newconst(afstat_t* f) {
+static alo_TVal* newconst(afstat_t* f) {
 	aloM_chkbx(f->l->T, f->p->consts, f->p->nconst, f->nconst, ALO_MAX_BUFSIZE, tsetnil);
 	return f->p->consts + f->nconst++;
 }
 
-static ainsn_t* getctrl(afstat_t* f, int index) {
-	ainsn_t* i = f->p->code + index;
+static a_insn* getctrl(afstat_t* f, int index) {
+	a_insn* i = f->p->code + index;
 	switch (GET_i(*i)) {
 	case OP_JMP:
 		return i - 1;
@@ -97,29 +97,29 @@ static ainsn_t* getctrl(afstat_t* f, int index) {
 #define kfind(i,a,l,t,p,g) for (i = 0; i < (l); i++) { const typeof(a) _e = (a) + i; if (p(_e) && g(_e) == t) { return i; } }
 #define loadbool(f,reg,value) aloK_iABx(f, OP_LDC, false, true, reg, value)
 
-static int aloK_kint(afstat_t* f, aint value) {
+static int aloK_kint(afstat_t* f, a_int value) {
 	int i;
-	kfind(i, f->p->consts, f->nconst, value, ttisint, tgetint);
+	kfind(i, f->p->consts, f->nconst, value, tisint, tasint);
 	tsetint(newconst(f), value);
 	return i;
 }
 
-static int aloK_kflt(afstat_t* f, afloat value) {
+static int aloK_kflt(afstat_t* f, a_float value) {
 #if !ALO_STRICT_NUMTYPE
-	aint t;
+	a_int t;
 	if (aloO_flt2int(value, &t, 0)) {
 		return aloK_kint(f, t);
 	}
 #endif
 	int i;
-	kfind(i, f->p->consts, f->nconst, value, ttisflt, tgetflt);
+	kfind(i, f->p->consts, f->nconst, value, tisflt, tasflt);
 	tsetflt(newconst(f), value);
 	return i;
 }
 
-int aloK_kstr(afstat_t* f, astring_t* value) {
+int aloK_kstr(afstat_t* f, alo_Str* value) {
 	int i;
-	kfind(i, f->p->consts, f->nconst, value, ttisstr, tgetstr);
+	kfind(i, f->p->consts, f->nconst, value, tisstr, tasstr);
 	tsetstr(f->l->T, newconst(f), value);
 	return i;
 }
@@ -207,7 +207,7 @@ void aloK_marklabel(afstat_t* f, int index, int list) {
 	}
 }
 
-static int putjump_(afstat_t* f, int prev, ainsn_t insn) {
+static int putjump_(afstat_t* f, int prev, a_insn insn) {
 	alabel* label = newlabel(f, &f->d->jp);
 	if (prev != NO_JUMP) {
 		SET_sBx(insn, getoffset(prev, label->pc));
@@ -254,7 +254,7 @@ void aloK_jumpbackward(afstat_t* f, int index) {
 
 void aloK_fixline(afstat_t* f, int line) {
 	if (f->lastline != line) {
-		alineinfo_t* infos = f->p->lineinfo;
+		alo_LineInfo* infos = f->p->lineinfo;
 		aloE_assert(f->nline > 0, "no code to fix line.");
 		if (infos[f->nline - 1].begin == f->ncode - 1) { /* is line begin here */
 			if (f->nline == 1 || infos[f->nline - 2].line != line) { /* not fit to previous line */
@@ -266,7 +266,7 @@ void aloK_fixline(afstat_t* f, int line) {
 		}
 		else {
 			aloM_chkb(f->l->T, f->p->lineinfo, f->p->nlineinfo, f->nline, ALO_MAX_BUFSIZE);
-			alineinfo_t* info = f->p->lineinfo + f->nline++;
+			alo_LineInfo* info = f->p->lineinfo + f->nline++;
 			info->begin = f->ncode - 1;
 			info->line = line; /* settle line number */
 		}
@@ -510,7 +510,7 @@ int aloK_reuse(afstat_t* f, aestat_t* e) {
 }
 
 size_t aloK_loadnil(afstat_t* f, int first, int len) {
-	ainsn_t* prev;
+	a_insn* prev;
 	if (f->ncode > 0 && f->cjump == NO_JUMP) {
 		prev = f->p->code + f->ncode - 1;
 		if (GET_i(*prev) == OP_LDN) { /* is previous ldn */
@@ -554,7 +554,7 @@ void aloK_singleret(afstat_t* f, aestat_t* e) {
 		e->v.g = aloK_iABC(f, OP_SELV, 0, 2, false, 0, 0, 0);
 		break;
 	case E_CALL: {
-		ainsn_t* i = &getinsn(f, e);
+		a_insn* i = &getinsn(f, e);
 		SET_C(*i, 2);
 		e->t = E_FIXED;
 		e->v.g = GET_A(*i);
@@ -583,13 +583,13 @@ void aloK_fixedret(afstat_t* f, aestat_t* e, int n) {
 		break;
 	}
 	case E_UNBOX: {
-		ainsn_t* i = &getinsn(f, e);
+		a_insn* i = &getinsn(f, e);
 		SET_C(*i, n + 1);
 		e->t = E_ALLOC;
 		break;
 	}
 	case E_CALL: {
-		ainsn_t* i = &getinsn(f, e);
+		a_insn* i = &getinsn(f, e);
 		SET_C(*i, n + 1);
 		e->t = E_FIXED;
 		e->v.g = GET_A(*i);
@@ -620,7 +620,7 @@ void aloK_multiret(afstat_t* f, aestat_t* e) {
 	}
 }
 
-void aloK_self(afstat_t* f, aestat_t* e, astring_t* name) {
+void aloK_self(afstat_t* f, aestat_t* e, alo_Str* name) {
 	aloK_anyS(f, e);
 	freeexp(f, e);
 	int index = aloK_kstr(f, name);
@@ -674,7 +674,7 @@ void aloK_set(afstat_t* f, int index, aestat_t* k, aestat_t* v) {
 }
 
 static void flipcond(afstat_t* f, int index) {
-	ainsn_t* i = getctrl(f, index);
+	a_insn* i = getctrl(f, index);
 	SET_xC(*i, !GET_xC(*i));
 }
 
@@ -814,7 +814,7 @@ void aloK_assign(afstat_t* f, aestat_t* r, aestat_t* v) {
  **                     constant folding                         *
  **==============================================================*/
 
-static int tonumber(aestat_t* e, atval_t* o) {
+static int tonumber(aestat_t* e, alo_TVal* o) {
 	switch (e->t) {
 	case E_INTEGER:
 		tsetint(o, e->v.i);
@@ -826,7 +826,7 @@ static int tonumber(aestat_t* e, atval_t* o) {
 	return false;
 }
 
-static int toconst(aestat_t* e, atval_t* o) {
+static int toconst(aestat_t* e, alo_TVal* o) {
 	switch (e->t) {
 	case E_NIL:
 		tsetnil(o);
@@ -847,20 +847,20 @@ static int toconst(aestat_t* e, atval_t* o) {
 	return false;
 }
 
-static int fromconst(aestat_t* e, const atval_t* o) {
+static int fromconst(aestat_t* e, const alo_TVal* o) {
 	switch (ttpnv(o)) {
 	case ALO_TNIL:
 		e->t = E_NIL;
 		break;
 	case ALO_TBOOL:
-		e->t = tgetbool(o) ? E_TRUE : E_FALSE;
+		e->t = tasbool(o) ? E_TRUE : E_FALSE;
 		break;
 	case ALO_TINT:
 		e->t = E_INTEGER;
-		e->v.i = tgetint(o);
+		e->v.i = tasint(o);
 		break;
 	case ALO_TFLOAT: {
-		afloat value = tgetflt(o);
+		a_float value = tasflt(o);
 		if (isnan(value))
 			return false;
 		e->t = E_FLOAT;
@@ -874,18 +874,18 @@ static int fromconst(aestat_t* e, const atval_t* o) {
 }
 
 static int foldunary(afstat_t* f, aestat_t* e, int op) {
-	atval_t o1;
+	alo_TVal o1;
 	return tonumber(e, &o1) && aloV_unrop(f->l->T, op, &o1, &o1) && fromconst(e, &o1);
 }
 
 static int foldbinary(afstat_t* f, aestat_t* e1, aestat_t* e2, int op) {
-	atval_t o1, o2;
+	alo_TVal o1, o2;
 	return tonumber(e1, &o1) && tonumber(e2, &o2) &&
 			aloV_binop(f->l->T, op, &o1, &o1, &o2) && fromconst(e1, &o1);
 }
 
 static int foldcompare(afstat_t* f, aestat_t* e1, aestat_t* e2, int op) {
-	atval_t o1, o2;
+	alo_TVal o1, o2;
 	if (toconst(e1, &o1) && toconst(e2, &o2) && aloV_cmpop(f->l->T, op, &o1.v.b, &o1, &o2)) {
 		e1->t = o1.v.b ? E_TRUE : E_FALSE;
 		return true;

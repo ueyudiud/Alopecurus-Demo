@@ -19,8 +19,8 @@
 /* the extra data to check file correct */
 #define ALOZ_DATA "\x20\x19\x09\x02"
 
-#define ALOZ_INT aloE_cast(aint, 0x9876)
-#define ALOZ_FLT aloE_cast(afloat, 23.33)
+#define ALOZ_INT aloE_cast(a_int, 0x9876)
+#define ALOZ_FLT aloE_cast(a_float, 23.33)
 
 #define ALOZ_FORMAT 0
 
@@ -36,12 +36,12 @@ enum {
 	CT_LSTR
 };
 
-ALO_IFUN void aloZ_delete(astate, aproto_t*);
+ALO_IFUN void aloZ_delete(alo_State, alo_Proto*);
 
 /* load chunk, from aload.c */
-ALO_IFUN int aloZ_load(astate, aproto_t**, astr, areader, void*);
+ALO_IFUN int aloZ_load(alo_State, alo_Proto**, a_cstr, alo_Reader, void*);
 
 /* save chunk, from asave.c */
-ALO_IFUN int aloZ_save(astate, const aproto_t*, awriter, void*, int);
+ALO_IFUN int aloZ_save(alo_State, const alo_Proto*, alo_Writer, void*, int);
 
 #endif /* ALOAD_H_ */

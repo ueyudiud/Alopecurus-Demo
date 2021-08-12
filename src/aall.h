@@ -17,7 +17,7 @@ extern "C" {
 #include "adef.h"
 #include "art.h"
 #include "aop.h"
-#include "achr.h"
+#include "actype.h"
 #include "aobj.h"
 #include "astr.h"
 #include "atup.h"

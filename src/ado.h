@@ -35,20 +35,20 @@
 /**
  ** function with protection.
  */
-typedef void (*apfun)(astate, void*);
+typedef void (*apfun)(alo_State, void*);
 
 ALO_IFUN void aloD_setdebt(aglobal_t*, ssize_t);
-ALO_IFUN void aloD_growstack(astate, size_t);
-ALO_IFUN void aloD_reallocstack(astate, size_t);
-ALO_IFUN void aloD_shrinkstack(astate);
-ALO_IFUN int aloD_prun(astate, apfun, void*);
-ALO_IFUN anoret aloD_throw(astate, int);
-ALO_IFUN void aloD_hook(astate, int, int);
-ALO_IFUN int aloD_rawcall(astate, askid_t, int, int*);
-ALO_IFUN int aloD_precall(astate, askid_t, int);
-ALO_IFUN void aloD_postcall(astate, askid_t, int);
-ALO_IFUN void aloD_call(astate, askid_t, int);
-ALO_IFUN void aloD_callnoyield(astate, askid_t, int);
-ALO_IFUN int aloD_pcall(astate, askid_t, int, ptrdiff_t);
+ALO_IFUN void aloD_growstack(alo_State, size_t);
+ALO_IFUN void aloD_reallocstack(alo_State, size_t);
+ALO_IFUN void aloD_shrinkstack(alo_State);
+ALO_IFUN int aloD_prun(alo_State, apfun, void*);
+ALO_IFUN a_none aloD_throw(alo_State, int);
+ALO_IFUN void aloD_hook(alo_State, int, int);
+ALO_IFUN int aloD_rawcall(alo_State, alo_StkId, int, int*);
+ALO_IFUN int aloD_precall(alo_State, alo_StkId, int);
+ALO_IFUN void aloD_postcall(alo_State, alo_StkId, int);
+ALO_IFUN void aloD_call(alo_State, alo_StkId, int);
+ALO_IFUN void aloD_callnoyield(alo_State, alo_StkId, int);
+ALO_IFUN int aloD_pcall(alo_State, alo_StkId, int, ptrdiff_t);
 
 #endif /* ADO_H_ */

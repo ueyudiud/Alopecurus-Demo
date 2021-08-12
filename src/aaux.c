@@ -10,14 +10,14 @@
 
 #include "aaux.h"
 #include "alibs.h"
-#include "achr.h"
+#include "actype.h"
 
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-static amem aux_alloc(__attribute__((unused)) void* context, amem oldblock, __attribute__((unused)) size_t oldsize, size_t newsize) {
+static a_mem aux_alloc(__attribute__((unused)) void* context, a_mem oldblock, __attribute__((unused)) size_t oldsize, size_t newsize) {
 	if (newsize > 0) {
 		return realloc(oldblock, newsize);
 	}
@@ -27,21 +27,21 @@ static amem aux_alloc(__attribute__((unused)) void* context, amem oldblock, __at
 	}
 }
 
-static int aux_panic(astate T) {
-	astr msg = alo_tostring(T, -1);
+static int aux_panic(alo_State T) {
+	a_cstr msg = alo_tostring(T, -1);
 	aloL_fputf(stderr, "a unprotected error caught: %s", msg ?: "<no error message>");
 	return 0;
 }
 
-astate aloL_newstate(void) {
-	astate T = alo_newstate(aux_alloc, NULL);
+alo_State aloL_newstate(void) {
+	alo_State T = alo_newstate(aux_alloc, NULL);
 	if (T) {
 		alo_setpanic(T, aux_panic);
 	}
 	return T;
 }
 
-void aloL_checkversion_(astate T, aver_t req, size_t signature) {
+void aloL_checkversion_(alo_State T, aver_t req, size_t signature) {
 	const aver_t* ver = alo_version(T);
 	if (signature != ALOL_SIGNATURE) {
 		aloL_error(T, "invalid signature, core and library have different numeric format.");
@@ -54,7 +54,7 @@ void aloL_checkversion_(astate T, aver_t req, size_t signature) {
 	}
 }
 
-void aloL_pushscopedcfunction(astate T, acfun value) {
+void aloL_pushscopedcfunction(alo_State T, a_cfun value) {
 	alo_newtable(T, 0);
 	alo_newtable(T, 1); /* meta table of scope */
 	alo_push(T, ALO_REGISTRY_INDEX); /* push current environment */
@@ -69,12 +69,12 @@ void aloL_pushscopedcfunction(astate T, acfun value) {
  ** the elements is given by variable parameters which is
  ** stored as C-style string.
  */
-void aloL_newstringlist_(astate T, size_t size, ...) {
+void aloL_newstringlist_(alo_State T, size_t size, ...) {
 	va_list varg;
 	alo_newlist(T, size);
 	va_start(varg, size);
 	for (size_t i = 0; i < size; ++i) {
-		alo_pushstring(T, va_arg(varg, astr));
+		alo_pushstring(T, va_arg(varg, a_cstr));
 		alo_rawseti(T, -2, i);
 	}
 	va_end(varg);
@@ -83,7 +83,7 @@ void aloL_newstringlist_(astate T, size_t size, ...) {
 /**
  ** create a table which mode is provided by parameter prop.
  */
-void aloL_newweaktable(astate T, astr prop, size_t size) {
+void aloL_newweaktable(alo_State T, a_cstr prop, size_t size) {
 	alo_newtable(T, size);
 	alo_newtable(T, 1);
 	alo_pushstring(T, prop);
@@ -91,81 +91,81 @@ void aloL_newweaktable(astate T, astr prop, size_t size) {
 	alo_setmetatable(T, -2);
 }
 
-anoret aloL_argerror(astate T, ssize_t i, astr fmt, ...) {
+a_none aloL_argerror(alo_State T, ssize_t i, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	astr s = alo_pushvfstring(T, fmt, varg);
+	a_cstr s = alo_pushvfstring(T, fmt, varg);
 	va_end(varg);
 	aloL_error(T, "illegal argument #%d: %s", (int) i, s);
 }
 
-anoret aloL_typeerror(astate T, ssize_t i, astr t) {
+a_none aloL_typeerror(alo_State T, ssize_t i, a_cstr t) {
 	aloL_argerror(T, i, "type mismatched, expected: %s, got: %s", t, alo_typename(T, i));
 }
 
-anoret aloL_tagerror(astate T, ssize_t i, int t) {
+a_none aloL_tagerror(alo_State T, ssize_t i, int t) {
 	aloL_typeerror(T, i, alo_tpidname(T, t));
 }
 
-void aloL_ensure(astate T, size_t size) {
+void aloL_ensure(alo_State T, size_t size) {
 	if (!alo_ensure(T, size)) {
 		aloL_error(T, "no enough stack.");
 	}
 }
 
-void aloL_checkany(astate T, ssize_t index) {
+void aloL_checkany(alo_State T, ssize_t index) {
 	if (alo_isnone(T, index)) {
 		aloL_typeerror(T, index, "any");
 	}
 }
 
-void aloL_checktype(astate T, ssize_t index, int type) {
+void aloL_checktype(alo_State T, ssize_t index, int type) {
 	if (alo_typeid(T, index) != type) {
 		aloL_tagerror(T, index, type);
 	}
 }
 
-int aloL_checkbool(astate T, ssize_t index) {
+int aloL_checkbool(alo_State T, ssize_t index) {
 	if (!alo_isboolean(T, index)) {
 		aloL_tagerror(T, index, ALO_TBOOL);
 	}
 	return alo_toboolean(T, index);
 }
 
-int aloL_getoptbool(astate T, ssize_t index, int def) {
+int aloL_getoptbool(alo_State T, ssize_t index, int def) {
 	return alo_isnothing(T, index) ? def : aloL_checkbool(T, index);
 }
 
-aint aloL_checkinteger(astate T, ssize_t index) {
+a_int aloL_checkinteger(alo_State T, ssize_t index) {
 	if (!alo_isinteger(T, index)) {
 		aloL_tagerror(T, index, ALO_TINT);
 	}
 	return alo_tointeger(T, index);
 }
 
-aint aloL_getoptinteger(astate T, ssize_t index, aint def) {
+a_int aloL_getoptinteger(alo_State T, ssize_t index, a_int def) {
 	return alo_isnothing(T, index) ? def : aloL_checkinteger(T, index);
 }
 
-afloat aloL_checknumber(astate T, ssize_t index) {
+a_float aloL_checknumber(alo_State T, ssize_t index) {
 	if (!alo_isnumber(T, index)) {
 		aloL_typeerror(T, index, "number");
 	}
 	return alo_tonumber(T, index);
 }
 
-afloat aloL_getoptnumber(astate T, ssize_t index, afloat def) {
+a_float aloL_getoptnumber(alo_State T, ssize_t index, a_float def) {
 	return alo_isnothing(T, index) ? def : aloL_checknumber(T, index);
 }
 
-const char* aloL_checklstring(astate T, ssize_t index, size_t* psize) {
+const char* aloL_checklstring(alo_State T, ssize_t index, size_t* psize) {
 	if (!alo_isstring(T, index)) {
-		aloL_tagerror(T, index, ALO_TSTRING);
+		aloL_tagerror(T, index, ALO_TSTR);
 	}
 	return alo_tolstring(T, index, psize);
 }
 
-const char* aloL_getoptlstring(astate T, ssize_t index, const char* def, size_t defsz, size_t* psize) {
+const char* aloL_getoptlstring(alo_State T, ssize_t index, const char* def, size_t defsz, size_t* psize) {
 	if (alo_isnothing(T, index)) {
 		if (psize) {
 			*psize = defsz;
@@ -175,7 +175,7 @@ const char* aloL_getoptlstring(astate T, ssize_t index, const char* def, size_t 
 	return aloL_checklstring(T, index, psize);
 }
 
-int aloL_checkenum(astate T, ssize_t index, astr def, const astr list[]) {
+int aloL_checkenum(alo_State T, ssize_t index, a_cstr def, const a_cstr list[]) {
 	const char* src = def ? aloL_getoptstring(T, index, def) : aloL_checkstring(T, index);
 	for (int i = 0; list[i]; i++) {
 		if (strcmp(src, list[i]) == 0) {
@@ -186,11 +186,11 @@ int aloL_checkenum(astate T, ssize_t index, astr def, const astr list[]) {
 	return -1;
 }
 
-void aloL_checkcall(astate T, ssize_t index) {
+void aloL_checkcall(alo_State T, ssize_t index) {
 	int id = alo_typeid(T, index); /* get object id */
-	if (id != ALO_TFUNCTION) { /* not a function */
+	if (id != ALO_TFUNC) { /* not a function */
 		if (id != ALO_TUNDEF) {
-			if (alo_getmeta(T, index, "__call", true) == ALO_TFUNCTION) { /* has meta method for apply */
+			if (alo_getmeta(T, index, "__call", true) == ALO_TFUNC) { /* has meta method for apply */
 				return;
 			}
 		}
@@ -198,19 +198,19 @@ void aloL_checkcall(astate T, ssize_t index) {
 	}
 }
 
-const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
+const char* aloL_tostring(alo_State T, ssize_t index, size_t* psize) {
 	int type = alo_getmeta(T, index, "__tostr", true);
 	if (type != ALO_TNIL) { /* find meta field? */
 		switch (type) {
-		case ALO_TFUNCTION: /* applied by function? */
+		case ALO_TFUNC: /* applied by function? */
 			/* call function */
 			alo_push(T, index);
 			alo_call(T, 1, 1);
-			if (alo_typeid(T, -1) != ALO_TSTRING) {
+			if (alo_typeid(T, -1) != ALO_TSTR) {
 				goto error;
 			}
 			break;
-		case ALO_TSTRING:
+		case ALO_TSTR:
 			break;
 		default:
 			error:
@@ -231,7 +231,7 @@ const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
 	case ALO_TFLOAT:
 		alo_pushfstring(T, "%f", alo_tonumber(T, index));
 		break;
-	case ALO_TSTRING:
+	case ALO_TSTR:
 		alo_push(T, index);
 		break;
 	default:
@@ -244,8 +244,8 @@ const char* aloL_tostring(astate T, ssize_t index, size_t* psize) {
 /**
  ** push a string that replaced all t as sub sequence in s into m.
  */
-astr aloL_sreplace(astate T, astr s, astr t, astr m) {
-	astr result = NULL;
+a_cstr aloL_sreplace(alo_State T, a_cstr s, a_cstr t, a_cstr m) {
+	a_cstr result = NULL;
 	aloL_usebuf(T, buf,
 		aloL_brepts(T, buf, s, t, m);
 		result = aloL_bpushstring(T, buf);
@@ -256,7 +256,7 @@ astr aloL_sreplace(astate T, astr s, astr t, astr m) {
 /**
  ** put name-function entries into table, if function is NULL, put nil into table.
  */
-void aloL_setfuns(astate T, ssize_t index, const acreg_t* regs) {
+void aloL_setfuns(alo_State T, ssize_t index, const acreg_t* regs) {
 	index = alo_absindex(T, index); /* get absolute index */
 	while (regs->name) {
 		if (regs->handle) {
@@ -270,7 +270,7 @@ void aloL_setfuns(astate T, ssize_t index, const acreg_t* regs) {
 	}
 }
 
-int aloL_getmetatable(astate T, astr name) {
+int aloL_getmetatable(alo_State T, a_cstr name) {
 	aloL_getsubtable(T, ALO_REGISTRY_INDEX, "@");
 	if (alo_rawgets(T, -1, name) != ALO_TTABLE) {
 		alo_settop(T, -1);
@@ -283,7 +283,7 @@ int aloL_getmetatable(astate T, astr name) {
  ** force to get sub table of table, create a new table value if entry is nil.
  ** return true if create a new table.
  */
-int aloL_getsubtable(astate T, ssize_t index, astr key) {
+int aloL_getsubtable(alo_State T, ssize_t index, a_cstr key) {
 	index = alo_absindex(T, index);
 	if (alo_gets(T, index, key) == ALO_TTABLE) {
 		return false;
@@ -300,7 +300,7 @@ int aloL_getsubtable(astate T, ssize_t index, astr key) {
  ** get field of sub table, return type id, if it is present or 'none' if module
  ** are not exist or entry not exist.
  */
-int aloL_getsubfield(astate T, ssize_t index, astr mod, astr key) {
+int aloL_getsubfield(alo_State T, ssize_t index, a_cstr mod, a_cstr key) {
 	if (alo_gets(T, index, mod) != ALO_TTABLE) {
 		alo_erase(T, -1);
 		return ALO_TUNDEF;
@@ -320,7 +320,7 @@ int aloL_getsubfield(astate T, ssize_t index, astr mod, astr key) {
 /**
  ** call meta field with itself, return true if meta field exist and called it.
  */
-int aloL_callselfmeta(astate T, ssize_t index, astr name) {
+int aloL_callselfmeta(alo_State T, ssize_t index, a_cstr name) {
 	index = alo_absindex(T, index);
 	if (alo_getmeta(T, index, name, true)) { /* find meta field */
 		alo_push(T, index);
@@ -334,7 +334,7 @@ int aloL_callselfmeta(astate T, ssize_t index, astr name) {
  ** check a specific module required, if it not present, open module by function,
  ** and place the module at the top of stack.
  */
-void aloL_require(astate T, astr name, acfun openf, int putreg) {
+void aloL_require(alo_State T, a_cstr name, a_cfun openf, int putreg) {
 	aloL_getsubtable(T, ALO_REGISTRY_INDEX, ALO_LOADEDMODS);
 	if (alo_rawgets(T, -1, name) == ALO_TUNDEF) { /* if (LOADEDMODS[name] == undefined) */
 		alo_settop(T, -1);
@@ -360,7 +360,7 @@ struct LS {
 	size_t len;
 };
 
-int LSReader(__attribute__((unused)) astate T, void* context, const char** pdest, size_t* psize) {
+int LSReader(__attribute__((unused)) alo_State T, void* context, const char** pdest, size_t* psize) {
 	struct LS* l = (struct LS*) context;
 	*psize = l->len;
 	*pdest = l->src;
@@ -374,7 +374,7 @@ struct FS {
 	char buf[256];
 };
 
-static int FSReader(__attribute__((unused)) astate T, void* context, const char** ps, size_t* pl) {
+static int FSReader(__attribute__((unused)) alo_State T, void* context, const char** ps, size_t* pl) {
 	struct FS* fs = aloE_cast(struct FS*, context);
 	size_t len = fread(fs->buf, sizeof(char), sizeof(fs->buf) / sizeof(char), fs->stream);
 	if (len > 0) {
@@ -388,7 +388,7 @@ static int FSReader(__attribute__((unused)) astate T, void* context, const char*
 	return ferror(fs->stream);
 }
 
-static int FSWriter(__attribute__((unused)) astate T, void* context, const void* s, size_t l) {
+static int FSWriter(__attribute__((unused)) alo_State T, void* context, const void* s, size_t l) {
 	struct FS* fs = aloE_cast(struct FS*, context);
 	fwrite(s, 1, l, fs->stream);
 	return ferror(fs->stream);
@@ -397,7 +397,7 @@ static int FSWriter(__attribute__((unused)) astate T, void* context, const void*
 /**
  ** compile script in buffer, the string will not be removed.
  */
-int aloL_compileb(astate T, const char* buf, size_t len, astr name, astr src) {
+int aloL_compileb(alo_State T, const char* buf, size_t len, a_cstr name, a_cstr src) {
 	struct LS context = { buf, len };
 	return alo_compile(T, name, src, LSReader, &context);
 }
@@ -405,7 +405,7 @@ int aloL_compileb(astate T, const char* buf, size_t len, astr name, astr src) {
 /**
  ** compile string as script in the stack, the string will not be removed.
  */
-int aloL_compiles(astate T, ssize_t index, astr name, astr src) {
+int aloL_compiles(alo_State T, ssize_t index, a_cstr name, a_cstr src) {
 	struct LS context;
 	context.src = alo_tolstring(T, index, &context.len);
 	return alo_compile(T, name, src, LSReader, &context);
@@ -414,7 +414,7 @@ int aloL_compiles(astate T, ssize_t index, astr name, astr src) {
 /**
  ** compile script in file, if file not found, return -1.
  */
-int aloL_compilef(astate T, astr name, astr src) {
+int aloL_compilef(alo_State T, a_cstr name, a_cstr src) {
 	struct FS context;
 	context.stream = fopen(src, "r");
 	if (context.stream == NULL) {
@@ -425,7 +425,7 @@ int aloL_compilef(astate T, astr name, astr src) {
 	return result;
 }
 
-int aloL_loadf(astate T, astr src) {
+int aloL_loadf(alo_State T, a_cstr src) {
 	struct FS context;
 	context.stream = fopen(src, "rb");
 	if (context.stream == NULL) {
@@ -436,7 +436,7 @@ int aloL_loadf(astate T, astr src) {
 	return result;
 }
 
-int aloL_savef(astate T, astr dest, int debug) {
+int aloL_savef(alo_State T, a_cstr dest, int debug) {
 	struct FS context;
 	context.stream = fopen(dest, "wb");
 	if (context.stream == NULL) {
@@ -451,7 +451,7 @@ int aloL_savef(astate T, astr dest, int debug) {
 /**
  ** get frame with level
  */
-int aloL_getframe(astate T, int level, astr what, adbinfo_t* info) {
+int aloL_getframe(alo_State T, int level, a_cstr what, alo_DbgInfo* info) {
 	if (level == 1) {
 		alo_getinfo(T, ALO_INFCURR, what, info);
 		return true;
@@ -470,9 +470,9 @@ int aloL_getframe(astate T, int level, astr what, adbinfo_t* info) {
 /**
  ** append stack trace in the string in the top of stack.
  */
-void aloL_where(astate T, int level) {
+void aloL_where(alo_State T, int level) {
 	aloL_checkstring(T, -1);
-	adbinfo_t info;
+	alo_DbgInfo info;
 	alo_getinfo(T, ALO_INFCURR, "nslc", &info); /* skip first frame */
 	aloL_usebuf(T, buf,
 		aloL_bwrite(T, buf, -1);
@@ -503,7 +503,7 @@ void aloL_where(astate T, int level) {
 /**
  ** provide error message and give the return count.
  */
-int aloL_errresult_(astate T, astr msg, int no) {
+int aloL_errresult_(alo_State T, a_cstr msg, int no) {
 	alo_pushnil(T);
 	if (msg)
 		alo_pushfstring(T, "%s: %s", msg, strerror(no));
@@ -516,7 +516,7 @@ int aloL_errresult_(astate T, astr msg, int no) {
 /**
  ** throw a runtime error.
  */
-anoret aloL_error(astate T, astr fmt, ...) {
+a_none aloL_error(alo_State T, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	alo_pushvfstring(T, fmt, varg);
@@ -525,7 +525,7 @@ anoret aloL_error(astate T, astr fmt, ...) {
 	va_end(varg);
 }
 
-void aloL_checkclassname(astate T, ssize_t index) {
+void aloL_checkclassname(alo_State T, ssize_t index) {
 	size_t len;
 	const char* src = aloL_checklstring(T, index, &len);
 	for (size_t i = 0; i < len; ++i) {
@@ -535,7 +535,7 @@ void aloL_checkclassname(astate T, ssize_t index) {
 	}
 }
 
-int aloL_getsimpleclass(astate T, astr name) {
+int aloL_getsimpleclass(alo_State T, a_cstr name) {
 	alo_getreg(T, "@");
 	if (alo_rawgets(T, -1, name) == ALO_TUNDEF) { /* no class find? */
 		alo_settop(T, -1);
@@ -549,15 +549,15 @@ int aloL_getsimpleclass(astate T, astr name) {
 	}
 }
 
-void aloL_newclass_(astate T, astr name, ...) {
+void aloL_newclass_(alo_State T, a_cstr name, ...) {
 	ssize_t base = alo_gettop(T);
 	alo_getreg(T, "@");
 	alo_pushstring(T, name);
 	va_list varg;
 	va_start(varg, name);
-	astr parent;
+	a_cstr parent;
 	int c = 1;
-	while ((parent = va_arg(varg, astr))) {
+	while ((parent = va_arg(varg, a_cstr))) {
 		if (alo_gets(T, base, parent) != ALO_TTABLE) {
 			aloL_error(T, "fail to create new class: class @%s not found", parent);
 		}
@@ -566,22 +566,22 @@ void aloL_newclass_(astate T, astr name, ...) {
 	alo_call(T, c, 1);
 }
 
-void aloL_bputm(astate T, ambuf_t* buf, const void* src, size_t len) {
+void aloL_bputm(alo_State T, ambuf_t* buf, const void* src, size_t len) {
 	aloL_bcheck(T, buf, len);
 	memcpy(aloL_btop(buf), src, len);
 	aloL_blen(buf) += len;
 }
 
-void aloL_bputs(astate T, ambuf_t* buf, astr src) {
+void aloL_bputs(alo_State T, ambuf_t* buf, a_cstr src) {
 	aloL_bputls(T, buf, src, strlen(src));
 }
 
-void aloL_breptc(astate T, ambuf_t* buf, astr src, int tar, int rep) {
+void aloL_breptc(alo_State T, ambuf_t* buf, a_cstr src, int tar, int rep) {
 	size_t len = strlen(src);
 	aloL_bcheck(T, buf, len);
 	char* d = aloL_braw(buf);
-	astr p = src;
-	astr q;
+	a_cstr p = src;
+	a_cstr q;
 	while ((q = strchr(p, tar))) {
 		size_t n = q - p;
 		memcpy(d, p, n);
@@ -593,11 +593,11 @@ void aloL_breptc(astate T, ambuf_t* buf, astr src, int tar, int rep) {
 	aloL_blen(buf) += len;
 }
 
-void aloL_brepts(astate T, ambuf_t* buf, astr src, astr tar, astr rep) {
+void aloL_brepts(alo_State T, ambuf_t* buf, a_cstr src, a_cstr tar, a_cstr rep) {
 	size_t l1 = strlen(tar);
 	size_t l2 = strlen(rep);
-	astr p = src;
-	astr q;
+	a_cstr p = src;
+	a_cstr q;
 	while ((q = strstr(p, tar))) {
 		aloL_bputls(T, buf, p, q - p);
 		aloL_bputls(T, buf, rep, l2);
@@ -606,24 +606,24 @@ void aloL_brepts(astate T, ambuf_t* buf, astr src, astr tar, astr rep) {
 	aloL_bputs(T, buf, p);
 }
 
-void aloL_bputf(astate T, ambuf_t* buf, astr fmt, ...) {
+void aloL_bputf(alo_State T, ambuf_t* buf, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	aloL_bputvf(T, buf, fmt, varg);
 	va_end(varg);
 }
 
-void aloL_bputvf(astate T, ambuf_t* buf, astr fmt, va_list varg) {
+void aloL_bputvf(alo_State T, ambuf_t* buf, a_cstr fmt, va_list varg) {
 	alo_vformat(T, aloL_bwriter, buf, fmt, varg);
 }
 
-void aloL_bwrite(astate T, ambuf_t* buf, ssize_t index) {
+void aloL_bwrite(alo_State T, ambuf_t* buf, ssize_t index) {
 	size_t len;
 	const char* src = alo_tolstring(T, index, &len);
 	aloL_bputls(T, buf, src, len);
 }
 
-int aloL_bwriter(astate T, void* buf, const void* src, size_t len) {
+int aloL_bwriter(alo_State T, void* buf, const void* src, size_t len) {
 	aloL_bputm(T, aloE_cast(ambuf_t*, buf), src, len);
 	return 0;
 }

@@ -20,7 +20,7 @@
  ** allocate new list.
  ** prototype: list.__alloc()
  */
-static int list_alloc(astate T) {
+static int list_alloc(alo_State T) {
 	alo_newlist(T, 0);
 	return 1;
 }
@@ -29,7 +29,7 @@ static int list_alloc(astate T) {
  ** create a new list with capacity (the list is already allocated).
  ** prototype: list.__new(initial_capacity)
  */
-static int list_new(astate T) {
+static int list_new(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	if (!alo_isnothing(T, 1)) {
 		if (alo_typeid(T, 1) == ALO_TLIST) {
@@ -51,7 +51,7 @@ static int list_new(astate T) {
  ** add elements into list.
  ** prototype: list.add(self, elements...)
  */
-static int list_add(astate T) {
+static int list_add(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	size_t n = alo_gettop(T) - 1;
 	alo_sizehint(T, 0, n);
@@ -66,7 +66,7 @@ static int list_add(astate T) {
  ** clear element in list.
  ** prototype: list.clear(self)
  */
-static int list_clear(astate T) {
+static int list_clear(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	alo_rawclr(T, 0);
 	return 0;
@@ -76,7 +76,7 @@ static int list_clear(astate T) {
  ** return true if target is contained in list.
  ** prototype: list.contains(self, target)
  */
-static int list_contains(astate T) {
+static int list_contains(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	size_t n = alo_rawlen(T, 0);
 	int top = alo_gettop(T);
@@ -99,7 +99,7 @@ static int list_contains(astate T) {
  ** put them into a new list if create is true.
  ** prototype: list.map(self, function,[create])
  */
-static int list_map(astate T) {
+static int list_map(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkcall(T, 1);
 	int flag = aloL_getoptbool(T, 2, true);
@@ -125,7 +125,7 @@ static int list_map(astate T) {
  ** a new list if create is true.
  ** prototype: list.filter(self, function,[create])
  */
-static int list_filter(astate T) {
+static int list_filter(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkcall(T, 1);
 	int flag = aloL_getoptbool(T, 2, true);
@@ -160,7 +160,7 @@ static int list_filter(astate T) {
  ** no element exist.
  ** prototype: list.fold(self, function)
  */
-static int list_fold(astate T) {
+static int list_fold(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkcall(T, 1);
 	alo_settop(T, 2);
@@ -195,7 +195,7 @@ static int list_fold(astate T) {
  ** fold all elements from left to right.
  ** prototype: list.foldl(self, head, function)
  */
-static int list_foldl(astate T) {
+static int list_foldl(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkcall(T, 2);
 	alo_settop(T, 3);
@@ -227,7 +227,7 @@ static int list_foldl(astate T) {
  ** fold all elements from right to left.
  ** prototype: list.foldr(self, head, function)
  */
-static int list_foldr(astate T) {
+static int list_foldr(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	aloL_checkcall(T, 2);
 	alo_settop(T, 3);
@@ -242,7 +242,7 @@ static int list_foldr(astate T) {
 		alo_call(T, 2, 1);
 		break;
 	default:
-		for (aint i = len - 1; i >= 0; --i) {
+		for (a_int i = len - 1; i >= 0; --i) {
 			alo_push(T, 2);
 			alo_rawgeti(T, 0, i);
 			alo_push(T, 1);
@@ -267,7 +267,7 @@ static int list_foldr(astate T) {
 /* maximum count mark list has local structure */
 #define STRUCTURE_THRESHOLD (QUICK_THRESHOLD / 5)
 
-static void set2(astate T, size_t a, size_t b) {
+static void set2(alo_State T, size_t a, size_t b) {
 	alo_rawseti(T, 0, a);
 	alo_rawseti(T, 0, b);
 }
@@ -275,7 +275,7 @@ static void set2(astate T, size_t a, size_t b) {
 /**
  ** compare value on stack.
  */
-static int stkcmp(astate T, size_t i, size_t j) {
+static int stkcmp(alo_State T, size_t i, size_t j) {
 	if (alo_isnonnil(T, 1)) { /* use function */
 		alo_push(T, 1);
 		alo_push(T, i);
@@ -290,7 +290,7 @@ static int stkcmp(astate T, size_t i, size_t j) {
 	}
 }
 
-static int elecmp(astate T, size_t i, size_t j, int put) {
+static int elecmp(alo_State T, size_t i, size_t j, int put) {
 	alo_rawgeti(T, 0, i);
 	alo_rawgeti(T, 0, j);
 	if (!stkcmp(T, 2, 3)) {
@@ -306,7 +306,7 @@ static int elecmp(astate T, size_t i, size_t j, int put) {
 	return true;
 }
 
-static void swapele(astate T, size_t i, size_t j) {
+static void swapele(alo_State T, size_t i, size_t j) {
 	alo_rawgeti(T, 0, i);
 	alo_rawgeti(T, 0, j);
 	set2(T, i, j);
@@ -315,7 +315,7 @@ static void swapele(astate T, size_t i, size_t j) {
 /**
  ** do binary insert in stack.
  */
-static void insert(astate T, size_t n) {
+static void insert(alo_State T, size_t n) {
 	size_t l = 2, h = 2 + n;
 	size_t t = h;
 	/* do binary insert */
@@ -334,7 +334,7 @@ static void insert(astate T, size_t n) {
 /**
  ** insert sort.
  */
-static void isortaux(astate T, size_t s, size_t l) {
+static void isortaux(alo_State T, size_t s, size_t l) {
 	switch (l) {
 	case 0: case 1: /* don't need sort */
 		break;
@@ -348,7 +348,7 @@ static void isortaux(astate T, size_t s, size_t l) {
 			/* do binary insert */
 			insert(T, i);
 		}
-		for (aint i = l - 1; i >= 0; --i) {
+		for (a_int i = l - 1; i >= 0; --i) {
 			alo_rawseti(T, 0, s + i);
 		}
 		break;
@@ -360,7 +360,7 @@ static void isortaux(astate T, size_t s, size_t l) {
  ** find pivot for quick sort and put it in front of list.
  ** the result is the mid-value of 5 samples.
  */
-static void find_pivot(astate T, size_t l, size_t n) {
+static void find_pivot(alo_State T, size_t l, size_t n) {
 	/* sort 5 samples in list */
 	alo_rawgeti(T, 0, l);
 	for (size_t i = 1; i <= 4; ++i) {
@@ -378,7 +378,7 @@ static void find_pivot(astate T, size_t l, size_t n) {
 /**
  ** split part into two sub parts.
  */
-static size_t partition(astate T, size_t l, size_t h) {
+static size_t partition(alo_State T, size_t l, size_t h) {
 	alo_rawgeti(T, 0, l); /* get pivot */
 	size_t a = l, b = h + 1;
 	while (true) {
@@ -409,7 +409,7 @@ static size_t partition(astate T, size_t l, size_t h) {
  ** quick sort list.
  ** the insert sort will used if length is less than INSERET_THRESHOLD
  */
-static void qsortaux(astate T, size_t l, size_t h) {
+static void qsortaux(alo_State T, size_t l, size_t h) {
 	while (true) {
 		size_t len = h - l + 1;
 		if (len < INSERET_THRESHOLD) { /* if only a few elements present, use insert sort */
@@ -436,7 +436,7 @@ static void qsortaux(astate T, size_t l, size_t h) {
 /**
  ** merge sort list.
  */
-static void mergeaux(astate T, size_t l, size_t m, size_t h) {
+static void mergeaux(alo_State T, size_t l, size_t m, size_t h) {
 	size_t i;
 	alo_rawgeti(T, 0, m); /* push basis value into stack */
 	for (; l < m; ++l) {
@@ -469,7 +469,7 @@ static void mergeaux(astate T, size_t l, size_t m, size_t h) {
 	}
 }
 
-static void msortaux(astate T, size_t l, size_t h) {
+static void msortaux(alo_State T, size_t l, size_t h) {
 	size_t len = h - l + 1;
 	if (h - l < INSERET_THRESHOLD) {
 		isortaux(T, l, len);
@@ -484,7 +484,7 @@ static void msortaux(astate T, size_t l, size_t h) {
 	}
 }
 
-static void sortaux(astate T, size_t l) {
+static void sortaux(alo_State T, size_t l) {
 	alo_ensure(T, (l >= INSERET_THRESHOLD ? INSERET_THRESHOLD : l) + 5);
 	if (l <= QUICK_THRESHOLD) { /* if elements are less enough to use quick sort */
 		qsortaux(T, 0, l - 1);
@@ -528,7 +528,7 @@ static void sortaux(astate T, size_t l) {
  ** sort list.
  ** prototype: list.sort(self,[comparator])
  */
-static int list_sort(astate T) {
+static int list_sort(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	if (alo_isnonnil(T, 1)) {
 		aloL_checkcall(T, 1);
@@ -553,7 +553,7 @@ static int list_sort(astate T) {
  ** make list to string.
  ** prototype: list.mkstr(self,[sep]|[left,seq,right])
  */
-static int list_mkstr(astate T) {
+static int list_mkstr(alo_State T) {
 	aloL_checktype(T, 0, ALO_TLIST);
 	size_t l1, l2, l3, l4;
 	const char *s1, *s2, *s3, *s4;
@@ -620,7 +620,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_lis(astate T) {
+int aloopen_lis(alo_State T) {
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TLIST);
 	aloL_setfuns(T, -1, mod_funcs);

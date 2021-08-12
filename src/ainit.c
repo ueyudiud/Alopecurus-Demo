@@ -12,8 +12,8 @@
 #include "alibs.h"
 
 typedef struct alo_ModInfo {
-	astr name;
-	acfun openf;
+	a_cstr name;
+	a_cfun openf;
 } amodinfo_t;
 
 const amodinfo_t stdmods[] = {
@@ -32,7 +32,7 @@ const amodinfo_t stdmods[] = {
 	{ NULL, NULL }
 };
 
-void aloL_openlibs(astate T) {
+void aloL_openlibs(alo_State T) {
 	const amodinfo_t* m = stdmods;
 	while (m->name) {
 		aloL_require(T, m->name, m->openf, true);

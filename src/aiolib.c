@@ -84,7 +84,7 @@ typedef struct {
 
 static const acreg_t cls_funcs[];
 
-static afile* l_preopen(astate T) {
+static afile* l_preopen(alo_State T) {
 	afile* file = alo_newobject(T, afile);
 	file->stream = NULL;
 	file->closer = NULL;
@@ -95,7 +95,7 @@ static afile* l_preopen(astate T) {
 	return file;
 }
 
-static void l_checkopen(astate T, afile* file) {
+static void l_checkopen(alo_State T, afile* file) {
 	if (file->closer == NULL) {
 		aloL_error(T, "file already closed.");
 	}
@@ -103,7 +103,7 @@ static void l_checkopen(astate T, afile* file) {
 
 #define self(T) alo_toobject(T, 0, afile*)
 
-static int f_getc(astate T) {
+static int f_getc(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	l_lockstream(file->stream);
@@ -117,7 +117,7 @@ static int f_getc(astate T) {
 #define SHTBUFSIZE 256
 #endif
 
-static void l_getline(astate T, afile* file, ambuf_t* buf) {
+static void l_getline(alo_State T, afile* file, ambuf_t* buf) {
 	int ch;
 	while (true) {
 		while (buf->len < buf->cap) {
@@ -130,7 +130,7 @@ static void l_getline(astate T, afile* file, ambuf_t* buf) {
 	}
 }
 
-static int f_line(astate T) {
+static int f_line(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	if (!feof(file->stream)) {
@@ -147,7 +147,7 @@ static int f_line(astate T) {
 	return 1;
 }
 
-static int f_get(astate T) {
+static int f_get(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t l = aloL_checkinteger(T, 1);
@@ -164,11 +164,11 @@ static int f_get(astate T) {
 	return 1;
 }
 
-static int f_put(astate T) {
+static int f_put(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	int type = alo_typeid(T, 1);
-	if (type != ALO_TSTRING && type != ALO_TRAWDATA) {
+	if (type != ALO_TSTR && type != ALO_TUSER) {
 		aloL_argerror(T, 1, "type is not writable, got: %s", alo_typename(T, 1));
 	}
 	size_t l = alo_rawlen(T, 1);
@@ -177,7 +177,7 @@ static int f_put(astate T) {
 	return aloL_errresult(T, l == a, NULL);
 }
 
-static int f_puts(astate T) {
+static int f_puts(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t l;
@@ -187,7 +187,7 @@ static int f_puts(astate T) {
 	return 0;
 }
 
-static int f_concat(astate T) {
+static int f_concat(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	size_t n = alo_gettop(T);
@@ -200,19 +200,19 @@ static int f_concat(astate T) {
 	return 0;
 }
 
-static int f_eof(astate T) {
+static int f_eof(alo_State T) {
 	afile* file = self(T);
 	alo_pushboolean(T, feof(file->stream));
 	return 1;
 }
 
-static int f_err(astate T) {
+static int f_err(alo_State T) {
 	afile* file = self(T);
 	alo_pushboolean(T, ferror(file->stream));
 	return 1;
 }
 
-static int f_close(astate T) {
+static int f_close(alo_State T) {
 	afile* file = self(T);
 	if (file->closer) {
 		file->closer(file->stream);
@@ -221,7 +221,7 @@ static int f_close(astate T) {
 	return 0;
 }
 
-static int f_flush(astate T) {
+static int f_flush(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	return aloL_errresult(T, fflush(file->stream) == 0, NULL);
@@ -231,7 +231,7 @@ static int f_flush(astate T) {
  ** return true if stream is closed.
  ** prototype: file.isclosed(file)
  */
-static int f_isclosed(astate T) {
+static int f_isclosed(alo_State T) {
 	afile* file = self(T);
 	alo_pushboolean(T, file->closer == NULL);
 	return 1;
@@ -243,8 +243,8 @@ static int f_isclosed(astate T) {
  ** set stream buffering mode.
  ** prototype: file.setbut(file, [mode, [size]])
  */
-static int f_setbuf(astate T) {
-	static const astr mode[] = { "no", "line", "all", NULL };
+static int f_setbuf(alo_State T) {
+	static const a_cstr mode[] = { "no", "line", "all", NULL };
 	static const int masks[] = { _IONBF, _IOLBF, _IOFBF };
 	afile* file = self(T);
 	int id = aloL_checkenum(T, 1, NULL, mode);
@@ -256,12 +256,12 @@ static int f_setbuf(astate T) {
  ** change the stream position, and return the position if success.
  ** prototype: file.seek(file, whence, [offset])
  */
-static int f_seek(astate T) {
+static int f_seek(alo_State T) {
 	afile* file = self(T);
-	static const astr modes[] = { "set", "cur", "end", NULL };
+	static const a_cstr modes[] = { "set", "cur", "end", NULL };
 	static const int modeids[] = { SEEK_SET, SEEK_CUR, SEEK_END };
 	int id = aloL_checkenum(T, 1, NULL, modes);
-	aint off = aloL_getoptinteger(T, 2, 0);
+	a_int off = aloL_getoptinteger(T, 2, 0);
 	l_fpos_t pos = aloE_cast(l_fpos_t, off);
 	if (pos != off) {
 		aloL_error(T, "seek position out of range.");
@@ -273,7 +273,7 @@ static int f_seek(astate T) {
 	return 1;
 }
 
-static int aux_lines(astate T, __attribute__((unused)) int status, akctx context) {
+static int aux_lines(alo_State T, __attribute__((unused)) int status, a_kctx context) {
 	afile* file = aloE_cast(afile*, context);
 	aloL_usebuf(T, buf,
 		while (!feof(file->stream)) {
@@ -293,12 +293,12 @@ static int aux_lines(astate T, __attribute__((unused)) int status, akctx context
 /**
  ** transform file to lines input, and apply by function if present.
  */
-static int f_lines(astate T) {
+static int f_lines(alo_State T) {
 	afile* file = self(T);
 	l_checkopen(T, file);
 	if (alo_gettop(T) >= 2) {
 		aloL_checkcall(T, 1); /* check function */
-		return aux_lines(T, ThreadStateRun, aloE_addr(file)); /* invoke by auxiliary function */
+		return aux_lines(T, ALO_STOK, aloE_addr(file)); /* invoke by auxiliary function */
 	}
 	else {
 		alo_newlist(T, 0); /* create new line list */
@@ -322,9 +322,9 @@ static int f_lines(astate T) {
  ** open file with path.
  ** prototype: io.open(name, [mode])
  */
-static int io_open(astate T) {
-	astr path = aloL_checkstring(T, 0);
-	astr mode = aloL_getoptstring(T, 1, "r");
+static int io_open(alo_State T) {
+	a_cstr path = aloL_checkstring(T, 0);
+	a_cstr mode = aloL_getoptstring(T, 1, "r");
 	afile* file = l_preopen(T);
 	if ((file->stream = fopen(path, mode))) {
 		file->closer = fclose;
@@ -337,7 +337,7 @@ static int io_open(astate T) {
  ** open a temporary file.
  ** prototype: io.opentmp()
  */
-static int io_opentmp(astate T) {
+static int io_opentmp(alo_State T) {
 	afile* file = l_preopen(T);
 	if ((file->stream = tmpfile())) {
 		file->closer = fclose;
@@ -353,7 +353,7 @@ static int l_emptyclose(__attribute__((unused)) fstream stream) {
 /**
  ** open standard stream
  */
-static int l_openstd(astate T, astr name, FILE* stream, size_t len, const char* src) {
+static int l_openstd(alo_State T, a_cstr name, FILE* stream, size_t len, const char* src) {
 	if (len == strlen(name) && strcmp(src, name) == 0) {
 		afile* file = l_preopen(T);
 		file->stream = stream;
@@ -365,7 +365,7 @@ static int l_openstd(astate T, astr name, FILE* stream, size_t len, const char* 
 	return false;
 }
 
-static int io_index(astate T) {
+static int io_index(alo_State T) {
 	alo_push(T, 1);
 	if (alo_rawget(T, 0) != ALO_TUNDEF) {
 		return 1;
@@ -383,14 +383,14 @@ static int io_index(astate T) {
 	return 0;
 }
 
-static int io_remove(astate T) {
-	astr fname = aloL_checkstring(T, 0);
+static int io_remove(alo_State T) {
+	a_cstr fname = aloL_checkstring(T, 0);
 	return aloL_errresult(T, remove(fname) == 0, alo_pushfstring(T, "can not remove file '%s'", fname));
 }
 
-static int io_rename(astate T) {
-	astr oldfname = aloL_checkstring(T, 0);
-	astr newfname = aloL_checkstring(T, 1);
+static int io_rename(alo_State T) {
+	a_cstr oldfname = aloL_checkstring(T, 0);
+	a_cstr newfname = aloL_checkstring(T, 1);
 	return aloL_errresult(T, rename(oldfname, newfname) == 0,
 			alo_pushfstring(T, "can not rename file '%s' to '%s'", oldfname, newfname));
 }
@@ -427,7 +427,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_io(astate T) {
+int aloopen_io(alo_State T) {
 	alo_newtable(T, 16);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_newtable(T, 16);

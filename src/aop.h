@@ -12,8 +12,6 @@
 
 #include "art.h"
 
-#define OP_AFTER(t) (POS##t + SIZE##t)
-
 #define SIZE_i 8
 #define SIZE_xi 2
 #define SIZE_xA 2

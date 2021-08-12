@@ -33,7 +33,7 @@
  ** reverse string.
  ** prototype: string.reverse(self)
  */
-static int str_reverse(astate T) {
+static int str_reverse(alo_State T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	if (len < MAX_STACKBUF_LEN) { /* for short string, use heap memory */
@@ -60,7 +60,7 @@ static int str_reverse(astate T) {
  ** repeat string with number of times.
  ** prototype: string.repeat(self, times)
  */
-static int str_repeat(astate T) {
+static int str_repeat(alo_State T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	size_t time = aloL_checkinteger(T, 1);
@@ -104,7 +104,7 @@ static int str_repeat(astate T) {
  ** trim white space in the front and tail of string.
  ** prototype: string.trim(self)
  */
-static int str_trim(astate T) {
+static int str_trim(alo_State T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	size_t i, j;
@@ -128,12 +128,12 @@ static int str_trim(astate T) {
  ** 0 is the default value for index.
  ** prototype: string.byte(self, index)
  */
-static int str_byte(astate T) {
+static int str_byte(alo_State T) {
 	size_t l;
 	const char* s = aloL_checklstring(T, 0, &l);
-	aint i = aloL_getoptinteger(T, 1, 0);
+	a_int i = aloL_getoptinteger(T, 1, 0);
 	if (i >= 0) {
-		if (aloE_cast(aint, l) < i) {
+		if (aloE_cast(a_int, l) < i) {
 			goto error;
 		}
 	}
@@ -155,12 +155,12 @@ static int str_byte(astate T) {
  ** transform byte index into string.
  ** prototype: string.char(chars...)
  */
-static int str_char(astate T) {
+static int str_char(alo_State T) {
 	ssize_t n = alo_gettop(T);
 	aloL_usebuf(T, buf,
 		aloL_bcheck(T, buf, n);
 		for (ssize_t i = 0; i < n; ++i) {
-			aint ch = aloL_checkinteger(T, i);
+			a_int ch = aloL_checkinteger(T, i);
 			if (ch != aloE_byte(ch)) {
 				aloL_argerror(T, i, "integer can not cast to character");
 			}
@@ -181,7 +181,7 @@ static int str_char(astate T) {
 
 /* matching group */
 typedef struct alo_MatchGroup {
-	astr begin, end; /* begin and end of matched string */
+	a_cstr begin, end; /* begin and end of matched string */
 } amgroup_t;
 
 enum {
@@ -222,9 +222,9 @@ typedef struct {
 
 /* match state */
 typedef struct alo_MatchState {
-	astate T;
+	alo_State T;
 	amfun_t* f; /* matching function */
-	astr sbegin, send; /* begin and end of source */
+	a_cstr sbegin, send; /* begin and end of source */
 	union {
 		amgroup_t* groups; /* group buffer */
 		ambuf_t gp;
@@ -262,7 +262,7 @@ static int match_class(int cl, int ch) {
 
 #define MASK_FULL 0x0001
 
-static int match_set(astr p, int ch) {
+static int match_set(a_cstr p, int ch) {
 	if (ch != EOS) {
 		while (*p == '-') {
 			if (p[1] <= ch && ch <= p[2])
@@ -289,7 +289,7 @@ static int match_set(astr p, int ch) {
 	return false;
 }
 
-static int match_seq(amstat_t* M, astr p, astr* ps) {
+static int match_seq(amstat_t* M, a_cstr p, a_cstr* ps) {
 	while (true) {
 		switch (*p) {
 		case '\0': {
@@ -313,7 +313,7 @@ static int match_seq(amstat_t* M, astr p, astr* ps) {
 	}
 }
 
-static int match_lim(amstat_t* M, int p, astr s) {
+static int match_lim(amstat_t* M, int p, a_cstr s) {
 	switch (p) {
 	case '^':
 		return M->sbegin == s || s[-1] == '\n' || s[-1] == '\r';
@@ -459,13 +459,13 @@ static int match(amstat_t* M, amfun_t* f, const char* start, int mask) {
 
 /* compile state */
 typedef struct alo_CompileState {
-	astate T;
+	alo_State T;
 	amfun_t* f;
-	aalloc alloc;
+	alo_Alloc alloc;
 	void* context;
 	size_t ncs; /* number of char sequence */
-	astr pos; /* current position */
-	astr end; /* end of source */
+	a_cstr pos; /* current position */
+	a_cstr end; /* end of source */
 	int ngroup; /* number of group */
 	int ncount; /* number of counter */
 	int ncode; /* number of code */
@@ -475,7 +475,7 @@ typedef struct alo_CompileState {
 	}; /* string buffer */
 } acstat_t;
 
-static void mbegin(amstat_t* M, astate T, amfun_t* f, astr src, size_t len) {
+static void mbegin(amstat_t* M, alo_State T, amfun_t* f, a_cstr src, size_t len) {
 	M->T = T;
 	M->f = f;
 	M->sbegin = src;
@@ -634,7 +634,7 @@ static void p_str(acstat_t* C) {
 
 static void p_chset(acstat_t* C) {
 	int type = *C->pos == '^' ? (C->pos++, RE_CHKXS) : RE_CHKS;
-	astr s = C->pos;
+	a_cstr s = C->pos;
 	while (*C->pos != ']') {
 		if (*C->pos == '\0')
 			cerror(C, "unclosed character set.");
@@ -785,7 +785,7 @@ static void p_prefix(acstat_t* C) {
 		int cnt = C->ncount++;
 		c_put(C, RE_CNT, cnt, 0);
 		int id1 = c_node(C);
-		astr s = C->pos; /* store source position */
+		a_cstr s = C->pos; /* store source position */
 		p_atom(C, false);
 		int id2 = c_node(C);
 		c_set(C, id1, RE_REP, min, C->ncode - id1);
@@ -898,7 +898,7 @@ static void c_trim(acstat_t* C) {
 	C->f->len = C->ncs;
 }
 
-static void compile(amfun_t* f, astate T, const char* src, size_t len) {
+static void compile(amfun_t* f, alo_State T, const char* src, size_t len) {
 	acstat_t C;
 	C.T = T;
 	C.f = f;
@@ -944,8 +944,8 @@ static void compile(amfun_t* f, astate T, const char* src, size_t len) {
 	c_trim(&C);
 }
 
-static void destory(astate T, amfun_t* f) {
-	aalloc alloc;
+static void destory(alo_State T, amfun_t* f) {
+	alo_Alloc alloc;
 	void* context;
 	alloc = alo_getalloc(T, &context);
 	alloc(context, f->codes, f->ncode * sizeof(aminsn_t), 0);
@@ -961,7 +961,7 @@ static void initialize(amfun_t* f) {
 	f->ncounter = 0;
 }
 
-static int matcher_gc(astate T) {
+static int matcher_gc(alo_State T) {
 	amfun_t* f = aloE_cast(amfun_t*, alo_torawdata(T, 0));
 	if (f->codes) {
 		destory(T, f);
@@ -970,8 +970,8 @@ static int matcher_gc(astate T) {
 	return 0;
 }
 
-static amfun_t* self(astate T) {
-	aloL_checktype(T, 0, ALO_TRAWDATA);
+static amfun_t* self(alo_State T) {
+	aloL_checktype(T, 0, ALO_TUSER);
 	amfun_t* f = aloE_cast(amfun_t*, alo_torawdata(T, 0));
 	if (f->codes == NULL) {
 		aloL_error(T, "matcher already destroyed.");
@@ -979,7 +979,7 @@ static amfun_t* self(astate T) {
 	return f;
 }
 
-static int matcher_test(astate T) {
+static int matcher_test(alo_State T) {
 	amfun_t* f = self(T);
 	aloL_checkstring(T, 1);
 	amstat_t M;
@@ -992,7 +992,7 @@ static int matcher_test(astate T) {
 	return 1;
 }
 
-static int matcher_match(astate T) {
+static int matcher_match(alo_State T) {
 	amfun_t* f = self(T);
 	amstat_t M;
 	const char* src;
@@ -1017,7 +1017,7 @@ static int matcher_match(astate T) {
 	return f->ngroup;
 }
 
-static void aux_replaces(astate T, amfun_t* f, amstat_t* M, ambuf_t* buf) {
+static void aux_replaces(alo_State T, amfun_t* f, amstat_t* M, ambuf_t* buf) {
 	size_t len;
 	const char* s1 = alo_tolstring(T, 2, &len);
 	const char* s0 = s1;
@@ -1068,7 +1068,7 @@ static void aux_replaces(astate T, amfun_t* f, amstat_t* M, ambuf_t* buf) {
 	}
 }
 
-static void aux_replacef(astate T, __attribute__((unused)) amfun_t* f, amstat_t* M, ambuf_t* buf) {
+static void aux_replacef(alo_State T, __attribute__((unused)) amfun_t* f, amstat_t* M, ambuf_t* buf) {
 	int index = alo_gettop(T);
 	alo_push(T, 2); /* push transformer */
 	alo_pushlstring(T, M->groups[0].begin, M->groups[0].end - M->groups[0].begin);
@@ -1078,10 +1078,10 @@ static void aux_replacef(astate T, __attribute__((unused)) amfun_t* f, amstat_t*
 	alo_drop(T);
 }
 
-static int matcher_replace(astate T) {
+static int matcher_replace(alo_State T) {
 	amfun_t* f = self(T);
-	void (*transformer)(astate, amfun_t*, amstat_t*, ambuf_t*);
-	if (alo_typeid(T, 2) == ALO_TSTRING) {
+	void (*transformer)(alo_State, amfun_t*, amstat_t*, ambuf_t*);
+	if (alo_typeid(T, 2) == ALO_TSTR) {
 		transformer = aux_replaces;
 	}
 	else {
@@ -1130,7 +1130,7 @@ static int mmatch(amstat_t* M, amfun_t* nodes, const char* begin, const char* en
 	return false;
 }
 
-static int matcher_split(astate T) {
+static int matcher_split(alo_State T) {
 	amfun_t* f = self(T);
 	size_t len;
 	const char* src = aloL_checklstring(T, 1, &len);
@@ -1266,7 +1266,7 @@ static void addcodes(astate T, ambuf_t* buf, amfun_t* f) {
 }
  */
 
-static int matcher_tostr(astate T) {
+static int matcher_tostr(alo_State T) {
 	amfun_t* f = self(T);
 	/*
 	aloL_usebuf(T, buf,
@@ -1280,17 +1280,17 @@ static int matcher_tostr(astate T) {
 	return 1;
 }
 
-static int matcher_find(astate T) {
+static int matcher_find(alo_State T) {
 	const char* src;
 	size_t len;
 	src = aloL_checklstring(T, 1, &len);
 	amfun_t* f = self(T);
 	amstat_t M;
-	aint off = aloL_getoptinteger(T, 2, 0);
+	a_int off = aloL_getoptinteger(T, 2, 0);
 	if (off < 0) {
 		off += len;
 	}
-	if (off > aloE_cast(aint, len) || off < 0) {
+	if (off > aloE_cast(a_int, len) || off < 0) {
 		aloL_argerror(T, 2, "ngroup out of bound.");
 	}
 	mbegin(&M, T, f, src, len);
@@ -1304,7 +1304,7 @@ static int matcher_find(astate T) {
 	return 0;
 }
 
-static amfun_t* preload(astate T) {
+static amfun_t* preload(alo_State T) {
 	amfun_t* f = alo_newobject(T, amfun_t);
 	initialize(f);
 	if (aloL_getsimpleclass(T, "__matcher")) {
@@ -1324,7 +1324,7 @@ static amfun_t* preload(astate T) {
 	return f;
 }
 
-static int str_matcher(astate T) {
+static int str_matcher(alo_State T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	amfun_t* f = preload(T);
@@ -1332,7 +1332,7 @@ static int str_matcher(astate T) {
 	return 1;
 }
 
-static int str_match(astate T) {
+static int str_match(alo_State T) {
 	size_t len;
 	const char* src = aloL_checklstring(T, 0, &len);
 	aloL_checkstring(T, 1);
@@ -1395,14 +1395,14 @@ static const char* findaux(const char* sh, size_t lh, const char* st, size_t lt)
  ** use matcher to replace string if regex is true, which is false in default.
  ** prototype: string.replace(self, target, replacement, [regex])
  */
-static int str_replace(astate T) {
+static int str_replace(alo_State T) {
 	aloL_checkstring(T, 0);
 	if (aloL_getoptbool(T, 3, false)) { /* replace in regex mode. */
 		alo_settop(T, 3);
 		if (!aloL_callselfmeta(T, 1, "matcher")) { /* stack[3] = target->matcher */
 			aloL_argerror(T, 1, "failed to call function 'string.matcher'");
 		}
-		if (alo_getmeta(T, 3, "replace", false) != ALO_TFUNCTION) {
+		if (alo_getmeta(T, 3, "replace", false) != ALO_TFUNC) {
 			aloL_argerror(T, 3, "failed to call function 'matcher.replace'");
 		}
 		alo_push(T, 3);
@@ -1456,7 +1456,7 @@ static int str_replace(astate T) {
  ** use matcher to split string if regex is true, which is false in default.
  ** prototype: string.split(self,separator, [regex])
  */
-static int str_split(astate T) {
+static int str_split(alo_State T) {
 	size_t l1, l2;
 	const char* s1 = aloL_checklstring(T, 0, &l1);
 	const char* s2 = aloL_checklstring(T, 1, &l2);
@@ -1465,7 +1465,7 @@ static int str_split(astate T) {
 		if (!aloL_callselfmeta(T, 1, "matcher")) { /* stack[3] = target->matcher */
 			aloL_argerror(T, 1, "failed to call function 'string.matcher'");
 		}
-		if (alo_getmeta(T, 2, "split", false) != ALO_TFUNCTION) {
+		if (alo_getmeta(T, 2, "split", false) != ALO_TFUNC) {
 			aloL_argerror(T, 2, "failed to call function 'matcher.split'");
 		}
 		alo_push(T, 2);
@@ -1503,9 +1503,9 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_str(astate T) {
+int aloopen_str(alo_State T) {
 	alo_getreg(T, "__basic_delegates");
-	alo_rawgeti(T, -1, ALO_TSTRING);
+	alo_rawgeti(T, -1, ALO_TSTR);
 	aloL_setfuns(T, -1, mod_funcs);
 	return 1;
 }

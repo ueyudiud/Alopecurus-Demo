@@ -16,8 +16,8 @@
 /**
  ** create new list value.
  */
-alist_t* aloI_new(astate T) {
-	alist_t* value = aloM_newo(T, alist_t);
+alo_List* aloI_new(alo_State T) {
+	alo_List* value = aloM_newo(T, alo_List);
 	aloG_register(T, value, ALO_TLIST);
 	value->array = NULL;
 	value->capacity = 0;
@@ -29,14 +29,14 @@ alist_t* aloI_new(astate T) {
 /**
  ** ensure list can store extra size of elements.
  */
-void aloI_ensure(astate T, alist_t* self, size_t size) {
+void aloI_ensure(alo_State T, alo_List* self, size_t size) {
 	aloM_ensbx(T, self->array, self->capacity, self->length, size, ALO_MAX_BUFSIZE, tsetnil);
 }
 
 /**
  ** trim list capacity to length
  */
-void aloI_trim(astate T, alist_t* self) {
+void aloI_trim(alo_State T, alo_List* self) {
 	if (self->length != self->capacity) { /* reallocate array if capacity is longer than length */
 		aloM_adjb(T, self->array, self->capacity, self->length);
 	}
@@ -45,7 +45,7 @@ void aloI_trim(astate T, alist_t* self) {
 /**
  ** get value by index.
  */
-const atval_t* aloI_geti(alist_t* self, aint index) {
+const alo_TVal* aloI_geti(alo_List* self, a_int index) {
 	if (index < 0) {
 		index += self->length;
 	}
@@ -54,22 +54,22 @@ const atval_t* aloI_geti(alist_t* self, aint index) {
 	return self->array + index;
 }
 
-const atval_t* aloI_get(__attribute__((unused)) astate T, alist_t* self, const atval_t* index) {
-	aint v;
+const alo_TVal* aloI_get(__attribute__((unused)) alo_State T, alo_List* self, const alo_TVal* index) {
+	a_int v;
 	return aloV_toint(index, v) ? aloI_geti(self, v) : aloO_tnil;
 }
 
 /**
  ** ensure list capacity and return end of list.
  */
-static void ensure(astate T, alist_t* self) {
+static void ensure(alo_State T, alo_List* self) {
 	aloM_chkbx(T, self->array, self->capacity, self->length, ALO_MAX_BUFSIZE, tsetnil);
 }
 
 /**
  ** add element at the end of list.
  */
-void aloI_add(astate T, alist_t* self, const atval_t* value) {
+void aloI_add(alo_State T, alo_List* self, const alo_TVal* value) {
 	ensure(T, self);
 	tsetobj(T, self->array + self->length++, value);
 }
@@ -77,7 +77,7 @@ void aloI_add(astate T, alist_t* self, const atval_t* value) {
 /**
  ** add element if value is not present.
  */
-int aloI_put(astate T, alist_t* self, const atval_t* value) {
+int aloI_put(alo_State T, alo_List* self, const alo_TVal* value) {
 	for (size_t i = 0; i < self->length; ++i) {
 		if (aloV_equal(T, self->array + i, value)) { /* match value */
 			return false;
@@ -88,7 +88,7 @@ int aloI_put(astate T, alist_t* self, const atval_t* value) {
 	return true;
 }
 
-atval_t* aloI_findi(astate T, alist_t* self, aint index) {
+alo_TVal* aloI_findi(alo_State T, alo_List* self, a_int index) {
 	if (index < 0) {
 		index += self->length;
 	}
@@ -102,16 +102,16 @@ atval_t* aloI_findi(astate T, alist_t* self, aint index) {
 	return self->array + index;
 }
 
-atval_t* aloI_find(astate T, alist_t* self, const atval_t* index) {
-	aint v;
+alo_TVal* aloI_find(alo_State T, alo_List* self, const alo_TVal* index) {
+	a_int v;
 	if (!aloV_toint(index, v)) {
 		aloU_invalidkey(T);
 	}
 	return aloI_findi(T, self, v);
 }
 
-void aloI_removei(__attribute__((unused)) astate T, alist_t* self, aint index, atval_t* out) {
-	aloE_assert(0 <= index && index < aloE_cast(aint, self->length), "list index out of bound.");
+void aloI_removei(__attribute__((unused)) alo_State T, alo_List* self, a_int index, alo_TVal* out) {
+	aloE_assert(0 <= index && index < aloE_cast(a_int, self->length), "list index out of bound.");
 	if (out) {
 		tsetobj(T, out, self->array + index);
 	}
@@ -121,8 +121,8 @@ void aloI_removei(__attribute__((unused)) astate T, alist_t* self, aint index, a
 	self->length--;
 }
 
-int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
-	aint i;
+int aloI_remove(alo_State T, alo_List* self, const alo_TVal* index, alo_TVal* out) {
+	a_int i;
 	if (!aloV_toint(index, i)) {
 		return false;
 	}
@@ -141,7 +141,7 @@ int aloI_remove(astate T, alist_t* self, const atval_t* index, atval_t* out) {
 /**
  ** iterate to next element.
  */
-const atval_t* aloI_next(alist_t* self, ptrdiff_t* poff) {
+const alo_TVal* aloI_next(alo_List* self, ptrdiff_t* poff) {
 	aloE_assert(*poff >= -1, "illegal offset.");
 	ptrdiff_t off = ++(*poff);
 	if (off >= aloE_int(self->length)) { /* iterating already ended */

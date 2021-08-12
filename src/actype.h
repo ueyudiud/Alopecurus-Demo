@@ -1,5 +1,5 @@
 /*
- * achr.h
+ * actype.h
  *
  * character types.
  *
@@ -7,8 +7,8 @@
  *      Author: ueyudiud
  */
 
-#ifndef ACHR_H_
-#define ACHR_H_
+#ifndef ACTYPE_H_
+#define ACTYPE_H_
 
 #include "art.h"
 
@@ -20,15 +20,15 @@
 #define aisalpha(ch) (aloC_chtypes[aloE_byte(ch)].falpha)
 #define aisdigit(ch) (aloC_chtypes[aloE_byte(ch)].fdigit)
 #define aisxdigit(ch) (aloC_chtypes[aloE_byte(ch)].fxdigit)
-#define aisident(ch) ({ abyte _ch = aloE_byte(ch); isalnum(_ch) || (_ch) == '_'; })
+#define aisident(ch) ({ a_byte _ch = aloE_byte(ch); isalnum(_ch) || (_ch) == '_'; })
 #define axdigit(ch) (aloC_chtypes[aloE_byte(ch)].digit)
 
 ALO_VDEC const struct alo_CharType {
-	abyte fprint : 1;
-	abyte fdigit : 1;
-	abyte fxdigit : 1;
-	abyte falpha : 1;
-	abyte digit : 4;
+	a_byte fprint : 1;
+	a_byte fdigit : 1;
+	a_byte fxdigit : 1;
+	a_byte falpha : 1;
+	a_byte digit : 4;
 } aloC_chtypes[CHAR_COUNT];
 
-#endif /* ACHR_H_ */
+#endif /* ACTYPE_H_ */

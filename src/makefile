@@ -19,7 +19,7 @@ USRLDFLAGS=
 
 # Build targets
 CORE_O= aobj.o astr.o atup.o alis.o atab.o afun.o astate.o amem.o agc.o \
-	abuf.o ameta.o adebug.o avm.o ado.o aeval.o achr.o aop.o acode.o alex.o \
+	abuf.o ameta.o adebug.o avm.o ado.o aeval.o actype.o aop.o acode.o alex.o \
 	aparse.o aload.o asave.o aimpl.o aaux.o ainit.o
 LIB_O= abaselib.o aclslib.o astrlib.o atuplib.o alislib.o atablib.o amathlib.o aiolib.o asyslib.o amodlib.o agclib.o acorolib.o
 BASE_O= $(CORE_O) $(LIB_O)
@@ -129,71 +129,5 @@ $(ALOC_T): $(ALOC_O) $(ALOC_DEPEND)
 	$(CC) -o $(@) $(LDFLAGS) $(ALOC_O) $(ALOC_DEPEND) $(LIBS)
 
 # AUTO GENERATED PART
-aaux.o: aaux.c aaux.h alo.h adef.h acfg.h alibs.h achr.h art.h
-abaselib.o: abaselib.c alo.h adef.h acfg.h aaux.h alibs.h
-abuf.o: abuf.c abuf.h art.h acfg.h adef.h astate.h aobj.h ameta.h alo.h \
- amem.h adebug.h
-achr.o: achr.c achr.h art.h acfg.h adef.h
-aclslib.o: aclslib.c alo.h adef.h acfg.h aaux.h alibs.h
-acode.o: acode.c astate.h aobj.h art.h acfg.h adef.h ameta.h alo.h agc.h \
- amem.h avm.h aeval.h alex.h abuf.h aparse.h acode.h aop.h
-acorolib.o: acorolib.c alo.h adef.h acfg.h aaux.h alibs.h
-adebug.o: adebug.c aop.h art.h acfg.h adef.h astr.h aobj.h astate.h \
- ameta.h alo.h abuf.h agc.h amem.h adebug.h avm.h ado.h
-ado.o: ado.c astr.h aobj.h art.h acfg.h adef.h afun.h abuf.h agc.h amem.h \
- adebug.h avm.h astate.h ameta.h alo.h ado.h
-aeval.o: aeval.c aop.h art.h acfg.h adef.h aobj.h astr.h atup.h alis.h \
- atab.h afun.h astate.h ameta.h alo.h agc.h amem.h abuf.h adebug.h ado.h \
- avm.h aeval.h
-afun.o: afun.c astate.h aobj.h art.h acfg.h adef.h ameta.h alo.h agc.h \
- amem.h afun.h
-agc.o: agc.c aop.h art.h acfg.h adef.h astr.h aobj.h atup.h atab.h afun.h \
- astate.h ameta.h alo.h abuf.h adebug.h agc.h amem.h avm.h ado.h
-agclib.o: agclib.c alo.h adef.h acfg.h aaux.h alibs.h
-aimpl.o: aimpl.c astr.h aobj.h art.h acfg.h adef.h atup.h alis.h atab.h \
- afun.h astate.h ameta.h alo.h abuf.h agc.h amem.h adebug.h avm.h ado.h \
- aeval.h aparse.h aload.h
-ainit.o: ainit.c aaux.h alo.h adef.h acfg.h alibs.h
-aiolib.o: aiolib.c alo.h adef.h acfg.h aaux.h alibs.h abuf.h art.h
-alex.o: alex.c achr.h art.h acfg.h adef.h astr.h aobj.h atab.h astate.h \
- ameta.h alo.h agc.h amem.h abuf.h adebug.h avm.h ado.h alex.h aparse.h
-alis.o: alis.c alis.h aobj.h art.h acfg.h adef.h agc.h amem.h adebug.h \
- avm.h astate.h ameta.h alo.h
-alislib.o: alislib.c alo.h adef.h acfg.h aaux.h alibs.h
-alo.o: alo.c alo.h adef.h acfg.h aaux.h alibs.h
-aload.o: aload.c astr.h aobj.h art.h acfg.h adef.h alis.h afun.h astate.h \
- ameta.h alo.h agc.h amem.h avm.h ado.h aload.h abuf.h
-aloc.o: aloc.c acfg.h aall.h adef.h art.h aop.h achr.h aobj.h astr.h \
- atup.h alis.h atab.h afun.h astate.h ameta.h alo.h amem.h agc.h abuf.h \
- adebug.h avm.h ado.h alex.h aparse.h aload.h aaux.h alibs.h
-amathlib.o: amathlib.c alo.h adef.h acfg.h aaux.h alibs.h
-amem.o: amem.c astate.h aobj.h art.h acfg.h adef.h ameta.h alo.h adebug.h \
- amem.h agc.h ado.h
-ameta.o: ameta.c astr.h aobj.h art.h acfg.h adef.h alis.h atab.h ameta.h \
- agc.h amem.h adebug.h avm.h astate.h alo.h ado.h
-amodlib.o: amodlib.c alo.h adef.h acfg.h aaux.h alibs.h
-aobj.o: aobj.c achr.h art.h acfg.h adef.h aobj.h astr.h atup.h alis.h \
- atab.h ameta.h ado.h astate.h alo.h adebug.h
-aop.o: aop.c aop.h art.h acfg.h adef.h
-aparse.o: aparse.c aop.h art.h acfg.h adef.h astr.h aobj.h afun.h agc.h \
- amem.h avm.h astate.h ameta.h alo.h ado.h alex.h abuf.h aparse.h acode.h \
- aload.h
-asave.o: asave.c astr.h aobj.h art.h acfg.h adef.h astate.h ameta.h alo.h \
- aload.h abuf.h
-astate.o: astate.c astr.h aobj.h art.h acfg.h adef.h atab.h afun.h \
- astate.h ameta.h alo.h adebug.h agc.h amem.h ado.h alex.h abuf.h \
- aparse.h
-astr.o: astr.c astr.h aobj.h art.h acfg.h adef.h astate.h ameta.h alo.h \
- agc.h amem.h
-astrlib.o: astrlib.c alo.h adef.h acfg.h aaux.h alibs.h
-asyslib.o: asyslib.c alo.h adef.h acfg.h aaux.h alibs.h
-atab.o: atab.c astr.h aobj.h art.h acfg.h adef.h atab.h agc.h amem.h \
- adebug.h avm.h astate.h ameta.h alo.h ado.h
-atablib.o: atablib.c alo.h adef.h acfg.h aaux.h alibs.h
-atup.o: atup.c atup.h aobj.h art.h acfg.h adef.h agc.h amem.h adebug.h \
- avm.h astate.h ameta.h alo.h
-avm.o: avm.c aop.h art.h acfg.h adef.h astr.h aobj.h atup.h alis.h atab.h \
- afun.h abuf.h ameta.h agc.h amem.h adebug.h avm.h astate.h alo.h ado.h \
- aeval.h
 
 # End of Makefile

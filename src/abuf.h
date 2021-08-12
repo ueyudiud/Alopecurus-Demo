@@ -29,8 +29,8 @@ typedef struct alo_IBuf aibuf_t;
 
 #define aloB_tostr(T,b) aloS_new(T, aloE_cast(char*, (b)->ptr), (b)->len)
 
-ALO_IFUN int aloB_ifill_(astate, aibuf_t*);
-ALO_IFUN size_t aloB_iread(astate, aibuf_t*, amem, size_t);
+ALO_IFUN int aloB_ifill_(alo_State, aibuf_t*);
+ALO_IFUN size_t aloB_iread(alo_State, aibuf_t*, a_mem, size_t);
 
 
 #define aloB_decl(T,n) ambuf_t n[1]; aloB_open(T, n)
@@ -42,17 +42,17 @@ ALO_IFUN size_t aloB_iread(astate, aibuf_t*, amem, size_t);
 #define aloB_putc(T,b,ch) ((b)->len < (b)->cap ? aloB_rputc(T, b, ch) : (aloB_bgrow(T, b), aloB_rputc(T, b, ch)))
 #define aloB_rputc(T,b,ch) aloE_void(aloB_check(T, b, (b)->ptr[(b)->len++] = aloE_byte(ch)))
 
-ALO_IFUN void aloB_open(astate, ambuf_t*);
-ALO_IFUN void aloB_bgrow(astate, ambuf_t*);
-ALO_IFUN void aloB_puts(astate, ambuf_t*, const char*);
-ALO_IFUN int aloB_bwrite(astate, void*, const void*, size_t);
+ALO_IFUN void aloB_open(alo_State, ambuf_t*);
+ALO_IFUN void aloB_bgrow(alo_State, ambuf_t*);
+ALO_IFUN void aloB_puts(alo_State, ambuf_t*, const char*);
+ALO_IFUN int aloB_bwrite(alo_State, void*, const void*, size_t);
 
-ALO_IFUN void aloB_shrink(astate);
+ALO_IFUN void aloB_shrink(alo_State);
 
 struct alo_IBuf {
 	const char* pos;
 	size_t len;
-	areader reader;
+	alo_Reader reader;
 	void* context;
 };
 

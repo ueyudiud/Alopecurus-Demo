@@ -30,19 +30,19 @@ static void expr(alexer_t*, aestat_t*);
 #define literal(l,s) aloX_getstr(l, ""s, (sizeof(s) / sizeof(char)) - 1)
 #define checklimit(l,n,lim,msg) { if ((n) > (lim)) lerror(l, msg); }
 
-static anoret lerrorf(alexer_t* lex, astr fmt, ...) {
+static a_none lerrorf(alexer_t* lex, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	astr s = aloV_pushvfstring(lex->T, fmt, varg);
+	a_cstr s = aloV_pushvfstring(lex->T, fmt, varg);
 	va_end(varg);
 	lerror(lex, s);
 }
 
-static anoret error_expected(alexer_t* lex, int type) {
+static a_none error_expected(alexer_t* lex, int type) {
 	lerrorf(lex, "%s expected, got %s", aloX_tkid2str(lex, type), aloX_token2str(lex, &lex->ct));
 }
 
-static anoret error_enclose(alexer_t* lex, int l, int r, int line) {
+static a_none error_enclose(alexer_t* lex, int l, int r, int line) {
 	if (lex->cl == line) {
 		error_expected(lex, r);
 	}
@@ -90,19 +90,19 @@ static int isending(alexer_t* lex) {
 	}
 }
 
-static astring_t* testident(alexer_t* lex) {
+static alo_Str* testident(alexer_t* lex) {
 	test(lex, TK_IDENT);
-	astring_t* s = lex->ct.d.s;
+	alo_Str* s = lex->ct.d.s;
 	poll(lex);
 	return s;
 }
 
-static astring_t* testsoftident(alexer_t* lex) {
+static alo_Str* testsoftident(alexer_t* lex) {
 	switch (lex->ct.t) {
 	case TK_ALIAS: case TK_DEF: case TK_STRUCT:
 	case TK_THIS: case TK_NEW: case TK_DELETE:
 	case TK_MATCH: {
-		astr s = aloX_tokenid[lex->ct.t - TK_ALIAS];
+		a_cstr s = aloX_tokenid[lex->ct.t - TK_ALIAS];
 		poll(lex);
 		return aloX_getstr(lex, s, strlen(s));
 	}
@@ -114,7 +114,7 @@ static astring_t* testsoftident(alexer_t* lex) {
 #define OPR_NONE (-1)
 
 static const struct {
-	abyte l, r; /* left and right priority */
+	a_byte l, r; /* left and right priority */
 } priorities[] = {
 	{ 12, 12 }, { 12, 12 },                           /* '+', '-' */
 	{ 13, 13 }, { 13, 13 }, { 13, 13 }, { 13, 13 },   /* '*', '/', '//', '%' */
@@ -173,11 +173,11 @@ static void initexp(aestat_t* e, int type) {
 	e->lf = e->lt = NO_JUMP;
 }
 
-static int regcap(afstat_t* f, astring_t* name, int instack, int index) {
-	astate T = f->l->T;
+static int regcap(afstat_t* f, alo_Str* name, int instack, int index) {
+	alo_State T = f->l->T;
 	aloM_chkb(T, f->p->captures, f->p->ncap, f->ncap, ALO_MAX_BUFSIZE);
 	int i = f->ncap++;
-	acapinfo_t* info = f->p->captures + i;
+	alo_CapInfo* info = f->p->captures + i;
 	info->name = name;
 	info->finstack = instack;
 	info->index = index;
@@ -187,7 +187,7 @@ static int regcap(afstat_t* f, astring_t* name, int instack, int index) {
 /**
  ** get slot from environment.
  */
-static void getenvslot(afstat_t* f, aestat_t* o, astring_t* k) {
+static void getenvslot(afstat_t* f, aestat_t* o, alo_Str* k) {
 	initexp(o, E_INDEXED);
 	int index = aloK_kstr(f, k);
 	if (index < aloK_fastconstsize) {
@@ -203,7 +203,7 @@ static void getenvslot(afstat_t* f, aestat_t* o, astring_t* k) {
 	o->v.d.o = aloK_registry;
 }
 
-static int getvaraux(afstat_t* f, aestat_t* e, astring_t* name, int top) {
+static int getvaraux(afstat_t* f, aestat_t* e, alo_Str* name, int top) {
 	for (int i = top - 1; i >= f->firstsym; --i) {
 		asymbol* sym = &f->d->ss.a[i];
 		if (sym->name == name) { /* find symbol in table */
@@ -242,13 +242,13 @@ static int getvaraux(afstat_t* f, aestat_t* e, astring_t* name, int top) {
 /**
  ** get field in local scope.
  */
-static void getvar(afstat_t* f, aestat_t* o, astring_t* k) {
+static void getvar(afstat_t* f, aestat_t* o, alo_Str* k) {
 	if (!getvaraux(f, o, k, f->d->ss.l)) {
 		getenvslot(f, o, k);
 	}
 }
 
-static void regsym(afstat_t* f, int type, astring_t* name, int index) {
+static void regsym(afstat_t* f, int type, alo_Str* name, int index) {
 	aloM_chkb(f->l->T, f->d->ss.a, f->d->ss.c, f->d->ss.l, ALO_MAX_BUFSIZE);
 	asymbol* symbol = f->d->ss.a + f->d->ss.l++;
 	symbol->type = type;
@@ -257,11 +257,11 @@ static void regsym(afstat_t* f, int type, astring_t* name, int index) {
 	symbol->index = index;
 }
 
-static int regloc(afstat_t* f, astring_t* name) {
+static int regloc(afstat_t* f, alo_Str* name) {
 	aloM_chkb(f->l->T, f->p->locvars, f->p->nlocvar, f->nlocvar, aloK_maxstacksize);
 	int index = f->nlocvar++;
 	int reg = f->firstlocal++;
-	f->p->locvars[index] = (alocvar_t) {
+	f->p->locvars[index] = (alo_LocVarInfo) {
 		.name = name,
 		.start = f->ncode,
 		.index = reg
@@ -272,15 +272,15 @@ static int regloc(afstat_t* f, astring_t* name) {
 
 #define TONULL(x) *(x) = NULL
 
-static aproto_t* newproto(afstat_t* f) {
+static alo_Proto* newproto(afstat_t* f) {
 	aloM_chkbx(f->l->T, f->p->children, f->p->nchild, f->nchild, ALO_MAX_BUFSIZE, TONULL);
-	aproto_t* p = aloF_newp(f->l->T);
+	alo_Proto* p = aloF_newp(f->l->T);
 	f->p->children[f->nchild++] = p;
 	return p;
 }
 
-static void initproto(astate T, afstat_t* f) {
-	aproto_t* p = f->p;
+static void initproto(alo_State T, afstat_t* f) {
+	alo_Proto* p = f->p;
 	p->src = f->l->src;
 	p->linefdef = f->l->cl;
 	/* built-in constants */
@@ -293,15 +293,15 @@ static void initproto(astate T, afstat_t* f) {
 	aloE_void(index);
 }
 
-static void closelineinfo(astate T, afstat_t* f) {
+static void closelineinfo(alo_State T, afstat_t* f) {
 	aloM_adjb(T, f->p->lineinfo, f->p->nlineinfo, f->nline + 1); /* close line info array */
-	alineinfo_t* info = &f->p->lineinfo[f->nline];
+	alo_LineInfo* info = &f->p->lineinfo[f->nline];
 	info->begin = f->ncode;
 	info->line = f->l->pl; /* set last line defined of prototype as last line info */
 }
 
-static void closeproto(astate T, afstat_t* f) {
-	aproto_t* p = f->p;
+static void closeproto(alo_State T, afstat_t* f) {
+	alo_Proto* p = f->p;
 	p->lineldef = f->l->pl;
 	aloM_adjb(T, p->code, p->ncode, f->ncode);
 	aloM_adjb(T, p->consts, p->nconst, f->nconst);
@@ -311,7 +311,7 @@ static void closeproto(astate T, afstat_t* f) {
 	closelineinfo(T, f);
 }
 
-static void enterblock(afstat_t* f, ablock_t* b, int label, astr lname) {
+static void enterblock(afstat_t* f, ablock_t* b, int label, a_cstr lname) {
 	aloE_assert(f->firstlocal == f->freelocal, "variable count mismatched");
 	*b = (ablock_t) {
 		.lname = lname,
@@ -378,7 +378,7 @@ static void enterfunc(afstat_t* f, afstat_t* parent) {
 static void leavefunc(afstat_t* f) {
 	aloE_assert(f->b == f->broot, "not at root block.");
 	leaveblock(f);
-	astate T = f->l->T;
+	alo_State T = f->l->T;
 	closeproto(T, f);
 	f->l->f = f->e; /* move to enclose function */
 	aloG_check(T);
@@ -416,16 +416,16 @@ static int varexpr(alexer_t* lex, aestat_t* e) {
 	return n;
 }
 
-static void memberof(alexer_t* lex, aestat_t* e, astring_t* s) {
+static void memberof(alexer_t* lex, aestat_t* e, alo_Str* s) {
 	aestat_t e2;
 	initexp(&e2, E_STRING);
 	e2.v.s = s;
 	aloK_member(lex->f, e, &e2);
 }
 
-static astring_t* defname(alexer_t* lex, aestat_t* e, int* self) {
+static alo_Str* defname(alexer_t* lex, aestat_t* e, int* self) {
 	/* defname -> defnamepart [':' IDENT] */
-	astring_t* name;
+	alo_Str* name;
 	afstat_t* f = lex->f;
 	size_t l = 0;
 	do {
@@ -1016,7 +1016,7 @@ struct context_pattern {
 };
 
 /* get next case variable */
-static acasevar_t* nextcv(alexer_t* lex, int type, astring_t* name, struct context_pattern* ctx) {
+static acasevar_t* nextcv(alexer_t* lex, int type, alo_Str* name, struct context_pattern* ctx) {
 	afstat_t* f = lex->f;
 	*(ctx->parent != NO_CASEVAR ? &f->d->cv.a[ctx->parent].nchild : &f->d->cv.nchild) += 1;
 	if (ctx->previous != NO_CASEVAR) {
@@ -1062,7 +1062,7 @@ static void patterns(alexer_t* lex) {
 	/* patterns -> pattern {',' patterns} */
 	struct context_pattern ctx = { NO_CASEVAR, NO_CASEVAR };
 	lex->f->d->cv.l = lex->f->d->cv.nchild = 0;
-	astring_t *name, *handle;
+	alo_Str *name, *handle;
 
 	do {
 		begin:
@@ -1345,7 +1345,7 @@ static void partialfun(alexer_t* lex) {
 
 static void funcarg(alexer_t* lex) {
 	/* funcarg -> { IDENT [',' IDENT] {',' IDENT '...'} } */
-	astring_t* name;
+	alo_Str* name;
 	int n = 0;
 	if (check(lex, TK_IDENT)) {
 		do {
@@ -1509,7 +1509,7 @@ static int ifstat(alexer_t* lex) {
 
 static void whilestat(alexer_t* lex) {
 	/* whilestat -> 'while' [label] '(' expr ')' stat { 'else' stat } */
-	astr lname = NULL;
+	a_cstr lname = NULL;
 	int line = lex->cl;
 	if (checknext(lex, '[')) {
 		lname = testident(lex)->array;
@@ -1538,7 +1538,7 @@ static void whilestat(alexer_t* lex) {
 
 static void dowhilestat(alexer_t* lex) {
 	/* dowhilestat -> 'do' [label] stat 'while' '(' expr ')' { 'else' stat }  */
-	astr lname = NULL;
+	a_cstr lname = NULL;
 	int line = lex->cl;
 	if (checknext(lex, '[')) {
 		lname = testident(lex)->array;
@@ -1569,7 +1569,7 @@ static void jumpstat(alexer_t* lex, int type) {
 	ablock_t* block;
 	if (checknext(lex, '[')) {
 		int line = lex->cl;
-		astr lname = testident(lex)->array;
+		a_cstr lname = testident(lex)->array;
 		testenclose(lex, '[', ']', line);
 		block = lex->f->b;
 		while (block) {
@@ -1601,7 +1601,7 @@ static void jumpstat(alexer_t* lex, int type) {
 static void forstat(alexer_t* lex) {
 	/* forstat -> 'for' [lname] '(' IDENT [',' IDENT] '<-' expr ')' stat ['else' stat] */
 	int line = lex->cl;
-	astr lname = NULL;
+	a_cstr lname = NULL;
 	if (checknext(lex, '[')) {
 		lname = testident(lex)->array;
 		testenclose(lex, '[', ']', line);
@@ -1766,7 +1766,7 @@ static void defstat(alexer_t* lex) {
 	int hasself;
 	aestat_t e1, e2;
 	afstat_t f2[1];
-	astring_t* name = defname(lex, &e1, &hasself);
+	alo_Str* name = defname(lex, &e1, &hasself);
 	enterfunc(f2, f);
 	f2->p->name = name; /* bind function name */
 	if (hasself) {
@@ -1790,7 +1790,7 @@ static void defstat(alexer_t* lex) {
 static void localstat(alexer_t* lex) {
 	afstat_t* f = lex->f;
 	int line = lex->cl;
-	astring_t* name = testident(lex);
+	alo_Str* name = testident(lex);
 	if (check(lex, '(') || check(lex, TK_RARR)) {
 		/* localstat -> 'local' IDENT { '(' funcarg ')' } fistat */
 		int index = regloc(f, name); /* add local name */
@@ -1962,7 +1962,7 @@ static int stats(alexer_t* lex) {
 	return false;
 }
 
-static void registerproto(astate T, aproto_t* p) {
+static void registerproto(alo_State T, alo_Proto* p) {
 	for (int i = 0; i < p->nchild; ++i) {
 		registerproto(T, p->children[i]);
 	}
@@ -1974,7 +1974,7 @@ struct alo_ParseContext {
 	apdata_t data;
 };
 
-static void pparse(astate T, void* raw) {
+static void pparse(alo_State T, void* raw) {
 	struct alo_ParseContext* ctx = aloE_cast(struct alo_ParseContext*, raw);
 	ctx->data.p = aloF_newp(T);
 	afstat_t f[1] = { { .p = ctx->data.p, .e = NULL, .d = &ctx->data, .cjump = NO_JUMP } };
@@ -1989,7 +1989,7 @@ static void pparse(astate T, void* raw) {
 	closeproto(T, f);
 }
 
-static void destory_context(astate T, apdata_t* data) {
+static void destory_context(alo_State T, apdata_t* data) {
 	aloM_dela(T, data->ss.a, data->ss.c);
 	aloM_dela(T, data->jp.a, data->jp.c);
 	aloM_dela(T, data->lb.a, data->lb.c);
@@ -1997,22 +1997,22 @@ static void destory_context(astate T, apdata_t* data) {
 	aloM_dela(T, data->fn.a, data->fn.c);
 }
 
-int aloP_parse(astate T, astr src, aibuf_t* in, aproto_t** out, astring_t** msg) {
-	askid_t top = T->top;
+int aloP_parse(alo_State T, a_cstr src, aibuf_t* in, alo_Proto** out, alo_Str** msg) {
+	alo_StkId top = T->top;
 	/* open lexer */
 	struct alo_ParseContext context;
 	context.data = (apdata_t) { };
 	aloX_open(T, &context.lex, src, in);
 
 	int status = aloD_prun(T, pparse, &context);
-	if (status == ThreadStateRun) {
+	if (status == ALO_STOK) {
 		registerproto(T, context.data.p);
 		*out = context.data.p;
 		*msg = NULL;
 	}
 	else {
 		aloZ_delete(T, context.data.p);
-		*msg = tgetstr(T->top - 1);
+		*msg = tasstr(T->top - 1);
 	}
 	destory_context(T, &context.data);
 	aloX_close(&context.lex);

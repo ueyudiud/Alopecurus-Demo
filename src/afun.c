@@ -16,9 +16,9 @@
 /**
  ** create uninitialized Alopecurus closure.
  */
-aacl_t* aloF_new(astate T, size_t size) {
-	aacl_t* value = aloE_cast(aacl_t*, aloM_malloc(T, aaclsizel(size)));
-	aloG_register(T, value, ALO_TACL);
+alo_ACl* aloF_new(alo_State T, size_t size) {
+	alo_ACl* value = aloE_cast(alo_ACl*, aloM_malloc(T, aaclsizel(size)));
+	aloG_register(T, value, ALO_VACL);
 	value->length = aloE_byte(size);
 	value->proto = NULL;
 	/* clean delegate and captures */
@@ -29,9 +29,9 @@ aacl_t* aloF_new(astate T, size_t size) {
 /**
  ** create new C closure.
  */
-accl_t* aloF_newc(astate T, acfun handle, size_t size) {
-	accl_t* value = aloE_cast(accl_t*, aloM_malloc(T, acclsizel(size)));
-	aloG_register(T, value, ALO_TCCL);
+alo_CCl* aloF_newc(alo_State T, a_cfun handle, size_t size) {
+	alo_CCl* value = aloE_cast(alo_CCl*, aloM_malloc(T, acclsizel(size)));
+	aloG_register(T, value, ALO_VCCL);
 	value->handle = handle;
 	value->length = aloE_byte(size);
 	value->fenv = false;
@@ -41,8 +41,8 @@ accl_t* aloF_newc(astate T, acfun handle, size_t size) {
 /**
  ** create new prototype (not register to GC instantly).
  */
-aproto_t* aloF_newp(astate T) {
-	aproto_t* value = aloM_newo(T, aproto_t);
+alo_Proto* aloF_newp(alo_State T) {
+	alo_Proto* value = aloM_newo(T, alo_Proto);
 	value->nargs = 0;
 	value->nstack = 0;
 	value->flags = 0;
@@ -69,8 +69,8 @@ aproto_t* aloF_newp(astate T) {
 /**
  ** create a environment capture.
  */
-acap_t* aloF_envcap(astate T) {
-	acap_t* cap = aloM_newo(T, acap_t);
+alo_Capture* aloF_envcap(alo_State T) {
+	alo_Capture* cap = aloM_newo(T, alo_Capture);
 	cap->counter = 1;
 	cap->p = &cap->slot;
 	tsetobj(T, cap->p, T->frame->env);
@@ -80,9 +80,9 @@ acap_t* aloF_envcap(astate T) {
 /**
  ** find capture in specific stack slot.
  */
-acap_t* aloF_find(astate T, askid_t id) {
-	acap_t** p = &T->captures;
-	acap_t* c;
+alo_Capture* aloF_find(alo_State T, alo_StkId id) {
+	alo_Capture** p = &T->captures;
+	alo_Capture* c;
 	while ((c = *p) && c->p >= id) { /* try to find capture already created */
 		if (c->p == id) { /* find capture? */
 			c->counter++; /* increase reference count */
@@ -90,7 +90,7 @@ acap_t* aloF_find(astate T, askid_t id) {
 		}
 		p = &c->prev; /* move to previous capture */
 	}
-	c = aloM_newo(T, acap_t); /* capture not exist, create a new one */
+	c = aloM_newo(T, alo_Capture); /* capture not exist, create a new one */
 	c->counter = 1;
 	c->mark = 0; /* settle capture untouched yet. */
 	c->p = id;
@@ -100,9 +100,9 @@ acap_t* aloF_find(astate T, askid_t id) {
 	return c;
 }
 
-void aloF_close(astate T, askid_t id) {
-	acap_t* c;
-	acap_t* n = T->captures;
+void aloF_close(alo_State T, alo_StkId id) {
+	alo_Capture* c;
+	alo_Capture* n = T->captures;
 	while ((c = n) && c->p >= id) {
 		n = c->prev; /* move to previous */
 		if (c->counter > 0) { /* is still has reference of capture? */
@@ -120,7 +120,7 @@ void aloF_close(astate T, askid_t id) {
 /**
  ** delete prototype.
  */
-void aloF_deletep(astate T, aproto_t* proto) {
+void aloF_deletep(alo_State T, alo_Proto* proto) {
 	aloM_dela(T, proto->captures, proto->ncap);
 	aloM_dela(T, proto->code, proto->ncode);
 	aloM_dela(T, proto->consts, proto->nconst);

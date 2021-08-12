@@ -12,41 +12,41 @@
 
 #define ALO_LOADEDMODS "_MODS"
 
-ALO_API int aloopen_base(astate);
+ALO_API int aloopen_base(alo_State);
 
 #define ALO_GCLIB_NAME "gc"
-ALO_API int aloopen_gc(astate);
+ALO_API int aloopen_gc(alo_State);
 
 #define ALO_MODLIB_NAME "mod"
-ALO_API int aloopen_mod(astate);
+ALO_API int aloopen_mod(alo_State);
 
 #define ALO_CLSLIB_NAME "@"
-ALO_API int aloopen_cls(astate);
+ALO_API int aloopen_cls(alo_State);
 
 #define ALO_COROLIB_NAME "thread"
-ALO_API int aloopen_coro(astate);
+ALO_API int aloopen_coro(alo_State);
 
 #define ALO_STRLIB_NAME "string"
-ALO_API int aloopen_str(astate);
+ALO_API int aloopen_str(alo_State);
 
 #define ALO_TUPLELIB_NAME "tuple"
-ALO_API int aloopen_tup(astate);
+ALO_API int aloopen_tup(alo_State);
 
 #define ALO_LISTLIB_NAME "list"
-ALO_API int aloopen_lis(astate);
+ALO_API int aloopen_lis(alo_State);
 
 #define ALO_TABLELIB_NAME "table"
-ALO_API int aloopen_tab(astate);
+ALO_API int aloopen_tab(alo_State);
 
 #define ALO_MATHLIB_NAME "math"
-ALO_API int aloopen_math(astate);
+ALO_API int aloopen_math(alo_State);
 
 #define ALO_IOLIB_NAME "io"
-ALO_API int aloopen_io(astate);
+ALO_API int aloopen_io(alo_State);
 
 #define ALO_SYSLIB_NAME "sys"
-ALO_API int aloopen_sys(astate);
+ALO_API int aloopen_sys(alo_State);
 
-ALO_API void aloL_openlibs(astate);
+ALO_API void aloL_openlibs(alo_State);
 
 #endif /* ALIBS_H_ */

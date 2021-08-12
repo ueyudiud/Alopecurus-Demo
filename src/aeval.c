@@ -35,9 +35,9 @@
 
 /* only take conversion from number to integer */
 #if ALO_STRICT_NUMTYPE
-#define vm_toint(o,i) (ttisint(o) && (i = tgetint(o), true))
+#define vm_toint(o,i) (tisint(o) && (i = tasint(o), true))
 #else
-#define vm_toint(o,i) (ttisint(o) ? (i = tgetint(o), true) : ttisflt(o) && aloO_flt2int(tgetflt(o), &i, 0))
+#define vm_toint(o,i) (tisint(o) ? (i = tasint(o), true) : tisflt(o) && aloO_flt2int(tasflt(o), &i, 0))
 #endif
 
 #define vm_ibin(T,op,x,y) (aloE_void(T), aloE_int(i2x(x) op i2x(y)))
@@ -59,7 +59,7 @@
 /* check two value has same sign */
 #define samesg(x,y) (!(((x) ^ (y)) & AINT_MIN))
 
-static aint vm_idiv(astate T, aint a, aint b) {
+static a_int vm_idiv(alo_State T, a_int a, a_int b) {
 	switch (b) { /* handle for special cases */
 	case -1:
 		return -a; /* give negative number to prevent a bug for divided AINT_MIN */
@@ -69,13 +69,13 @@ static aint vm_idiv(astate T, aint a, aint b) {
 	case 1:
 		return a;
 	}
-	aint n = a / b;
+	a_int n = a / b;
 	return a != b * n && !samesg(a, b) ? n - 1 : n; /* floor(a/b) */
 }
 
 #define vm_pow(T,a,b) mcall(T, pow, a, b)
 
-static aint vm_mod(astate T, aint a, aint b) {
+static a_int vm_mod(alo_State T, a_int a, a_int b) {
 	switch (b) { /* handle for special cases */
 	case 1:
 	case -1:
@@ -84,25 +84,25 @@ static aint vm_mod(astate T, aint a, aint b) {
 		aloU_rterror(T, "attempt to get modulo by 0");
 		return 0;
 	}
-	aint n = a % b;
+	a_int n = a % b;
 	return n && !samesg(n, b) ? n + b : n; /* a-floor(a/b)*b */
 }
 
-static afloat vm_modf(__attribute__((unused)) astate T, afloat a, afloat b) {
-	afloat m = fmod(a, b);
+static a_float vm_modf(__attribute__((unused)) alo_State T, a_float a, a_float b) {
+	a_float m = fmod(a, b);
 	return a * b >= 0 ? /* has same operator? */
 			m : m + b;
 }
 
-#define NBITS aloE_int(sizeof(aint) * CHAR_BIT)
+#define NBITS aloE_int(sizeof(a_int) * CHAR_BIT)
 
-static aint vm_shl(__attribute__((unused)) astate T, aint a, aint b) {
+static a_int vm_shl(__attribute__((unused)) alo_State T, a_int a, a_int b) {
 	return b > 0 ?
 			b >=  NBITS ? 0 : vm_ibin(T, <<, a, b) :
 			b <= -NBITS ? 0 : vm_ibin(T, >>, a,-b);
 }
 
-static aint vm_shr(__attribute__((unused)) astate T, aint a, aint b) {
+static a_int vm_shr(__attribute__((unused)) alo_State T, a_int a, a_int b) {
 	return b > 0 ?
 			b >=  NBITS ? 0 : vm_ibin(T, >>, a, b) :
 			b <= -NBITS ? 0 : vm_ibin(T, <<, a,-b);
@@ -115,13 +115,13 @@ static aint vm_shr(__attribute__((unused)) astate T, aint a, aint b) {
 /**
  ** check cached closure is available prototype.
  */
-static aacl_t* getcached(aproto_t* p, aacl_t* en, askid_t base) {
-	aacl_t* c = p->cache;
+static alo_ACl* getcached(alo_Proto* p, alo_ACl* en, alo_StkId base) {
+	alo_ACl* c = p->cache;
 	if (c == NULL)
 		return NULL;
-	acapinfo_t* infos = p->captures;
+	alo_CapInfo* infos = p->captures;
 	for (int i = 0; i < p->ncap; ++i) {
-		atval_t* t = infos[i].finstack ? base + infos[i].index : en->array[infos[i].index]->p;
+		alo_TVal* t = infos[i].finstack ? base + infos[i].index : en->array[infos[i].index]->p;
 		if (t != c->array[i]->p)
 			return NULL;
 	}
@@ -131,22 +131,22 @@ static aacl_t* getcached(aproto_t* p, aacl_t* en, askid_t base) {
 /**
  ** load prototype.
  */
-static aacl_t* aloV_nloadproto(astate T, aproto_t* p, aacl_t* en, askid_t base) {
-	aacl_t* c = getcached(p, en, base);
+static alo_ACl* aloV_nloadproto(alo_State T, alo_Proto* p, alo_ACl* en, alo_StkId base) {
+	alo_ACl* c = getcached(p, en, base);
 	if (c != NULL) {
 		return c;
 	}
 	c = aloF_new(T, p->ncap);
 	c->proto = p;
 	tsetacl(T, T->top++, c);
-	acapinfo_t* infos = p->captures;
+	alo_CapInfo* infos = p->captures;
 	c->array[0] = aloF_envcap(T);
 	for (int i = 1; i < p->ncap; ++i) {
 		if (infos[i].finstack) { /* load capture from stack */
 			c->array[i] = aloF_find(T, base + infos[i].index);
 		}
 		else { /* load capture from parent closure */
-			acap_t* cap = en->array[infos[i].index];
+			alo_Capture* cap = en->array[infos[i].index];
 			cap->counter++; /* increase reference counter */
 			c->array[i] = cap; /* move enclosed capture */
 		}
@@ -157,13 +157,13 @@ static aacl_t* aloV_nloadproto(astate T, aproto_t* p, aacl_t* en, askid_t base) 
 /**
  ** A[B] := C
  */
-static int aloV_nset(astate T, const atval_t* A, const atval_t* B, const atval_t* C) {
+static int aloV_nset(alo_State T, const alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
 	switch (ttpnv(A)) {
 	case ALO_TLIST:
-		aloI_set(T, tgetlis(A), B, C);
+		aloI_set(T, taslis(A), B, C);
 		break;
 	case ALO_TTABLE: {
-		atable_t* table = tgettab(A);
+		atable_t* table = tastab(A);
 		aloH_set(T, table, B, C);
 		aloH_markdirty(table);
 		break;
@@ -177,14 +177,14 @@ static int aloV_nset(astate T, const atval_t* A, const atval_t* B, const atval_t
 /**
  ** A := remove B[C]
  */
-static int aloV_nremove(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
+static int aloV_nremove(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
 	int s;
 	switch (ttpnv(B)) {
 	case ALO_TLIST:
-		s = aloI_remove(T, tgetlis(B), C, A);
+		s = aloI_remove(T, taslis(B), C, A);
 		break;
 	case ALO_TTABLE:
-		s = aloH_remove(T, tgettab(B), C, A);
+		s = aloH_remove(T, tastab(B), C, A);
 		break;
 	default:
 		return false;
@@ -198,12 +198,12 @@ static int aloV_nremove(astate T, atval_t* A, const atval_t* B, const atval_t* C
 /**
  ** A := B + C
  */
-static int aloV_nadd(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	if (ttisint(B) && ttisint(C)) {
-		tsetint(A, vm_addi(T, tgetint(B), tgetint(C)));
+static int aloV_nadd(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	if (tisint(B) && tisint(C)) {
+		tsetint(A, vm_addi(T, tasint(B), tasint(C)));
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_add(T, tgetnum(B), tgetnum(C)));
+	else if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_add(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -214,12 +214,12 @@ static int aloV_nadd(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B - C
  */
-static int aloV_nsub(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	if (ttisint(B) && ttisint(C)) {
-		tsetint(A, vm_subi(T, tgetint(B), tgetint(C)));
+static int aloV_nsub(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	if (tisint(B) && tisint(C)) {
+		tsetint(A, vm_subi(T, tasint(B), tasint(C)));
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_sub(T, tgetnum(B), tgetnum(C)));
+	else if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_sub(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -230,12 +230,12 @@ static int aloV_nsub(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B * C
  */
-static int aloV_nmul(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	if (ttisint(B) && ttisint(C)) {
-		tsetint(A, vm_muli(T, tgetint(B), tgetint(C)));
+static int aloV_nmul(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	if (tisint(B) && tisint(C)) {
+		tsetint(A, vm_muli(T, tasint(B), tasint(C)));
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_mul(T, tgetnum(B), tgetnum(C)));
+	else if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_mul(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -246,9 +246,9 @@ static int aloV_nmul(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B / C
  */
-static int aloV_ndiv(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_div(T, tgetnum(B), tgetnum(C)));
+static int aloV_ndiv(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_div(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -259,13 +259,13 @@ static int aloV_ndiv(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B // C
  */
-static int aloV_nidiv(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
+static int aloV_nidiv(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
 	if (vm_toint(B, i1) && vm_toint(C, i2)) {
 		tsetint(A, vm_idiv(T, i1, i2));
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_idivf(T, tgetnum(B), tgetnum(C)));
+	else if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_idivf(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -276,13 +276,13 @@ static int aloV_nidiv(astate T, atval_t* A, const atval_t* B, const atval_t* C) 
 /**
  ** A := B % C
  */
-static int aloV_nmod(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
-	if (vm_toint(B, i1) && (vm_toint(C, i2) && (ttisint(C) || i2 != 0))) {
+static int aloV_nmod(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
+	if (vm_toint(B, i1) && (vm_toint(C, i2) && (tisint(C) || i2 != 0))) {
 		tsetint(A, vm_mod(T, i1, i2));
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_modf(T, tgetnum(B), tgetnum(C)));
+	else if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_modf(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -293,9 +293,9 @@ static int aloV_nmod(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B ^ C
  */
-static int aloV_npow(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	if (ttisnum(B) && ttisnum(C)) {
-		tsetflt(A, vm_pow(T, tgetnum(B), tgetnum(C)));
+static int aloV_npow(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	if (tisnum(B) && tisnum(C)) {
+		tsetflt(A, vm_pow(T, ttonum(B), ttonum(C)));
 	}
 	else {
 		return false;
@@ -306,8 +306,8 @@ static int aloV_npow(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B << C
  */
-static int aloV_nshl(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
+static int aloV_nshl(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
 	if (vm_toint(B, i1) && vm_toint(C, i2)) {
 		tsetint(A, vm_shl(T, i1, i2));
 	}
@@ -320,8 +320,8 @@ static int aloV_nshl(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B >> C
  */
-static int aloV_nshr(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
+static int aloV_nshr(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
 	if (vm_toint(B, i1) && vm_toint(C, i2)) {
 		tsetint(A, vm_shr(T, i1, i2));
 	}
@@ -334,8 +334,8 @@ static int aloV_nshr(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B & C
  */
-static int aloV_nband(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
+static int aloV_nband(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
 	if (vm_toint(B, i1) && vm_toint(C, i2)) {
 		tsetint(A, vm_band(T, i1, i2));
 	}
@@ -348,8 +348,8 @@ static int aloV_nband(astate T, atval_t* A, const atval_t* B, const atval_t* C) 
 /**
  ** A := B | C
  */
-static int aloV_nbor(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
+static int aloV_nbor(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
 	if (vm_toint(B, i1) && vm_toint(C, i2)) {
 		tsetint(A, vm_bor(T, i1, i2));
 	}
@@ -362,8 +362,8 @@ static int aloV_nbor(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
 /**
  ** A := B ~ C
  */
-static int aloV_nbxor(astate T, atval_t* A, const atval_t* B, const atval_t* C) {
-	aint i1, i2;
+static int aloV_nbxor(alo_State T, alo_TVal* A, const alo_TVal* B, const alo_TVal* C) {
+	a_int i1, i2;
 	if (vm_toint(B, i1) && vm_toint(C, i2)) {
 		tsetint(A, vm_bxor(T, i1, i2));
 	}
@@ -373,7 +373,7 @@ static int aloV_nbxor(astate T, atval_t* A, const atval_t* B, const atval_t* C) 
 	return true;
 }
 
-typedef int (*abifunptr)(astate, atval_t*, const atval_t*, const atval_t*);
+typedef int (*abifunptr)(alo_State, alo_TVal*, const alo_TVal*, const alo_TVal*);
 
 static const abifunptr aloV_nbinary[] = {
 	aloV_nadd,
@@ -390,9 +390,9 @@ static const abifunptr aloV_nbinary[] = {
 	aloV_nbxor
 };
 
-static int aloV_npnm(astate T, atval_t* A, const atval_t* B) {
+static int aloV_npnm(alo_State T, alo_TVal* A, const alo_TVal* B) {
 	aloE_void(T);
-	if (ttisnum(B)) {
+	if (tisnum(B)) {
 		tsetobj(T, A, B);
 	}
 	else {
@@ -401,13 +401,13 @@ static int aloV_npnm(astate T, atval_t* A, const atval_t* B) {
 	return true;
 }
 
-static int aloV_nunm(astate T, atval_t* A, const atval_t* B) {
+static int aloV_nunm(alo_State T, alo_TVal* A, const alo_TVal* B) {
 	aloE_void(T);
-	if (ttisint(B)) {
-		tsetint(A, -tgetint(B));
+	if (tisint(B)) {
+		tsetint(A, -tasint(B));
 	}
-	else if (ttisflt(B)) {
-		tsetflt(A, -tgetflt(B));
+	else if (tisflt(B)) {
+		tsetflt(A, -tasflt(B));
 	}
 	else {
 		return false;
@@ -415,16 +415,16 @@ static int aloV_nunm(astate T, atval_t* A, const atval_t* B) {
 	return true;
 }
 
-static int aloV_nlen(astate T, atval_t* A, const atval_t* B) {
+static int aloV_nlen(alo_State T, alo_TVal* A, const alo_TVal* B) {
 	aloE_void(T);
 	aloE_void(A);
 	aloE_void(B);
 	return false;
 }
 
-static int aloV_nbnot(astate T, atval_t* A, const atval_t* B) {
+static int aloV_nbnot(alo_State T, alo_TVal* A, const alo_TVal* B) {
 	aloE_void(T);
-	aint i;
+	a_int i;
 	if (vm_toint(B, i)) {
 		tsetint(A, ~i);
 	}
@@ -434,7 +434,7 @@ static int aloV_nbnot(astate T, atval_t* A, const atval_t* B) {
 	return true;
 }
 
-typedef int (*aunfunptr)(astate, atval_t*, const atval_t*);
+typedef int (*aunfunptr)(alo_State, alo_TVal*, const alo_TVal*);
 
 static const aunfunptr aloV_nunary[] = {
 	aloV_npnm,
@@ -443,21 +443,21 @@ static const aunfunptr aloV_nunary[] = {
 	aloV_nbnot
 };
 
-static int aloV_neq(__attribute__((unused)) astate T, int* A, const atval_t* B, const atval_t* C) {
+static int aloV_neq(__attribute__((unused)) alo_State T, int* A, const alo_TVal* B, const alo_TVal* C) {
 	*A = aloV_equal(NULL, B, C); /* use 'aloV_equal' to compare */
 	return true;
 }
 
-static int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
+static int aloV_nlt(alo_State T, int* A, const alo_TVal* B, const alo_TVal* C) {
 	aloE_void(T);
-	if (ttisint(B) && ttisint(C)) {
-		*A = tgetint(B) < tgetint(C);
+	if (tisint(B) && tisint(C)) {
+		*A = tasint(B) < tasint(C);
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		*A = tgetnum(B) < tgetnum(C);
+	else if (tisnum(B) && tisnum(C)) {
+		*A = ttonum(B) < ttonum(C);
 	}
-	else if (ttisstr(B) && ttisstr(C)) {
-		*A = aloS_compare(tgetstr(B), tgetstr(C)) < 0;
+	else if (tisstr(B) && tisstr(C)) {
+		*A = aloS_compare(tasstr(B), tasstr(C)) < 0;
 	}
 	else {
 		return false;
@@ -465,16 +465,16 @@ static int aloV_nlt(astate T, int* A, const atval_t* B, const atval_t* C) {
 	return true;
 }
 
-static int aloV_nle(astate T, int* A, const atval_t* B, const atval_t* C) {
+static int aloV_nle(alo_State T, int* A, const alo_TVal* B, const alo_TVal* C) {
 	aloE_void(T);
-	if (ttisint(B) && ttisint(C)) {
-		*A = tgetint(B) <= tgetint(C);
+	if (tisint(B) && tisint(C)) {
+		*A = tasint(B) <= tasint(C);
 	}
-	else if (ttisnum(B) && ttisnum(C)) {
-		*A = tgetnum(B) <= tgetnum(C);
+	else if (tisnum(B) && tisnum(C)) {
+		*A = ttonum(B) <= ttonum(C);
 	}
-	else if (ttisstr(B) && ttisstr(C)) {
-		*A = aloS_compare(tgetstr(B), tgetstr(C)) <= 0;
+	else if (tisstr(B) && tisstr(C)) {
+		*A = aloS_compare(tasstr(B), tasstr(C)) <= 0;
 	}
 	else {
 		return false;
@@ -482,7 +482,7 @@ static int aloV_nle(astate T, int* A, const atval_t* B, const atval_t* C) {
 	return true;
 }
 
-typedef int (*acmpfunptr)(astate, int*, const atval_t*, const atval_t*);
+typedef int (*acmpfunptr)(alo_State, int*, const alo_TVal*, const alo_TVal*);
 
 static const acmpfunptr aloV_ncompare[] = {
 	aloV_neq,
@@ -490,15 +490,15 @@ static const acmpfunptr aloV_ncompare[] = {
 	aloV_nle
 };
 
-int aloV_binop(astate T, int op, atval_t* out, const atval_t* in1, const atval_t* in2) {
+int aloV_binop(alo_State T, int op, alo_TVal* out, const alo_TVal* in1, const alo_TVal* in2) {
 	return aloV_nbinary[aloE_check(op >= ALO_OPADD && op <= ALO_OPBXOR, "illegal operation", op - ALO_OPADD)](T, out, in1, in2);
 }
 
-int aloV_unrop(astate T, int op, atval_t* out, const atval_t* in1) {
+int aloV_unrop(alo_State T, int op, alo_TVal* out, const alo_TVal* in1) {
 	return aloV_nunary[aloE_check(op >= ALO_OPPOS && op <= ALO_OPBNOT, "illegal operation", op - ALO_OPPOS)](T, out, in1);
 }
 
-int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in2) {
+int aloV_cmpop(alo_State T, int op, int* out, const alo_TVal* in1, const alo_TVal* in2) {
 	return aloV_ncompare[aloE_check(op >= ALO_OPEQ && op <= ALO_OPLE, "illegal operation", op - ALO_OPEQ)](T, out, in1, in2);
 }
 
@@ -508,18 +508,18 @@ int aloV_cmpop(astate T, int op, int* out, const atval_t* in1, const atval_t* in
 /**
  ** invoke Alopecurus function.
  */
-void aloV_invoke(astate T, int dofinish) {
+void aloV_invoke(alo_State T, int dofinish) {
 	aframe_t* frame = T->frame;
-	const atval_t* consts;
-	aacl_t* closure;
-	askid_t base;
-	aproto_t* proto;
-	const ainsn_t** ppc;
-	alineinfo_t* line;
+	const alo_TVal* consts;
+	alo_ACl* closure;
+	alo_StkId base;
+	alo_Proto* proto;
+	const a_insn** ppc;
+	alo_LineInfo* line;
 
 #define R(op) (base + GET_##op(I))
 #define K(op) (consts + GET_##op(I))
-#define S(op) ({ ainsn_t _id = GET_##op(I); \
+#define S(op) ({ a_insn _id = GET_##op(I); \
 	aloK_iscapture(_id) ? closure->array[aloK_getcapture(_id)]->p : base + aloK_getstack(_id); })
 #define X(op) (GET_x##op(I) ? K(op) : S(op))
 
@@ -543,8 +543,8 @@ void aloV_invoke(astate T, int dofinish) {
 		frame->fact = true; /* start active */
 	}
 
-	ainsn_t I;
-	const atval_t *tb, *tc, *tm;
+	a_insn I;
+	const alo_TVal *tb, *tc, *tm;
 
 	if (dofinish) {
 		dofinish = false;
@@ -569,13 +569,13 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_LDN: {
-			atval_t* t = S(A);
+			alo_TVal* t = S(A);
 			for (int n = 0; n < GET_B(I); tsetnil(t + n), ++n);
 			break;
 		}
 		case OP_LDP: {
-			aproto_t* p = proto->children[GET_Bx(I)];
-			aacl_t* c = aloV_nloadproto(T, p, closure, base);
+			alo_Proto* p = proto->children[GET_Bx(I)];
+			alo_ACl* c = aloV_nloadproto(T, p, closure, base);
 			tsetacl(T, S(A), c);
 			T->top = frame->top; /* adjust top */
 			checkGC(T, T->top);
@@ -588,8 +588,8 @@ void aloV_invoke(astate T, int dofinish) {
 				nargs = base - (frame->fun + 1) - proto->nargs;
 				protect(aloD_checkstack(T, nargs));
 			}
-			askid_t dest = R(A);
-			askid_t src = frame->fun + 1 + proto->nargs;
+			alo_StkId dest = R(A);
+			alo_StkId src = frame->fun + 1 + proto->nargs;
 			for (int i = 0; i < nargs; ++i) {
 				tsetobj(T, dest + i, src + i);
 			}
@@ -603,7 +603,7 @@ void aloV_invoke(astate T, int dofinish) {
 			size_t n = base - (frame->fun + 1) - proto->nargs;
 			switch (GET_xB(I)) {
 			case 0: case 1: {
-				aint i;
+				a_int i;
 				if (vm_toint(X(B), i)) {
 					id = i;
 					goto indexvar;
@@ -631,7 +631,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_NEWA: {
-			askid_t s = R(B);
+			alo_StkId s = R(B);
 			int n = GET_C(I) - 1;
 			if (n == ALO_MULTIRET) {
 				n = T->top - s;
@@ -643,7 +643,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_NEWL: {
-			alist_t* v = aloI_new(T);
+			alo_List* v = aloI_new(T);
 			tsetlis(T, S(A), v);
 			if (GET_Bx(I) > 0) {
 				aloI_ensure(T, v, GET_Bx(I));
@@ -672,16 +672,16 @@ void aloV_invoke(astate T, int dofinish) {
 			}
 			else {
 				int check = GET_xC(I);
-				if (!ttistup(tb)) {
+				if (!tistup(tb)) {
 					if (check)
 						break;
 					goto notfound;
 				}
-				atuple_t* v = tgettup(tb);
+				alo_Tuple* v = tastup(tb);
 				int n = GET_C(I) - 1;
 				if (n == ALO_MULTIRET) {
 					pc += check;
-					askid_t s = R(A);
+					alo_StkId s = R(A);
 					if (s + v->length > T->top) {
 						protect(aloD_growstack(T, s + v->length - T->top));
 					}
@@ -692,7 +692,7 @@ void aloV_invoke(astate T, int dofinish) {
 					T->top = s + v->length;
 				}
 				else {
-					askid_t s = R(A);
+					alo_StkId s = R(A);
 					if (check) {
 						if (v->length != n)
 							break;
@@ -710,10 +710,10 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_GET: {
-			const atval_t* tv;
+			const alo_TVal* tv;
 			tb = X(B);
 			tc = X(C);
-			int f = ttiscol(tb);
+			int f = tiscol(tb);
 			if (f) {
 				tv = aloO_get(T, tb, tc);
 				if (tv != aloO_tnil) {
@@ -806,7 +806,7 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_AADD ... OP_AXOR: {
 			int op = GET_i(I) - OP_AADD;
-			atval_t* s = S(A);
+			alo_TVal* s = S(A);
 			tb = X(B);
 			if (!(aloV_nbinary[op])(T, s, s, tb)) {
 				if (!aloT_trybin(T, s, tb, op + TM_AADD)) {
@@ -817,7 +817,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_CAT: {
-			askid_t r = R(B);
+			alo_StkId r = R(B);
 			int n = GET_C(I) - 1;
 			if (n == ALO_MULTIRET) {
 				n = T->top - r;
@@ -831,14 +831,14 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_ACAT: {
-			atval_t* s = S(A);
+			alo_TVal* s = S(A);
 			tb = X(B);
 			if (aloT_trybin(T, s, tb, TM_ACAT)) {
 				goto finish;
 			}
-			else if (ttisstr(s)) {
+			else if (tisstr(s)) {
 				aloB_decl(T, buf);
-				astring_t* str = tgetstr(s);
+				alo_Str* str = tasstr(s);
 				aloB_bwrite(T, &buf, str->array, aloS_len(str));
 				aloO_tostring(T, aloB_bwrite, &buf, tb);
 				str = aloB_tostr(T, buf);
@@ -892,14 +892,14 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_NEW: {
-			askid_t r = S(B);
-			if (!ttistab(r)) {
+			alo_StkId r = S(B);
+			if (!tistab(r)) {
 				aloU_rterror(T, "invalid value with type '%s', meta table expected", aloT_typenames[ttpnv(r)]);
 			}
-			atable_t* mt = tgettab(r);
+			atable_t* mt = tastab(r);
 			tm = aloH_getis(mt, T->g->stagnames[TM_ALLOC]);
 			if (tm != aloO_tnil) {
-				askid_t t = T->top;
+				alo_StkId t = T->top;
 				aloT_vmput1(T, tm);
 				if (aloD_precall(T, t, 1)) {
 					protect();
@@ -917,7 +917,7 @@ void aloV_invoke(astate T, int dofinish) {
 			break;
 		}
 		case OP_CALL: {
-			askid_t r = R(A);
+			alo_StkId r = R(A);
 			int nresult = GET_C(I) - 1;
 			if (GET_B(I) != 0) {
 				T->top = r + GET_B(I);
@@ -936,15 +936,15 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_TCALL: { /* tail call function */
 			aloF_close(T, base); /* close captures */
-			askid_t r = R(A);
-			askid_t f = frame->fun;
+			alo_StkId r = R(A);
+			alo_StkId f = frame->fun;
 			int narg = GET_B(I) - 1; /* get argument count. */
 			if (narg == ALO_MULTIRET) {
 				narg = (T->top - r) - 1;
 			}
-			if (!ttisfun(r)) { /* meta helper for call */
-				const atval_t* tm = aloT_gettm(T, r, TM_CALL, true); /* get tagged method */
-				if (tm == NULL || !ttisfun(tm)) { /* not a function? */
+			if (!tisfun(r)) { /* meta helper for call */
+				const alo_TVal* tm = aloT_gettm(T, r, TM_CALL, true); /* get tagged method */
+				if (tm == NULL || !tisfun(tm)) { /* not a function? */
 					aloU_rterror(T, "fail to call object.");
 				}
 				tsetobj(T, --r, tm);
@@ -980,7 +980,7 @@ void aloV_invoke(astate T, int dofinish) {
 			return;
 		}
 		case OP_ICALL: {
-			askid_t r = R(A);
+			alo_StkId r = R(A);
 			tsetobj(T, r + 1, r);
 			T->top = r + 2;
 			int c;
@@ -997,7 +997,7 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		case OP_RET: {
 			aloF_close(T, base); /* close captures */
-			askid_t r = R(A);
+			alo_StkId r = R(A);
 			int nres = GET_B(I) - 1;
 			if (nres == ALO_MULTIRET) {
 				nres = T->top - r;
@@ -1024,7 +1024,7 @@ void aloV_invoke(astate T, int dofinish) {
 	 ** called when pc take a jump.
 	 */
 	jmp: {
-		alineinfo_t* nl = aloU_lineof(proto, pc);
+		alo_LineInfo* nl = aloU_lineof(proto, pc);
 		if (nl->line != line[-1].line) {
 			protect(aloD_hook(T, ALO_HMASKLINE, nl->line));
 		}
@@ -1051,7 +1051,7 @@ void aloV_invoke(astate T, int dofinish) {
 		}
 		else {
 			size_t n = GET_C(I);
-			askid_t ra = R(A);
+			alo_StkId ra = R(A);
 			for (size_t i = T->top - ra; i < n; tsetnil(ra + i), ++i);
 		}
 		T->top = frame->top;
@@ -1082,7 +1082,7 @@ void aloV_invoke(astate T, int dofinish) {
 		tb = --T->top;
 		atable_t** pmt = aloT_getpmt(tb);
 		if (pmt) {
-			*pmt = tgettab(S(B));
+			*pmt = tastab(S(B));
 		}
 		tsetobj(T, S(A), tb);
 		break;
@@ -1094,7 +1094,7 @@ void aloV_invoke(astate T, int dofinish) {
 	case OP_SET:
 		break;
 	case OP_EQ: case OP_LT: case OP_LE:
-		if (tgetbool(--T->top) == GET_xC(I)) {
+		if (tasbool(--T->top) == GET_xC(I)) {
 			pc += 1;
 			goto jmp;
 		}

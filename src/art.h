@@ -41,8 +41,8 @@
 /**
  ** primitive scalar type definition.
  */
-typedef uint64_t ainsn_t;
-typedef uint64_t ahash_t;
+typedef uint64_t a_insn;
+typedef uint64_t a_hash;
 
 typedef struct alo_JumpBuf ajmp_t;
 
@@ -55,7 +55,7 @@ struct alo_JumpBuf {
 
 /* the implement for memory buffer */
 struct alo_MemBuf {
-	abyte* ptr;
+	a_byte* ptr;
 	size_t cap;
 	size_t len;
 	ambuf_t* prev; /* the previous memory buffer in linked list */
@@ -112,7 +112,7 @@ ALO_VDEC const aver_t aloR_version;
 
 /* minimum working cost each GC step */
 #if !defined(ALO_MINWORK)
-#define ALO_MINWORK (sizeof(astring_t) * 64)
+#define ALO_MINWORK (sizeof(alo_Str) * 64)
 #endif
 
 /* min stack size for C function */
@@ -201,7 +201,7 @@ ALO_VDEC const aver_t aloR_version;
 
 /* user defined try function */
 #if !defined(aloi_try)
-#define aloi_try(T,b,p) ({ aloE_void(T); volatile int $status = setjmp((b).buf); if ($status == ThreadStateRun) { p; } $status; })
+#define aloi_try(T,b,p) ({ aloE_void(T); volatile int $status = setjmp((b).buf); if ($status == ALO_STOK) { p; } $status; })
 #endif
 
 /* user defined throw function */
@@ -211,7 +211,7 @@ ALO_VDEC const aver_t aloR_version;
 
 /* user defined yield function */
 #if !defined(aloi_yield)
-#define aloi_yield(T,b) ({ aloE_void(T); longjmp((b).buf, ThreadStateYield); })
+#define aloi_yield(T,b) ({ aloE_void(T); longjmp((b).buf, ALO_STYIELD); })
 #endif
 
 #endif /* ART_H_ */

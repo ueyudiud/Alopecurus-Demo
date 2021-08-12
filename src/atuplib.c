@@ -24,7 +24,7 @@
  * wrap arguments into tuple.
  * prototype: tuple.create(_,[args...])
  */
-static int tup_create(astate T) {
+static int tup_create(alo_State T) {
 	size_t n = alo_gettop(T) - 1;
 	alo_newtuple(T, n);
 	return 1;
@@ -34,7 +34,7 @@ static int tup_create(astate T) {
  ** make string from tuple.
  ** prototype: tuple.mkstr(self,[sep]|[left,seq,right])
  */
-static int tup_mkstr(astate T) {
+static int tup_mkstr(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTUPLE);
 	size_t l1, l2, l3, l4;
 	const char *s1, *s2, *s3, *s4;
@@ -91,7 +91,7 @@ static acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_tup(astate T) {
+int aloopen_tup(alo_State T) {
 	alo_getreg(T, "__basic_delegates");
 	alo_rawgeti(T, -1, ALO_TTUPLE);
 	aloL_setfuns(T, -1, mod_funcs);

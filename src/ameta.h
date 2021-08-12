@@ -80,7 +80,7 @@
 /**
  ** number of type tags
  */
-#define ALO_NUMTYPE (ALO_TRAWDATA + 1)
+#define ALO_NUMTYPE (ALO_TUSER + 1)
 
 /**
  ** tagged method constructor, use for different places to gain specific properties.
@@ -102,7 +102,7 @@ typedef enum {
 
 #define aloT_gfastget(G,t,e) (aloT_fastxcontain(t, e) ? NULL : aloT_fastgetaux(t, (G)->stagnames[e], e))
 
-#define aloT_gmode(G,t) ({ const atval_t* imode = aloT_gfastget(G, t, TM_MODE); imode && ttisstr(imode) ? tgetstr(imode)->array : ""; })
+#define aloT_gmode(G,t) ({ const alo_TVal* imode = aloT_gfastget(G, t, TM_MODE); imode && tisstr(imode) ? tasstr(imode)->array : ""; })
 
 #define aloT_vmput1(T,o1) \
 	{ tsetobj(T, T->top, o1); T->top += 1; }
@@ -118,21 +118,21 @@ typedef enum {
 
 #define aloT_getmt(o) ({ atable_t** pmt = aloT_getpmt(o); pmt ? *pmt : NULL; })
 
-ALO_VDEC const astr aloT_typenames[ALO_NUMTYPE];
+ALO_VDEC const a_cstr aloT_typenames[ALO_NUMTYPE];
 
-ALO_IFUN void aloT_init(astate);
-ALO_IFUN atable_t** aloT_getpmt(const atval_t*);
-ALO_IFUN const atval_t* aloT_gettm(astate, const atval_t*, atmi, int);
-ALO_IFUN const atval_t* aloT_fastgetaux(atable_t*, astring_t*, atmi);
-ALO_IFUN const atval_t* aloT_fastget(astate, const atval_t*, atmi);
-ALO_IFUN const atval_t* aloT_fastgetx(astate, const atval_t*, atmi);
-ALO_IFUN const atval_t* aloT_index(astate, const atval_t*, const atval_t*);
-ALO_IFUN const atval_t* aloT_lookup(astate, const atval_t*, const atval_t*);
-ALO_IFUN void aloT_callunr(astate, const atval_t*, const atval_t*, atval_t*);
-ALO_IFUN void aloT_callbin(astate, const atval_t*, const atval_t*, const atval_t*, atval_t*);
-ALO_IFUN int aloT_callcmp(astate, const atval_t*, const atval_t*, const atval_t*);
-ALO_IFUN int aloT_tryunr(astate, const atval_t*, atmi);
-ALO_IFUN int aloT_trybin(astate, const atval_t*, const atval_t*, atmi);
-ALO_IFUN int aloT_trylen(astate, const atval_t*, atable_t*);
+ALO_IFUN void aloT_init(alo_State);
+ALO_IFUN atable_t** aloT_getpmt(const alo_TVal*);
+ALO_IFUN const alo_TVal* aloT_gettm(alo_State, const alo_TVal*, atmi, int);
+ALO_IFUN const alo_TVal* aloT_fastgetaux(atable_t*, alo_Str*, atmi);
+ALO_IFUN const alo_TVal* aloT_fastget(alo_State, const alo_TVal*, atmi);
+ALO_IFUN const alo_TVal* aloT_fastgetx(alo_State, const alo_TVal*, atmi);
+ALO_IFUN const alo_TVal* aloT_index(alo_State, const alo_TVal*, const alo_TVal*);
+ALO_IFUN const alo_TVal* aloT_lookup(alo_State, const alo_TVal*, const alo_TVal*);
+ALO_IFUN void aloT_callunr(alo_State, const alo_TVal*, const alo_TVal*, alo_TVal*);
+ALO_IFUN void aloT_callbin(alo_State, const alo_TVal*, const alo_TVal*, const alo_TVal*, alo_TVal*);
+ALO_IFUN int aloT_callcmp(alo_State, const alo_TVal*, const alo_TVal*, const alo_TVal*);
+ALO_IFUN int aloT_tryunr(alo_State, const alo_TVal*, atmi);
+ALO_IFUN int aloT_trybin(alo_State, const alo_TVal*, const alo_TVal*, atmi);
+ALO_IFUN int aloT_trylen(alo_State, const alo_TVal*, atable_t*);
 
 #endif /* AMETA_H_ */

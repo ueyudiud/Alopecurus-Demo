@@ -20,7 +20,7 @@
 #define NO_NODE 0
 
 /* empty entry */
-#define aloH_empty (aentry_t) { .value = aloO_nil, { .key = aloO_nil }, .prev = NO_NODE, .next = NO_NODE, .hash = 0 }
+#define aloH_empty (alo_Entry) { .value = aloO_nil, { .key = aloO_nil }, .prev = NO_NODE, .next = NO_NODE, .hash = 0 }
 
 #define delety(e) (*(e) = aloH_empty)
 
@@ -30,8 +30,8 @@
 #define getnext(e) aloE_check(hasnext(e), "reach to end of nodes", (e) + (e)->next)
 #define getprev(e) aloE_check(hasprev(e), "reach to begin of nodes", (e) - (e)->prev)
 
-static void movety(aentry_t* dest, aentry_t* src) {
-	aloE_assert(!ttisnil(src), "entry should not be empty.");
+static void movety(alo_Entry* dest, alo_Entry* src) {
+	aloE_assert(!tisnil(src), "entry should not be empty.");
 	int diff = dest - src;
 	dest->key = src->key;
 	dest->value = src->value;
@@ -53,12 +53,12 @@ static void movety(aentry_t* dest, aentry_t* src) {
 
 #define isinvalidfltkey(v) (isnan(v))
 
-#define isinvalidkey(o) (ttisnil(o) || (ttisflt(o) && isinvalidfltkey(tgetflt(o))))
+#define isinvalidkey(o) (tisnil(o) || (tisflt(o) && isinvalidfltkey(tasflt(o))))
 
 /**
  ** create new table value.
  */
-atable_t* aloH_new(astate T) {
+atable_t* aloH_new(alo_State T) {
 	atable_t* value = aloM_newo(T, atable_t);
 	aloG_register(T, value, ALO_TTABLE);
 	value->reserved = aloE_byte(~0);
@@ -70,12 +70,12 @@ atable_t* aloH_new(astate T) {
 	return value;
 }
 
-static void resizetable(astate, atable_t*, size_t);
+static void resizetable(alo_State, atable_t*, size_t);
 
 /**
  ** aloH_ensure table can store extra size of entries.
  */
-int aloH_ensure(astate T, atable_t* self, size_t size) {
+int aloH_ensure(alo_State T, atable_t* self, size_t size) {
 	size_t require = self->length + size;
 	if (require > self->capacity) {
 		resizetable(T, self, aloM_adjsize(T, self->capacity, require, ALO_MAX_BUFSIZE));
@@ -92,9 +92,9 @@ int aloH_ensure(astate T, atable_t* self, size_t size) {
 /**
  ** get entry that no key occupy it.
  */
-static aentry_t* newety(atable_t* self) {
+static alo_Entry* newety(atable_t* self) {
 	while (self->lastfree >= self->array) {
-		if (ttisnil(self->lastfree)) {
+		if (tisnil(self->lastfree)) {
 			return self->lastfree--;
 		}
 		self->lastfree--;
@@ -105,8 +105,8 @@ static aentry_t* newety(atable_t* self) {
 /**
  ** add entry to table and link to previous node.
  */
-static aentry_t* addety(atable_t* self, aentry_t* prev) {
-	aentry_t* entry = newety(self);
+static alo_Entry* addety(atable_t* self, alo_Entry* prev) {
+	alo_Entry* entry = newety(self);
 	int diff = entry - prev;
 	if (hasnext(prev)) {
 		getnext(prev)->prev -= diff;
@@ -116,9 +116,9 @@ static aentry_t* addety(atable_t* self, aentry_t* prev) {
 	return entry;
 }
 
-static atval_t* putety(astate T, atable_t* self, const atval_t* key, ahash_t hash) {
-	aentry_t* entry = headety(self, hash); /* first hashing */
-	if (!ttisnil(entry)) { /* blocked by other element */
+static alo_TVal* putety(alo_State T, atable_t* self, const alo_TVal* key, a_hash hash) {
+	alo_Entry* entry = headety(self, hash); /* first hashing */
+	if (!tisnil(entry)) { /* blocked by other element */
 		if (!hasprev(entry)) { /* check element is head of hash list */
 			entry = addety(self, entry);
 		}
@@ -126,26 +126,26 @@ static atval_t* putety(astate T, atable_t* self, const atval_t* key, ahash_t has
 			movety(newety(self), entry);
 		}
 	}
-	aloE_assert(ttisnil(amkey(entry)) && ttisnil(amval(entry)), "uninitialized entry should be empty.");
+	aloE_assert(tisnil(amkey(entry)) && tisnil(amval(entry)), "uninitialized entry should be empty.");
 	tsetobj(T, amkey(entry), key);
 	aloE_void(T);
 	entry->hash = hash;
 	return amval(entry);
 }
 
-static void resizetable(astate T, atable_t* self, size_t newsize) {
+static void resizetable(alo_State T, atable_t* self, size_t newsize) {
 	size_t oldsize = self->capacity;
-	aentry_t* oldarray = self->array;
-	aentry_t* newarray = aloM_newa(T, aentry_t, newsize);
+	alo_Entry* oldarray = self->array;
+	alo_Entry* newarray = aloM_newa(T, alo_Entry, newsize);
 	for (size_t i = 0; i < newsize; delety(&newarray[i++]));
 	self->array = newarray;
 	self->capacity = newsize;
 	self->lastfree = newarray + newsize - 1;
 	if (oldsize > 0) {
 		for (size_t i = 0; i < oldsize; ++i) {
-			aentry_t* entry = &oldarray[i];
-			if (!ttisnil(entry)) {
-				atval_t* slot = putety(T, self, amkey(entry), entry->hash);
+			alo_Entry* entry = &oldarray[i];
+			if (!tisnil(entry)) {
+				alo_TVal* slot = putety(T, self, amkey(entry), entry->hash);
 				tsetobj(T, slot, amval(entry));
 			}
 		}
@@ -156,7 +156,7 @@ static void resizetable(astate T, atable_t* self, size_t newsize) {
 /**
  ** trim table capacity to length
  */
-void aloH_trim(astate T, atable_t* self) {
+void aloH_trim(alo_State T, atable_t* self) {
 	if (self->length == 0) {
 		if (self->capacity > 0) { /* delete array if it is non-null */
 			aloM_delb(T, self->array, self->capacity);
@@ -170,7 +170,7 @@ void aloH_trim(astate T, atable_t* self) {
 
 #define anyof(_self,_hash,_cond) \
 	if ((_self)->length > 0) { /* element is present */ \
-		aentry_t* _entry = headety(_self, _hash); \
+		alo_Entry* _entry = headety(_self, _hash); \
 		if (!hasprev(_entry)) \
 		do if (_cond) return amval(_entry); while (hasnext(_entry) && (_entry = getnext(_entry), true)); \
 	}
@@ -178,46 +178,46 @@ void aloH_trim(astate T, atable_t* self) {
 /**
  ** get value by integer key.
  */
-const atval_t* aloH_geti(atable_t* self, aint key) {
-	anyof(self, aloO_inthash(key), ttisint(_entry) && tgetint(_entry) == key);
+const alo_TVal* aloH_geti(atable_t* self, a_int key) {
+	anyof(self, aloO_inthash(key), tisint(_entry) && tasint(_entry) == key);
 	return aloO_tnil;
 }
 
-static atval_t* finds(atable_t* self, astr ksrc, size_t klen, ahash_t hash) {
-	anyof(self, hash, ttisstr(_entry) && aloS_requal(tgetstr(_entry), ksrc, klen));
+static alo_TVal* finds(atable_t* self, a_cstr ksrc, size_t klen, a_hash hash) {
+	anyof(self, hash, tisstr(_entry) && aloS_requal(tasstr(_entry), ksrc, klen));
 	return NULL;
 }
 
 /**
  ** get value by raw string key.
  */
-const atval_t* aloH_gets(astate T, atable_t* self, astr src, size_t len) {
+const alo_TVal* aloH_gets(alo_State T, atable_t* self, a_cstr src, size_t len) {
 	return finds(self, src, len, aloS_rhash(src, len, T->g->seed)) ?: aloO_tnil;
 }
 
 /**
  ** get value by interned string key.
  */
-const atval_t* aloH_getis(atable_t* self, astring_t* key) {
-	aloE_assert(ttisistr(key), "key should be interned string.");
-	anyof(self, key->hash, ttisstr(_entry) && tgetstr(_entry) == key);
+const alo_TVal* aloH_getis(atable_t* self, alo_Str* key) {
+	aloE_assert(tisistr(key), "key should be interned string.");
+	anyof(self, key->hash, tisstr(_entry) && tasstr(_entry) == key);
 	return aloO_tnil;
 }
 
-static const atval_t* aloH_geths(__attribute__((unused)) astate T, atable_t* self, astring_t* key) {
-	aloE_assert(ttishstr(key), "key should be heaped string.");
-	anyof(self, key->hash, ttisstr(_entry) && aloS_hequal(tgetstr(_entry), key));
+static const alo_TVal* aloH_geths(__attribute__((unused)) alo_State T, atable_t* self, alo_Str* key) {
+	aloE_assert(tishstr(key), "key should be heaped string.");
+	anyof(self, key->hash, tisstr(_entry) && aloS_hequal(tasstr(_entry), key));
 	return aloO_tnil;
 }
 
 /**
  ** get value by string object.
  */
-const atval_t* aloH_getxs(astate T, atable_t* self, astring_t* key) {
-	return ttisistr(key) ? aloH_getis(self, key) : aloH_geths(T, self, key);
+const alo_TVal* aloH_getxs(alo_State T, atable_t* self, alo_Str* key) {
+	return tisistr(key) ? aloH_getis(self, key) : aloH_geths(T, self, key);
 }
 
-static const atval_t* getgeneric(astate T, atable_t* self, const atval_t* key) {
+static const alo_TVal* getgeneric(alo_State T, atable_t* self, const alo_TVal* key) {
 	anyof(self, aloV_hashof(T, key), aloV_equal(T, amkey(_entry), key));
 	return aloO_tnil;
 }
@@ -225,25 +225,25 @@ static const atval_t* getgeneric(astate T, atable_t* self, const atval_t* key) {
 /**
  ** get value by tagged value.
  */
-const atval_t* aloH_get(astate T, atable_t* self, const atval_t* key) {
+const alo_TVal* aloH_get(alo_State T, atable_t* self, const alo_TVal* key) {
 	switch (ttype(key)) {
 	case ALO_TNIL:
 		return aloO_tnil;
 	case ALO_TINT:
-		return aloH_geti(self, tgetint(key));
+		return aloH_geti(self, tasint(key));
 	case ALO_TFLOAT: {
-		if (isinvalidfltkey(tgetflt(key)))
+		if (isinvalidfltkey(tasflt(key)))
 			return aloO_tnil;
-		aint i;
+		a_int i;
 		if (aloV_tointx(key, &i, 0)) { /* try cast float to integer value. */
 			return aloH_geti(self, i);
 		}
 		break;
 	}
-	case ALO_THSTRING:
-		return aloH_geths(T, self, tgetstr(key));
-	case ALO_TISTRING:
-		return aloH_getis(self, tgetstr(key));
+	case ALO_VHSTR:
+		return aloH_geths(T, self, tasstr(key));
+	case ALO_VISTR:
+		return aloH_getis(self, tasstr(key));
 	}
 	return getgeneric(T, self, key);
 }
@@ -251,15 +251,15 @@ const atval_t* aloH_get(astate T, atable_t* self, const atval_t* key) {
 /**
  ** find a value slot by key, or create a new slot if not exist.
  */
-atval_t* aloH_find(astate T, atable_t* self, const atval_t* key) {
-	atval_t aux;
+alo_TVal* aloH_find(alo_State T, atable_t* self, const alo_TVal* key) {
+	alo_TVal aux;
 	switch (ttpnv(key)) {
 	case ALO_TNIL: {
 		aloU_invalidkey(T);
 		break;
 	}
 	case ALO_TFLOAT: {
-		afloat v = tgetflt(key);
+		a_float v = tasflt(key);
 		if (aloO_flt2int(v, &aux.v.i, 0)) {
 			aux.tt = ALO_TINT;
 			key = &aux;
@@ -270,13 +270,13 @@ atval_t* aloH_find(astate T, atable_t* self, const atval_t* key) {
 		break;
 	}
 	}
-	const atval_t* value = aloH_get(T, self, key);
+	const alo_TVal* value = aloH_get(T, self, key);
 	if (value != aloO_tnil) {
-		return aloE_cast(atval_t*, value);
+		return aloE_cast(alo_TVal*, value);
 	}
 	aloH_ensure(T, self, 1);
 	self->length ++;
-	atval_t* slot = putety(T, self, key, aloV_hashof(T, key));
+	alo_TVal* slot = putety(T, self, key, aloV_hashof(T, key));
 	aloG_barrierbackt(T, self, key);
 	return slot;
 }
@@ -284,15 +284,15 @@ atval_t* aloH_find(astate T, atable_t* self, const atval_t* key) {
 /**
  ** find string from string set.
  */
-atval_t* aloH_findxset(astate T, atable_t* self, const char* ksrc, size_t klen) {
-	ahash_t hash = aloS_rhash(ksrc, klen, T->g->seed);
-	atval_t* slot = finds(self, ksrc, klen, hash);
+alo_TVal* aloH_findxset(alo_State T, atable_t* self, const char* ksrc, size_t klen) {
+	a_hash hash = aloS_rhash(ksrc, klen, T->g->seed);
+	alo_TVal* slot = finds(self, ksrc, klen, hash);
 	if (slot != NULL) {
 		return slot;
 	}
 	aloH_ensure(T, self, 1);
-	astring_t* str = aloS_new(T, ksrc, klen);
-	atval_t key = tnewstr(str);
+	alo_Str* str = aloS_new(T, ksrc, klen);
+	alo_TVal key = tnewstr(str);
 	slot = putety(T, self, &key, hash);
 	tsetstr(T, slot, str);
 	aloG_barrierback(T, self, str);
@@ -304,16 +304,16 @@ atval_t* aloH_findxset(astate T, atable_t* self, const char* ksrc, size_t klen) 
 /**
  ** put key-value pair into table, string should be '\0'-terminated string.
  */
-atval_t* aloH_finds(astate T, atable_t* self, astr src, size_t len) {
-	ahash_t hash = aloS_rhash(src, len, T->g->seed);
-	atval_t* slot = finds(self, src, len, hash);
+alo_TVal* aloH_finds(alo_State T, atable_t* self, a_cstr src, size_t len) {
+	a_hash hash = aloS_rhash(src, len, T->g->seed);
+	alo_TVal* slot = finds(self, src, len, hash);
 	if (slot == NULL) {
 		aloH_ensure(T, self, 1);
-		astring_t* str = aloS_new(T, src, len);
+		alo_Str* str = aloS_new(T, src, len);
 		/* force set string hash */
 		str->fhash = true;
 		str->hash = hash;
-		atval_t key = tnewstr(str);
+		alo_TVal key = tnewstr(str);
 		slot = putety(T, self, &key, hash);
 		self->length ++;
 		if (str->ftagname && str->extra < ALO_NUMTM) { /* check key is TM name that able to fast get value */
@@ -326,12 +326,12 @@ atval_t* aloH_finds(astate T, atable_t* self, astr src, size_t len) {
 	return slot;
 }
 
-static int remety(atable_t* self, aentry_t* entry) {
-	aloE_assert(!ttisnil(entry), "no entry exist.");
+static int remety(atable_t* self, alo_Entry* entry) {
+	aloE_assert(!tisnil(entry), "no entry exist.");
 	if (hasprev(entry)) { /* if entry is not head */
-		aentry_t* prev = getprev(entry);
+		alo_Entry* prev = getprev(entry);
 		if (hasnext(entry)) {
-			aentry_t* next = getnext(entry);
+			alo_Entry* next = getnext(entry);
 			prev->next = next->prev = prev - next;
 		}
 		else {
@@ -352,12 +352,12 @@ static int remety(atable_t* self, aentry_t* entry) {
 /**
  ** remove entry by entry index.
  */
-void aloH_rawrem(astate T, atable_t* self, ptrdiff_t* pindex, atval_t* out) {
+void aloH_rawrem(alo_State T, atable_t* self, ptrdiff_t* pindex, alo_TVal* out) {
 	aloE_void(T);
 	size_t index = *pindex;
 	aloE_assert(index < self->capacity, "table index out of bound.");
-	aentry_t* entry = self->array + index;
-	aloE_assert(!ttisnil(entry), "no entry exist.");
+	alo_Entry* entry = self->array + index;
+	aloE_assert(!tisnil(entry), "no entry exist.");
 	if (out) {
 		tsetobj(T, out, amval(entry));
 	}
@@ -370,16 +370,16 @@ void aloH_rawrem(astate T, atable_t* self, ptrdiff_t* pindex, atval_t* out) {
 /**
  ** remove entry by key, return 'true' if key founded, or 'false' in the otherwise.
  */
-int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
+int aloH_remove(alo_State T, atable_t* self, const alo_TVal* key, alo_TVal* out) {
 	if (self->capacity == 0) {
 		return false; /* no element exists in empty table */
 	}
 	else if (isinvalidkey(key)) {
 		return false; /* a invalid key should not exist in table. */
 	}
-	ahash_t hash = aloV_hashof(T, key);
-	aentry_t* entry = headety(self, hash);
-	if (ttisnil(entry) || hasprev(entry)) {
+	a_hash hash = aloV_hashof(T, key);
+	alo_Entry* entry = headety(self, hash);
+	if (tisnil(entry) || hasprev(entry)) {
 		return false;
 	}
 	else if (entry->hash == hash && aloV_equal(T, amkey(entry), key)) { /* found entry in right place */
@@ -405,9 +405,9 @@ int aloH_remove(astate T, atable_t* self, const atval_t* key, atval_t* out) {
 /**
  ** clear all values in table.
  */
-void aloH_clear(__attribute__((unused)) astate T, atable_t* self) {
-	aentry_t* const end = self->array + self->capacity;
-	for (aentry_t* e = self->array; e < end; ++e) {
+void aloH_clear(__attribute__((unused)) alo_State T, atable_t* self) {
+	alo_Entry* const end = self->array + self->capacity;
+	for (alo_Entry* e = self->array; e < end; ++e) {
 		delety(e);
 	}
 	self->length = 0;
@@ -418,16 +418,16 @@ void aloH_clear(__attribute__((unused)) astate T, atable_t* self) {
 /**
  ** iterate to next element in table.
  */
-const aentry_t* aloH_next(atable_t* self, ptrdiff_t* poff) {
+const alo_Entry* aloH_next(atable_t* self, ptrdiff_t* poff) {
 	aloE_assert(*poff >= -1, "illegal offset.");
 	size_t off = *poff + 1;
 	if (off >= self->capacity) { /* iterating already ended */
 		 return NULL;
 	}
-	aentry_t* const end = self->array + self->capacity;
-	aentry_t* e = self->array + off;
+	alo_Entry* const end = self->array + self->capacity;
+	alo_Entry* e = self->array + off;
 	while (e < end) { /* find next non-nil key */
-		if (!ttisnil(e)) {
+		if (!tisnil(e)) {
 			*poff = e - self->array; /* adjust offset */
 			return e;
 		}

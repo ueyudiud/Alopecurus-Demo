@@ -27,10 +27,10 @@
 /**
  ** push format string to top of stack
  */
-astr aloV_pushfstring(astate T, astr fmt, ...) {
+a_cstr aloV_pushfstring(alo_State T, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
-	astr s = aloV_pushvfstring(T, fmt, varg);
+	a_cstr s = aloV_pushvfstring(T, fmt, varg);
 	va_end(varg);
 	return s;
 }
@@ -38,20 +38,20 @@ astr aloV_pushfstring(astate T, astr fmt, ...) {
 /**
  ** push format string to top of stack, the va_list version
  */
-astr aloV_pushvfstring(astate T, astr fmt, va_list varg) {
+a_cstr aloV_pushvfstring(alo_State T, a_cstr fmt, va_list varg) {
 	api_checkslots(T, 1);
 	aloB_decl(T, buf);
 	alo_vformat(T, aloB_bwrite, &buf, fmt, varg);
-	astring_t* value = aloB_tostr(T, buf);
+	alo_Str* value = aloB_tostr(T, buf);
 	aloB_close(T, buf);
 	tsetstr(T, api_incrtop(T), value);
 	return value->array;
 }
 
-astr aloV_typename(astate T, const atval_t* o) {
-	const atval_t* name = aloT_gettm(T, o, TM_ID, false);
-	if (name && ttisstr(name)) {
-		return tgetstr(name)->array;
+a_cstr aloV_typename(alo_State T, const alo_TVal* o) {
+	const alo_TVal* name = aloT_gettm(T, o, TM_ID, false);
+	if (name && tisstr(name)) {
+		return tasstr(name)->array;
 	}
 	return aloT_typenames[ttpnv(o)];
 }
@@ -62,19 +62,19 @@ astr aloV_typename(astate T, const atval_t* o) {
  ** mode = 0 : only accept integral value
  ** mode > 0 : ceiling to integer
  */
-int aloV_tointx(const atval_t* in, aint* out, int mode) {
-	atval_t t;
+int aloV_tointx(const alo_TVal* in, a_int* out, int mode) {
+	alo_TVal t;
 	find:
 	switch (ttpnv(in)) {
 	case ALO_TINT: {
-		*out = tgetint(in);
+		*out = tasint(in);
 		return true;
 	}
 	case ALO_TFLOAT: {
-		return aloO_flt2int(tgetflt(in), out, mode);
+		return aloO_flt2int(tasflt(in), out, mode);
 	}
-	case ALO_TSTRING: {
-		if (aloO_str2num(tgetstr(in)->array, &t)) {
+	case ALO_TSTR: {
+		if (aloO_str2num(tasstr(in)->array, &t)) {
 			in = &t;
 			goto find;
 		}
@@ -88,20 +88,20 @@ int aloV_tointx(const atval_t* in, aint* out, int mode) {
 /**
  ** try convert a value to float.
  */
-int aloV_tofltx(const atval_t* in, afloat* out) {
-	atval_t t;
+int aloV_tofltx(const alo_TVal* in, a_float* out) {
+	alo_TVal t;
 	find:
 	switch (ttpnv(in)) {
 	case ALO_TINT: {
-		*out = aloE_flt(tgetint(in));
+		*out = aloE_flt(tasint(in));
 		return true;
 	}
 	case ALO_TFLOAT: {
-		*out = tgetflt(in);
+		*out = tasflt(in);
 		return true;
 	}
-	case ALO_TSTRING: {
-		if (aloO_str2num(tgetstr(in)->array, &t)) {
+	case ALO_TSTR: {
+		if (aloO_str2num(tasstr(in)->array, &t)) {
 			in = &t;
 			goto find;
 		}
@@ -112,30 +112,30 @@ int aloV_tofltx(const atval_t* in, afloat* out) {
 	}
 }
 
-ahash_t aloV_hashof(astate T, const atval_t* o) {
-	const atval_t* hashf = aloT_fastgetx(T, o, TM_HASH);
+a_hash aloV_hashof(alo_State T, const alo_TVal* o) {
+	const alo_TVal* hashf = aloT_fastgetx(T, o, TM_HASH);
 	if (hashf) {
 		aloT_vmput2(T, hashf, o);
 		aloD_callnoyield(T, T->top - 2, 1);
 		T->top -= 1;
-		if (!ttisint(T->top)) {
+		if (!tisint(T->top)) {
 			aloU_rterror(T, "'__hash' must apply integer value.");
 		}
-		return tgetint(T->top);
+		return tasint(T->top);
 	}
 	switch (ttpnv(o)) {
 	case ALO_TNIL   : return 0;
-	case ALO_TBOOL  : return aloO_boolhash(tgetbool(o));
-	case ALO_TINT   : return aloO_inthash(tgetint(o));
+	case ALO_TBOOL  : return aloO_boolhash(tasbool(o));
+	case ALO_TINT   : return aloO_inthash(tasint(o));
 	case ALO_TFLOAT : {
-		aint i;
-		if (aloO_flt2int(tgetflt(o), &i, 0)) {
+		a_int i;
+		if (aloO_flt2int(tasflt(o), &i, 0)) {
 			return aloO_inthash(i);
 		}
-		return aloO_flthash(tgetflt(o));
+		return aloO_flthash(tasflt(o));
 	}
-	case ALO_TSTRING: return aloS_hash(T, tgetstr(o));
-	case ALO_TTUPLE : return aloA_hash(T, tgettup(o));
+	case ALO_TSTR: return aloS_hash(T, tasstr(o));
+	case ALO_TTUPLE : return aloA_hash(T, tastup(o));
 	default         : return aloE_addr(o->v.p);
 	}
 }
@@ -143,12 +143,12 @@ ahash_t aloV_hashof(astate T, const atval_t* o) {
 /**
  ** concatenate string.
  */
-astring_t* aloV_rawcat(astate T, size_t len) {
+alo_Str* aloV_rawcat(alo_State T, size_t len) {
 	aloB_decl(T, buf);
 	for (size_t i = len; i > 0; i--) {
 		aloO_tostring(T, aloB_bwrite, &buf, T->top - i);
 	}
-	astring_t* value = aloB_tostr(T, buf);
+	alo_Str* value = aloB_tostr(T, buf);
 	aloB_close(T, buf);
 	T->top -= len;
 	return value;
@@ -157,9 +157,9 @@ astring_t* aloV_rawcat(astate T, size_t len) {
 /**
  ** concatenate objects.
  */
-void aloV_concat(astate T, size_t len) {
-	askid_t in = T->top - len;
-	const atval_t* tm = aloT_gettm(T, in, TM_CAT, true);
+void aloV_concat(alo_State T, size_t len) {
+	alo_StkId in = T->top - len;
+	const alo_TVal* tm = aloT_gettm(T, in, TM_CAT, true);
 	if (tm) {
 		for (size_t i = len; i > 0; --i) {
 			tsetobj(T, in + i, in + i - 1);
@@ -169,7 +169,7 @@ void aloV_concat(astate T, size_t len) {
 		aloD_call(T, in, 1);
 	}
 	else {
-		astring_t* value = aloV_rawcat(T, len);
+		alo_Str* value = aloV_rawcat(T, len);
 		tsetstr(T, T->top++, value);
 	}
 }
@@ -178,7 +178,7 @@ void aloV_concat(astate T, size_t len) {
 /**
  ** compare between two objects.
  */
-int aloV_compare(astate T, const atval_t* t1, const atval_t* t2, int op) {
+int aloV_compare(alo_State T, const alo_TVal* t1, const alo_TVal* t2, int op) {
 	switch (op) {
 	case ALO_OPEQ:
 		return aloV_equal(T, t1, t2);
@@ -192,7 +192,7 @@ int aloV_compare(astate T, const atval_t* t1, const atval_t* t2, int op) {
 	default:
 		aloE_xassert(false);
 	}
-	const atval_t* tm = aloT_gettm(T, t1, op - ALO_OPLT + TM_LT, true);
+	const alo_TVal* tm = aloT_gettm(T, t1, op - ALO_OPLT + TM_LT, true);
 	if (tm == NULL) {
 		aloU_rterror(T, "can not compare between two objects");
 	}
@@ -205,30 +205,30 @@ int aloV_compare(astate T, const atval_t* t1, const atval_t* t2, int op) {
 /**
  ** check two objects are equal.
  */
-int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
+int aloV_equal(alo_State T, const alo_TVal* t1, const alo_TVal* t2) {
 	if (ttype(t1) == ttype(t2)) {
 		switch (ttype(t1)) {
 		case ALO_TNIL    : return true;
-		case ALO_TBOOL   : return tgetbool(t1) == tgetbool(t2);
-		case ALO_TINT    : return tgetint(t1) == tgetint(t2);
-		case ALO_TFLOAT  : return tgetflt(t1) == tgetflt(t2);
-		case ALO_TPOINTER: return tgetptr(t1) == tgetptr(t2);
-		case ALO_THSTRING: return aloS_hequal(tgetstr(t1), tgetstr(t2));
-		case ALO_TISTRING: return tgetstr(t1) == tgetstr(t2);
-		case ALO_TLCF    : return tgetlcf(t1) == tgetlcf(t2);
+		case ALO_TBOOL   : return tasbool(t1) == tasbool(t2);
+		case ALO_TINT    : return tasint(t1) == tasint(t2);
+		case ALO_TFLOAT  : return tasflt(t1) == tasflt(t2);
+		case ALO_TPTR: return tasptr(t1) == tasptr(t2);
+		case ALO_VHSTR: return aloS_hequal(tasstr(t1), tasstr(t2));
+		case ALO_VISTR: return tasstr(t1) == tasstr(t2);
+		case ALO_VLCF    : return taslcf(t1) == taslcf(t2);
 		default          : {
-			if (tgetref(t1) == tgetref(t2)) /* if two reference are equal, return true */
+			if (tasobj(t1) == tasobj(t2)) /* if two reference are equal, return true */
 				return true;
 			if (T == NULL) /* if no environment for meta method (equivalent to raw equal stop here), return false */
 				return false;
 			/* call meta method */
-			const atval_t* meta = aloT_fastgetx(T, t1, TM_EQ);
+			const alo_TVal* meta = aloT_fastgetx(T, t1, TM_EQ);
 			return meta && aloT_callcmp(T, meta, t1, t2);
 		}
 		}
 	}
-	else if (ttisnum(t1) && ttisnum(t2)) { /* check number */
-		aint v1, v2;
+	else if (tisnum(t1) && tisnum(t2)) { /* check number */
+		a_int v1, v2;
 		return aloV_toint(t1, v1) && aloV_toint(t2, v2) && v1 == v2;
 	}
 	return false;
@@ -237,20 +237,20 @@ int aloV_equal(astate T, const atval_t* t1, const atval_t* t2) {
 /**
  ** get length of object, the result value is integer expected.
  */
-size_t aloV_length(astate T, const atval_t* t) {
+size_t aloV_length(alo_State T, const alo_TVal* t) {
 	switch (ttype(t)) {
-	case ALO_THSTRING:
-		return tgetstr(t)->lnglen;
-	case ALO_TISTRING:
-		return tgetstr(t)->shtlen;
+	case ALO_VHSTR:
+		return tasstr(t)->lnglen;
+	case ALO_VISTR:
+		return tasstr(t)->shtlen;
 	case ALO_TLIST  : {
-		alist_t* v = tgetlis(t);
+		alo_List* v = taslis(t);
 		if (aloT_trylen(T, t, v->metatable))
 			break;
 		return v->length;
 	}
 	case ALO_TTABLE : {
-		atable_t* v = tgettab(t);
+		atable_t* v = tastab(t);
 		if (aloT_trylen(T, t, v->metatable))
 			break;
 		return v->length;
@@ -261,14 +261,14 @@ size_t aloV_length(astate T, const atval_t* t) {
 		break;
 	}
 	}
-	if (!ttisint(T->top))
+	if (!tisint(T->top))
 		aloU_rterror(T, "length should be integer value.");
-	return tgetint(T->top);
+	return tasint(T->top);
 }
 
-static int tuple_iterator(astate T) {
-	accl_t* c = tgetccl(T->frame->fun);
-	const atval_t* result = aloA_next(tgettup(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
+static int tuple_iterator(alo_State T) {
+	alo_CCl* c = tgetccl(T->frame->fun);
+	const alo_TVal* result = aloA_next(tastup(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
 	if (result) {
 		tsetobj(T, api_incrtop(T), result);
 		return 1;
@@ -276,9 +276,9 @@ static int tuple_iterator(astate T) {
 	return 0;
 }
 
-static int list_iterator(astate T) {
-	accl_t* c = tgetccl(T->frame->fun);
-	const atval_t* result = aloI_next(tgetlis(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
+static int list_iterator(alo_State T) {
+	alo_CCl* c = tgetccl(T->frame->fun);
+	const alo_TVal* result = aloI_next(taslis(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
 	if (result) {
 		tsetobj(T, api_incrtop(T), result);
 		return 1;
@@ -286,9 +286,9 @@ static int list_iterator(astate T) {
 	return 0;
 }
 
-static int table_iterator(astate T) {
-	accl_t* c = tgetccl(T->frame->fun);
-	const aentry_t* result = aloH_next(tgettab(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
+static int table_iterator(alo_State T) {
+	alo_CCl* c = tgetccl(T->frame->fun);
+	const alo_Entry* result = aloH_next(tastab(c->array), aloE_cast(ptrdiff_t*, &trefint(c->array + 1)));
 	if (result) {
 		tsetobj(T, api_incrtop(T), amkey(result));
 		tsetobj(T, api_incrtop(T), amval(result));
@@ -300,19 +300,19 @@ static int table_iterator(astate T) {
 /**
  ** create an base iterator by object.
  */
-void aloV_iterator(astate T, const atval_t* in, atval_t* out) {
-	acfun handle;
+void aloV_iterator(alo_State T, const alo_TVal* in, alo_TVal* out) {
+	a_cfun handle;
 	switch (ttpnv(in)) {
 	case ALO_TTUPLE: handle = tuple_iterator; break;
 	case ALO_TLIST : handle = list_iterator;  break;
 	case ALO_TTABLE: handle = table_iterator; break;
-	case ALO_TFUNCTION:
+	case ALO_TFUNC:
 		tsetobj(T, out, in);
 		return;
 	default:
 		aloU_rterror(T, "the value is not iterable.");
 	}
-	accl_t* c = aloF_newc(T, handle, 2);
+	alo_CCl* c = aloF_newc(T, handle, 2);
 	tsetobj(T, c->array, in);
 	tsetint(c->array + 1, ALO_ITERATE_BEGIN);
 	tsetccl(T, out, c);

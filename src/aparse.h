@@ -19,7 +19,7 @@ typedef struct alo_Block ablock_t;
 typedef struct alo_PData apdata_t;
 typedef struct alo_Lexer alexer_t;
 
-ALO_IFUN int aloP_parse(astate, astr, aibuf_t*, aproto_t**, astring_t**);
+ALO_IFUN int aloP_parse(alo_State, a_cstr, aibuf_t*, alo_Proto**, alo_Str**);
 
 enum {
 	SYMBOL_LOC,
@@ -27,14 +27,14 @@ enum {
 };
 
 typedef struct alo_Symbol {
-	astring_t* name; /* symbol name */
+	alo_Str* name; /* symbol name */
 	int type; /* symbol type */
 	int index; /* symbol index */
 	uint16_t layer; /* layer of function defined symbol */
 } asymbol;
 
 typedef struct {
-	astring_t* name; /* label name */
+	alo_Str* name; /* label name */
 	size_t pc; /* position in code */
 	int line; /* line number of label */
 	uint16_t layer; /* the function layer */
@@ -67,12 +67,12 @@ struct alo_PData {
 		size_t nchild;
 	} cv;
 	struct { /* function name cache */
-		astring_t** a;
+		alo_Str** a;
 		size_t c;
 	} fn;
 	altable_t jp; /* list of pending jump instruction */
 	altable_t lb; /* list of active labels */
-	aproto_t* p; /* root prototype */
+	alo_Proto* p; /* root prototype */
 };
 
 enum {
@@ -104,15 +104,15 @@ enum {
 typedef struct alo_ExprStat {
 	int t;
 	union {
-		aint i; /* integer value */
-		afloat f; /* float value */
-		astring_t* s; /* string value */
+		a_int i; /* integer value */
+		a_float f; /* float value */
+		alo_Str* s; /* string value */
 		int g; /* generic use */
 		struct { /* index data */
 			uint16_t o; /* owner index */
 			uint16_t k; /* key index */
-			abyte fo: 1; /* owner type */
-			abyte fk: 1; /* key type */
+			a_byte fo: 1; /* owner type */
+			a_byte fk: 1; /* key type */
 		} d;
 		struct { /* array data */
 			uint16_t s; /* start index */
@@ -126,7 +126,7 @@ typedef struct alo_ExprStat {
 
 /* not-free variable for partial function */
 struct alo_CaseVar {
-	astring_t* name; /* variable name */
+	alo_Str* name; /* variable name */
 	aestat_t expr; /* unbox/match expression */
 	size_t nchild; /* number of child variables */
 	int parent; /* index of parent node */
@@ -134,26 +134,26 @@ struct alo_CaseVar {
 	int next; /* index of next node */
 	int line; /* nested line */
 	uint16_t src; /* source index */
-	abyte type; /* variable type */
-	abyte flag;
+	a_byte type; /* variable type */
+	a_byte flag;
 };
 
 struct alo_Block {
 	ablock_t* prev; /* previous block */
-	astr lname; /* label name */
+	a_cstr lname; /* label name */
 	size_t flabel; /* index of first label in this block */
 	size_t fjump; /* index of first jump in this block */
 	size_t fsymbol; /* first symbol index */
 	int lcon; /* index of continue */
 	int lout; /* index of jump from break */
 	uint16_t nlocal; /* last index of local or temporary variable at beginning of this block */
-	abyte incap; /* true when some local variable in this block is capture */
-	abyte loop; /* true when block is loop */
+	a_byte incap; /* true when some local variable in this block is capture */
+	a_byte loop; /* true when block is loop */
 };
 
 struct alo_FuncState {
 	alexer_t* l; /* lexer */
-	aproto_t* p; /* prototype */
+	alo_Proto* p; /* prototype */
 	afstat_t* e; /* enclosing function */
 	apdata_t* d; /* protected data */
 	ablock_t* b; /* current block */

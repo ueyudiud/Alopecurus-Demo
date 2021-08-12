@@ -15,9 +15,9 @@
 #include "aload.h"
 
 typedef struct {
-	astate T;
+	alo_State T;
 	int debug;
-	awriter writer;
+	alo_Writer writer;
 	void* context;
 	jmp_buf* jmp;
 } O;
@@ -44,7 +44,7 @@ static void saveu16(O* out, uint16_t value) {
 	saver(out, value);
 }
 
-static void saves(O* out, astring_t* s) {
+static void saves(O* out, alo_Str* s) {
 	if (s == NULL) {
 		saveu8(out, 0);
 	}
@@ -61,7 +61,7 @@ static void saves(O* out, astring_t* s) {
 	}
 }
 
-static void savestr(O* out, astring_t* s) {
+static void savestr(O* out, alo_Str* s) {
 	size_t n = aloS_len(s);
 	if (n == 0) {
 		saveu8(out, CT_XSTR);
@@ -83,28 +83,28 @@ static void saveversion(O* out, const aver_t* version) {
 	savek(out, aloE_byte(version->major * 16 + version->minor));
 }
 
-static void saveconsts(O* out, const aproto_t* p) {
+static void saveconsts(O* out, const alo_Proto* p) {
 	size_t n = p->nconst;
 	saver(out, n);
 	for (size_t i = 0; i < n; ++i) {
-		const atval_t* t = p->consts + i;
+		const alo_TVal* t = p->consts + i;
 		switch (ttpnv(t)) {
 		case ALO_TNIL:
 			saveu8(out, CT_NIL);
 			break;
 		case ALO_TBOOL:
-			saveu8(out, tgetbool(t) ? CT_TRUE : CT_FALSE);
+			saveu8(out, tasbool(t) ? CT_TRUE : CT_FALSE);
 			break;
 		case ALO_TINT:
 			saveu8(out, CT_INT);
-			savek(out, tgetint(t));
+			savek(out, tasint(t));
 			break;
 		case ALO_TFLOAT:
 			saveu8(out, CT_FLT);
-			savek(out, tgetflt(t));
+			savek(out, tasflt(t));
 			break;
-		case ALO_TSTRING:
-			savestr(out, tgetstr(t));
+		case ALO_TSTR:
+			savestr(out, tasstr(t));
 			break;
 		default:
 			aloE_xassert(false);
@@ -112,25 +112,25 @@ static void saveconsts(O* out, const aproto_t* p) {
 	}
 }
 
-static void savecaptures(O* out, const aproto_t* p) {
+static void savecaptures(O* out, const alo_Proto* p) {
 	saveu16(out, p->ncap);
 	for (size_t i = 0; i < p->ncap; ++i) {
-		acapinfo_t* info = p->captures + i;
+		alo_CapInfo* info = p->captures + i;
 		saver(out, info->index);
 		saveu8(out, info->finstack);
 	}
 }
 
-static void savefun(O*, const aproto_t*, astring_t*);
+static void savefun(O*, const alo_Proto*, alo_Str*);
 
-static void savechildren(O* out, const aproto_t* p) {
+static void savechildren(O* out, const alo_Proto* p) {
 	saver(out, p->nchild);
 	for (int i = 0; i < p->nchild; ++i) {
 		savefun(out, p->children[i], p->src);
 	}
 }
 
-static void savedebug(O* out, const aproto_t* p) {
+static void savedebug(O* out, const alo_Proto* p) {
 	saver(out, p->linefdef);
 	saver(out, p->lineldef);
 	int n;
@@ -155,7 +155,7 @@ static void savedebug(O* out, const aproto_t* p) {
 	}
 }
 
-static void savefun(O* out, const aproto_t* p, astring_t* psrc) {
+static void savefun(O* out, const alo_Proto* p, alo_Str* psrc) {
 	saves(out, p->name);
 	/* save parameter information */
 	saver(out, p->nargs);
@@ -187,7 +187,7 @@ static void saveheader(O* out) {
 /**
  ** save chunk into binary file.
  */
-int aloZ_save(astate T, const aproto_t* p, awriter writer, void* context, int debug) {
+int aloZ_save(alo_State T, const alo_Proto* p, alo_Writer writer, void* context, int debug) {
 	jmp_buf jmp;
 	O out = { T, debug, writer, context, &jmp };
 	int status = setjmp(jmp);

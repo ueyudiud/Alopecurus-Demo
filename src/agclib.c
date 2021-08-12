@@ -16,34 +16,34 @@
 
 #define MIN_GCSTEPMUL 40
 
-static int gc_fullgc(astate T) {
+static int gc_fullgc(alo_State T) {
 	alo_fullgc(T);
 	return 0;
 }
 
-static int gc_memused(astate T) {
+static int gc_memused(alo_State T) {
 	alo_pushinteger(T, alo_memused(T));
 	return 1;
 }
 
-static int gc_isrunning(astate T) {
+static int gc_isrunning(alo_State T) {
 	alo_pushboolean(T, alo_isgcrunning(T));
 	return 0;
 }
 
-static int gc_setstate(astate T) {
+static int gc_setstate(alo_State T) {
 	alo_gcconf(T, aloL_checkbool(T, 0) ? ALO_GCRERUN : ALO_GCSTOP, 0);
 	return 0;
 }
 
-static int gc_setpausemul(astate T) {
-	aint value = aloL_checkinteger(T, 0);
+static int gc_setpausemul(alo_State T) {
+	a_int value = aloL_checkinteger(T, 0);
 	alo_gcconf(T, ALO_GCPAUSEMUL, value);
 	return 0;
 }
 
-static int gc_setstepmul(astate T) {
-	aint value = aloL_checkinteger(T, 0);
+static int gc_setstepmul(alo_State T) {
+	a_int value = aloL_checkinteger(T, 0);
 	if (value < MIN_GCSTEPMUL) {
 		aloL_error(T, "GC step multiplier too small. (should more than %d)", MIN_GCSTEPMUL);
 	}
@@ -61,7 +61,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_gc(astate T) {
+int aloopen_gc(alo_State T) {
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	return 1;

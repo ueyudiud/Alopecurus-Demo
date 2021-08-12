@@ -18,7 +18,7 @@
  ** create new class.
  ** prototype: class.meta.__new(classes, name, parents...)
  */
-static int class_meta_new(astate T) {
+static int class_meta_new(alo_State T) {
 	aloL_checktype(T, 0, ALO_TTABLE);
 	aloL_checkclassname(T, 1);
 	const char* name = alo_tostring(T, 1);
@@ -68,7 +68,7 @@ static int class_meta_new(astate T) {
 			}
 			break;
 		}
-		case ALO_TTABLE: case ALO_TFUNCTION: { /* enclosed lookup */
+		case ALO_TTABLE: case ALO_TFUNC: { /* enclosed lookup */
 			alo_put(T, -2);
 			break;
 		}
@@ -88,7 +88,7 @@ static int class_meta_new(astate T) {
 	return 1;
 }
 
-static int class_meta_newindex(astate T) {
+static int class_meta_newindex(alo_State T) {
 	aloL_error(T, "can not put object into '@' directly, use 'new' function instead.");
 	return 0;
 }
@@ -99,7 +99,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_cls(astate T) {
+int aloopen_cls(alo_State T) {
 	alo_newtable(T, 16);
 	alo_newtable(T, 16);
 	aloL_setfuns(T, -1, mod_funcs);

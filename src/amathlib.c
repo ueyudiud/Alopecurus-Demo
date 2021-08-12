@@ -31,9 +31,9 @@
 
 #endif
 
-static int math_abs(astate T) {
-	int flag;
-	aint i = alo_tointegerx(T, 0, &flag);
+static int math_abs(alo_State T) {
+	a_bool flag;
+	a_int i = alo_tointegerx(T, 0, &flag);
 	if (flag) {
 		alo_pushinteger(T, llabs(i));
 	}
@@ -43,7 +43,7 @@ static int math_abs(astate T) {
 	return 1;
 }
 
-static int math_min(astate T) {
+static int math_min(alo_State T) {
 	int n = alo_gettop(T);
 	if (n == 0) {
 		aloL_argerror(T, 0, "value expected");
@@ -58,7 +58,7 @@ static int math_min(astate T) {
 	return 1;
 }
 
-static int math_max(astate T) {
+static int math_max(alo_State T) {
 	int n = alo_gettop(T);
 	if (n == 0) {
 		aloL_argerror(T, 0, "value expected");
@@ -73,74 +73,74 @@ static int math_max(astate T) {
 	return 1;
 }
 
-static int math_deg(astate T) {
+static int math_deg(alo_State T) {
 	alo_pushnumber(T, aloL_checknumber(T, 0) * (180.0 / PI));
 	return 1;
 }
 
-static int math_rad(astate T) {
+static int math_rad(alo_State T) {
 	alo_pushnumber(T, aloL_checknumber(T, 0) * (PI / 180.0));
 	return 1;
 }
 
-static int math_sqrt(astate T) {
+static int math_sqrt(alo_State T) {
 	alo_pushnumber(T, sqrt(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_cbrt(astate T) {
+static int math_cbrt(alo_State T) {
 	alo_pushnumber(T, cbrt(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_exp(astate T) {
+static int math_exp(alo_State T) {
 	alo_pushnumber(T, exp(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_sin(astate T) {
+static int math_sin(alo_State T) {
 	alo_pushnumber(T, sin(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_cos(astate T) {
+static int math_cos(alo_State T) {
 	alo_pushnumber(T, cos(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_tan(astate T) {
+static int math_tan(alo_State T) {
 	alo_pushnumber(T, tan(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_ln(astate T) {
+static int math_ln(alo_State T) {
 	alo_pushnumber(T, log(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_log(astate T) {
+static int math_log(alo_State T) {
 	alo_pushnumber(T, log(aloL_checknumber(T, 0)) / log(aloL_getoptnumber(T, 1, E)));
 	return 1;
 }
 
-static int math_asin(astate T) {
+static int math_asin(alo_State T) {
 	alo_pushnumber(T, asin(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_acos(astate T) {
+static int math_acos(alo_State T) {
 	alo_pushnumber(T, acos(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_atan(astate T) {
+static int math_atan(alo_State T) {
 	alo_pushnumber(T, atan2(aloL_checknumber(T, 0), aloL_getoptnumber(T, 1, 1)));
 	return 1;
 }
 
-static int math_floor(astate T) {
-	int flag;
-	aint i = alo_tointegerx(T, 0, &flag);
+static int math_floor(alo_State T) {
+	a_bool flag;
+	a_int i = alo_tointegerx(T, 0, &flag);
 	if (flag) {
 		alo_pushinteger(T, i);
 	}
@@ -150,9 +150,9 @@ static int math_floor(astate T) {
 	return 1;
 }
 
-static int math_ceil(astate T) {
-	int flag;
-	aint i = alo_tointegerx(T, 0, &flag);
+static int math_ceil(alo_State T) {
+	a_bool flag;
+	a_int i = alo_tointegerx(T, 0, &flag);
 	if (flag) {
 		alo_pushinteger(T, i);
 	}
@@ -162,22 +162,22 @@ static int math_ceil(astate T) {
 	return 1;
 }
 
-static int math_erf(astate T) {
+static int math_erf(alo_State T) {
 	alo_pushnumber(T, erf(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_erfc(astate T) {
+static int math_erfc(alo_State T) {
 	alo_pushnumber(T, erfc(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_tgamma(astate T) {
+static int math_tgamma(alo_State T) {
 	alo_pushnumber(T, tgamma(aloL_checknumber(T, 0)));
 	return 1;
 }
 
-static int math_lgamma(astate T) {
+static int math_lgamma(alo_State T) {
 	alo_pushnumber(T, lgamma(aloL_checknumber(T, 0)));
 	return 1;
 }
@@ -202,12 +202,12 @@ static void l_srand48(uint32_t value) {
 
 #endif
 
-static int math_setseed(astate T) {
+static int math_setseed(alo_State T) {
 	l_srand48(aloL_checkinteger(T, 0));
 	return 0;
 }
 
-static int math_random(astate T) {
+static int math_random(alo_State T) {
 	alo_pushnumber(T, l_drand48());
 	return 1;
 }
@@ -245,7 +245,7 @@ static const acreg_t mod_funcs[] = {
 	{ NULL, NULL }
 };
 
-int aloopen_math(astate T) {
+int aloopen_math(alo_State T) {
 	alo_newtable(T, 0);
 	aloL_setfuns(T, -1, mod_funcs);
 	alo_pushnumber(T, NAN);

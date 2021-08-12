@@ -8,7 +8,7 @@
 #define ALEX_C_
 #define ALO_CORE
 
-#include "achr.h"
+#include "actype.h"
 #include "astr.h"
 #include "atab.h"
 #include "astate.h"
@@ -24,7 +24,7 @@
 
 static const atoken_t undef = { { }, TK_UNDEF };
 
-ALO_VDEF const astr aloX_tokenid[] = {
+ALO_VDEF const a_cstr aloX_tokenid[] = {
 		"alias", "break", "case", "continue", "def", "delete", "do", "else",
 		"false", "for", "goto", "if", "in", "local", "match", "new", "nil",
 		"return", "struct", "then", "this", "true", "while",
@@ -49,23 +49,23 @@ static inline void lrewind(alexer_t* lex) {
 	lex->buf->len = 0;
 }
 
-static inline astring_t* lload(alexer_t* lex) {
-	astring_t* s = aloX_getstr(lex, aloE_cast(char*, lex->buf->ptr), lex->buf->len);
+static inline alo_Str* lload(alexer_t* lex) {
+	alo_Str* s = aloX_getstr(lex, aloE_cast(char*, lex->buf->ptr), lex->buf->len);
 	lrewind(lex);
 	return s;
 }
 
-static inline astr lmake(alexer_t* lex) {
+static inline a_cstr lmake(alexer_t* lex) {
 	lstore(lex, '\0'); /* make a zero terminated string */
-	return aloE_cast(astr, lex->buf->ptr);
+	return aloE_cast(a_cstr, lex->buf->ptr);
 }
 
 /**
  ** initialize lexer environment, called by initialize(void) in 'astate.c'.
  */
-void aloX_init(astate T) {
+void aloX_init(alo_State T) {
 	for (int i = 0; i < ALO_NUMRESERVED; ++i) {
-		astring_t* s = aloS_of(T, aloX_tokenid[i]);
+		alo_Str* s = aloS_of(T, aloX_tokenid[i]);
 		s->freserved = true;
 		s->extra = i;
 		aloG_fix(T, s);
@@ -75,7 +75,7 @@ void aloX_init(astate T) {
 /**
  ** open lexer.
  */
-void aloX_open(astate T, alexer_t* lex, astr src, aibuf_t* in) {
+void aloX_open(alo_State T, alexer_t* lex, a_cstr src, aibuf_t* in) {
 	lex->T = T;
 	lex->in = in;
 	aloB_open(T, lex->buf);
@@ -103,14 +103,14 @@ void aloX_close(alexer_t* lex) {
 /**
  ** throw an error by lexer.
  */
-anoret aloX_error(alexer_t* lex, astr msg) {
+a_none aloX_error(alexer_t* lex, a_cstr msg) {
 	aloV_pushfstring(lex->T, "%s:%d: %s", lex->src->array, lex->cl, msg);
-	aloD_throw(lex->T, ThreadStateErrCompile);
+	aloD_throw(lex->T, ALO_STERRCOM);
 }
 /**
  ** get string from token index.
  */
-astr aloX_tkid2str(alexer_t* lex, int id) {
+a_cstr aloX_tkid2str(alexer_t* lex, int id) {
 	if (id == TK_ERR) {
 		return "<error>";
 	}
@@ -119,7 +119,7 @@ astr aloX_tkid2str(alexer_t* lex, int id) {
 		return aloV_pushfstring(lex->T, "'%c'", id);
 	}
 	else {
-		astr s = aloX_tokenid[id - (TK_OFFSET + 1)];
+		a_cstr s = aloX_tokenid[id - (TK_OFFSET + 1)];
 		return tiskey(id) ? aloV_pushfstring(lex->T, "'%s'", s) : s;
 	}
 }
@@ -127,7 +127,7 @@ astr aloX_tkid2str(alexer_t* lex, int id) {
 /**
  ** get string from token.
  */
-astr aloX_token2str(alexer_t* lex, atoken_t* token) {
+a_cstr aloX_token2str(alexer_t* lex, atoken_t* token) {
 	switch (token->t) {
 	case TK_INTEGER:
 		return aloV_pushfstring(lex->T, "%i", token->d.i);
@@ -145,15 +145,15 @@ astr aloX_token2str(alexer_t* lex, atoken_t* token) {
 /**
  ** get cached string.
  */
-astring_t* aloX_getstr(alexer_t* lex, const char* src, size_t len) {
+alo_Str* aloX_getstr(alexer_t* lex, const char* src, size_t len) {
 	atable_t* symbols = lex->ss;
-	return tgetstr(aloH_findxset(lex->T, symbols, src, len)); /* get string from key of entry */
+	return tasstr(aloH_findxset(lex->T, symbols, src, len)); /* get string from key of entry */
 }
 
-static anoret lerror(alexer_t* lex, astr msg, ...) {
+static a_none lerror(alexer_t* lex, a_cstr msg, ...) {
 	va_list varg;
 	va_start(varg, msg);
-	astr s = aloV_pushvfstring(lex->T, msg, varg);
+	a_cstr s = aloV_pushvfstring(lex->T, msg, varg);
 	va_end(varg);
 	aloX_error(lex, s);
 }
@@ -241,7 +241,7 @@ number:
 	int_val: {
 		lstore(lex, '\0');
 		errno = 0;
-		aint value = strtoll(lmake(lex), NULL, 0);
+		a_int value = strtoll(lmake(lex), NULL, 0);
 		if (errno) {
 			lerror(lex, "fail to parse integer value: %s", strerror(errno));
 			return TK_ERR;
@@ -252,7 +252,7 @@ number:
 	}
 
 	flt_val: {
-		afloat value = strtod(lmake(lex), NULL);
+		a_float value = strtod(lmake(lex), NULL);
 		errno = 0;
 		if (errno) {
 			lerror(lex, "fail to parse float value: %s", strerror(errno));

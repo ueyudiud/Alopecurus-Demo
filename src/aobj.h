@@ -14,42 +14,45 @@
  ** tagged variants.
  */
 
-/* variants for string */
-#define ALO_THSTRING (ALO_TSTRING | 0 << 4)
-#define ALO_TISTRING (ALO_TSTRING | 1 << 4)
+#define maketag(t,v) ((t) | (v) << 4)
 
-/* variants for function */
-#define ALO_TLCF (ALO_TFUNCTION | 0 << 4)
-#define ALO_TCCL (ALO_TFUNCTION | 1 << 4)
-#define ALO_TACL (ALO_TFUNCTION | 3 << 4)
+enum {
+	/* variants for string */
+	ALO_VHSTR = maketag(ALO_TSTR, 0),
+	ALO_VISTR = maketag(ALO_TSTR, 1),
+	/* variants for function */
+	ALO_VLCF = maketag(ALO_TFUNC, 0),
+	ALO_VCCL = maketag(ALO_TFUNC, 1),
+	ALO_VACL = maketag(ALO_TFUNC, 3)
+};
 
 /* mask for reference */
-#define ALO_REFERENCE 0x80
+#define ALO_REF_BIT 0x80
 
 /* useful masks */
-#define ALO_TMASKNUMBER (1 << ALO_TINT | 1 << ALO_TFLOAT)
-#define ALO_TMASKCOLLECTION (1 << ALO_TTUPLE | 1 << ALO_TLIST | 1 << ALO_TTABLE)
+#define ALO_TMASK_NUMBER (1 << ALO_TINT | 1 << ALO_TFLOAT)
+#define ALO_TMASK_COLLECTION (1 << ALO_TTUPLE | 1 << ALO_TLIST | 1 << ALO_TTABLE)
 
 /**
  ** header predefined.
  */
 
-#define CommonHeader agct gcprev; abyte tt; abyte mark
-#define RefHeader(e) CommonHeader; e; agct gclist
-#define TValHeader aval_t v; abyte tt
+#define ALO_OBJ_HEADER alo_Obj* gcprev; a_byte tt; a_byte mark
+#define ALO_AGGR_HEADER(e) ALO_OBJ_HEADER; e; alo_Obj* gclist
+#define ALO_TVAL_HEADER alo_Val v; a_byte tt
 
 /**
  ** type predefined, the description of types see code below.
  */
 
-typedef struct alo_GCHead *agct;
+typedef struct alo_Obj alo_Obj;
 
-typedef union alo_Value aval_t;
-typedef struct alo_TagValue atval_t;
-typedef struct alo_Capture acap_t;
+typedef union alo_Value alo_Val;
+typedef struct alo_TagValue alo_TVal;
+typedef struct alo_Capture alo_Capture;
 
 /* index in stack */
-typedef atval_t *askid_t;
+typedef alo_TVal *alo_StkId;
 
 /* get type tag from raw type tag. */
 #define gettype(tt) ((tt) & 0x7F)
@@ -65,132 +68,133 @@ typedef atval_t *askid_t;
  */
 
 /* get raw type tag from object. */
-#define rttype(o) (o)->tt
+#define _rttype(o) ((o)->tt)
 
 /* get type tag from object. */
-#define ttype(o) gettype(rttype(o))
+#define ttype(o) gettype(_rttype(o))
 
 /* get type tag without variant bits from object. */
-#define ttpnv(o) gettpnv(rttype(o))
+#define ttpnv(o) gettpnv(_rttype(o))
 
 /* type checking without specific type macros. */
-#define checktag(o,t) (ttype(o) == t)
-#define checktype(o,t) (ttpnv(o) == t)
-#define matchtypes(o,m) (masktype(rttype(o)) & (m))
+#define checktag(o,t) (ttype(o) == (t))
+#define checktype(o,t) (ttpnv(o) == (t))
+#define matchtypes(o,m) (masktype(_rttype(o)) & (m))
 
 /* type checking macros. */
 
-#define ttisnil(o) checktype(o, ALO_TNIL)
-#define ttisbool(o) checktype(o, ALO_TBOOL)
-#define ttisint(o) checktype(o, ALO_TINT)
-#define ttisflt(o) checktype(o, ALO_TFLOAT)
-#define ttisnum(o) matchtypes(o, ALO_TMASKNUMBER)
-#define ttisptr(o) checktype(o, ALO_TPOINTER)
-#define ttisstr(o) checktype(o, ALO_TSTRING)
-#define ttishstr(o) checktag(o, ALO_THSTRING)
-#define ttisistr(o) checktag(o, ALO_TISTRING)
-#define ttistup(o) checktype(o, ALO_TTUPLE)
-#define ttislis(o) checktype(o, ALO_TLIST)
-#define ttistab(o) checktype(o, ALO_TTABLE)
-#define ttiscol(o) matchtypes(o, ALO_TMASKCOLLECTION)
-#define ttisfun(o) checktype(o, ALO_TFUNCTION)
-#define ttisclo(o) ((rttype(o) & 0x1F) == (ALO_TFUNCTION | 1 << 4))
-#define ttislcf(o) checktag(o, ALO_TLCF)
-#define ttisccl(o) checktag(o, ALO_TCCL)
-#define ttisacl(o) checktag(o, ALO_TACL)
-#define ttisrdt(o) checktype(o, ALO_TRAWDATA)
-#define ttisthr(o) checktype(o, ALO_TTHREAD)
-#define ttispro(o) checktype(o, ALO_TPROTO)
+#define tisnil(o) checktype(o, ALO_TNIL)
+#define tisbool(o) checktype(o, ALO_TBOOL)
+#define tisint(o) checktype(o, ALO_TINT)
+#define tisflt(o) checktype(o, ALO_TFLOAT)
+#define tisnum(o) matchtypes(o, ALO_TMASK_NUMBER)
+#define tisptr(o) checktype(o, ALO_TPTR)
+#define tisstr(o) checktype(o, ALO_TSTR)
+#define tishstr(o) checktag(o, ALO_VHSTR)
+#define tisistr(o) checktag(o, ALO_VISTR)
+#define tistup(o) checktype(o, ALO_TTUPLE)
+#define tislis(o) checktype(o, ALO_TLIST)
+#define tistab(o) checktype(o, ALO_TTABLE)
+#define tiscol(o) matchtypes(o, ALO_TMASK_COLLECTION)
+#define tisfun(o) checktype(o, ALO_TFUNC)
+#define tisclo(o) ((_rttype(o) & 0x1F) == (ALO_TFUNC | 1 << 4))
+#define tislcf(o) checktag(o, ALO_VLCF)
+#define tisccl(o) checktag(o, ALO_VCCL)
+#define tisacl(o) checktag(o, ALO_VACL)
+#define tisusr(o) checktype(o, ALO_TUSER)
+#define tisthr(o) checktype(o, ALO_TTHREAD)
+#define tispro(o) checktype(o, ALO_TPROTO)
 #define ttiscap(o) checktype(o, ALO_TCAPTURE)
-#define ttisref(o) (rttype(o) & ALO_REFERENCE)
+#define tisref(o) (_rttype(o) & ALO_REF_BIT)
 
 /* tagged value get access macros. */
 
-#define tgetbool(o) aloE_check(ttisbool(o), "'"#o"' is not boolean value", (o)->v.b)
-#define tgetint(o) aloE_check(ttisint(o), "'"#o"' is not integer value", (o)->v.i)
-#define tgetflt(o) aloE_check(ttisflt(o), "'"#o"' is not float value", (o)->v.n)
-#define tgetnum(o) aloE_check(ttisnum(o), "'"#o"' is not number value", ttisint(o) ? aloE_flt(tgetint(o)) : tgetflt(o))
-#define tgetlcf(o) aloE_check(ttislcf(o), "'"#o"' is not light C function value", (o)->v.f)
-#define tgetptr(o) aloE_check(ttisptr(o), "'"#o"' is not pointer value", tgetrptr(o))
-#define tgetref(o) aloE_check(ttisref(o), "'"#o"' is not reference value", (o)->v.g)
-#define tgetstr(o) aloE_check(ttisstr(o), "'"#o"' is not string value", g2s(tgetref(o)))
-#define tgettup(o) aloE_check(ttistup(o), "'"#o"' is not tuple value", g2a(tgetref(o)))
-#define tgetlis(o) aloE_check(ttislis(o), "'"#o"' is not list value", g2l(tgetref(o)))
-#define tgettab(o) aloE_check(ttistab(o), "'"#o"' is not table value", g2m(tgetref(o)))
-#define tgetclo(o) aloE_check(ttisfun(o), "'"#o"' is not closure value", g2c(tgetref(o)))
-#define tgetacl(o) aloE_check(ttisacl(o), "'"#o"' is not Alopecurus closure value", g2ac(tgetref(o)))
-#define tgetccl(o) aloE_check(ttisccl(o), "'"#o"' is not C closure value", g2cc(tgetref(o)))
-#define tgetthr(o) aloE_check(ttisthr(o), "'"#o"' is not thread value", g2t(tgetref(o)))
-#define tgetrdt(o) aloE_check(ttisrdt(o), "'"#o"' is not raw data value", g2r(tgetref(o)))
+#define tasbool(o) aloE_check(tisbool(o), "'"#o"' is not boolean value", (o)->v.b)
+#define tasint(o) aloE_check(tisint(o), "'"#o"' is not integer value", (o)->v.i)
+#define tasflt(o) aloE_check(tisflt(o), "'"#o"' is not float value", (o)->v.n)
+#define taslcf(o) aloE_check(tislcf(o), "'"#o"' is not light C function value", (o)->v.f)
+#define tasptr(o) aloE_check(tisptr(o), "'"#o"' is not pointer value", tgetrptr(o))
+#define tasobj(o) aloE_check(tisref(o), "'"#o"' is not reference value", (o)->v.g)
+#define tasstr(o) aloE_check(tisstr(o), "'"#o"' is not string value", g2s(tasobj(o)))
+#define tastup(o) aloE_check(tistup(o), "'"#o"' is not tuple value", g2a(tasobj(o)))
+#define taslis(o) aloE_check(tislis(o), "'"#o"' is not list value", g2l(tasobj(o)))
+#define tastab(o) aloE_check(tistab(o), "'"#o"' is not table value", g2m(tasobj(o)))
+#define tasclo(o) aloE_check(tisfun(o), "'"#o"' is not closure value", g2c(tasobj(o)))
+#define tgetacl(o) aloE_check(tisacl(o), "'"#o"' is not Alopecurus closure value", g2ac(tasobj(o)))
+#define tgetccl(o) aloE_check(tisccl(o), "'"#o"' is not C closure value", g2cc(tasobj(o)))
+#define tgetthr(o) aloE_check(tisthr(o), "'"#o"' is not thread value", g2t(tasobj(o)))
+#define tgetrdt(o) aloE_check(tisusr(o), "'"#o"' is not raw data value", g2r(tasobj(o)))
 
-#define trefbool(o) (*aloE_check(ttisbool(o), "'"#o"' is not boolean value", &(o)->v.b))
-#define trefint(o) (*aloE_check(ttisint(o), "'"#o"' is not integer value", &(o)->v.i))
-#define trefflt(o) (*aloE_check(ttisflt(o), "'"#o"' is not float value", &(o)->v.f))
+#define ttonum(o) aloE_check(tisnum(o), "'"#o"' is not number value", tisint(o) ? aloE_flt(tasint(o)) : tasflt(o))
+
+#define trefbool(o) (*aloE_check(tisbool(o), "'"#o"' is not boolean value", &(o)->v.b))
+#define trefint(o) (*aloE_check(tisint(o), "'"#o"' is not integer value", &(o)->v.i))
+#define trefflt(o) (*aloE_check(tisflt(o), "'"#o"' is not float value", &(o)->v.f))
 
 #define tgetrptr(o) (o)->v.p
 
 /* tagged value construct macros. */
 
-#define ALOO_NILBODY {}, ALO_TNIL
+#define NIL_BODY {}, ALO_TNIL
 
-#define tnewnil() (atval_t) { ALOO_NILBODY }
-#define tnewbool(x) (atval_t) { { .b = (x) }, ALO_TBOOL }
-#define tnewint(x) (atval_t) { { .i = (x) }, ALO_TINT }
-#define tnewflt(x) (atval_t) { { .n = (x) }, ALO_TFLOAT }
-#define tnewlcf(x) (atval_t) { { .f = (x) }, ALO_TLCF }
-#define tnewptr(x) (atval_t) { { .p = (x) }, ALO_TPOINTER }
-#define tnewref(x,t) (atval_t) { { .g = r2g(x) }, wrf(t) }
-#define tnewrefx(x) tnewref(x, rttype(x))
+#define tnewnil() (alo_TVal) { NIL_BODY }
+#define tnewbool(x) (alo_TVal) { { .b = (x) }, ALO_TBOOL }
+#define tnewint(x) (alo_TVal) { { .i = (x) }, ALO_TINT }
+#define tnewflt(x) (alo_TVal) { { .n = (x) }, ALO_TFLOAT }
+#define tnewlcf(x) (alo_TVal) { { .f = (x) }, ALO_VLCF }
+#define tnewptr(x) (alo_TVal) { { .p = (x) }, ALO_TPTR }
+#define tnewref(x,t) (alo_TVal) { { .g = r2g(x) }, wrf(t) }
+#define tnewrefx(x) tnewref(x, _rttype(x))
 #define tnewstr tnewrefx
 
 /* tagged value set access macros. */
 
 #define trsetval(o,x...) (*(o) = x)
-#define trsetvalx(T,o,x...) ({ atval_t* io = (o); trsetval(io, x); checklive(T, io); })
+#define trsetvalx(T,o,x...) ({ alo_TVal* io = (o); trsetval(io, x); checklive(T, io); })
 #define tsetnil(o)     trsetval(o, aloO_nil)
 #define tsetbool(o,x)  trsetval(o, tnewbool(x))
 #define tsetint(o,x)   trsetval(o, tnewint(x))
 #define tsetflt(o,x)   trsetval(o, tnewflt(x))
 #define tsetlcf(o,x)   trsetval(o, tnewlcf(x))
 #define tsetptr(o,x)   trsetval(o, tnewptr(x))
-#define tsetref(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
-#define tsetstr(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
+#define tsetref(T,o,x) trsetvalx(T, o, tnewref(x, _rttype(x)))
+#define tsetstr(T,o,x) trsetvalx(T, o, tnewref(x, _rttype(x)))
 #define tsettup(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTUPLE))
 #define tsetlis(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TLIST))
 #define tsettab(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTABLE))
-#define tsetclo(T,o,x) trsetvalx(T, o, tnewref(x, rttype(x)))
-#define tsetacl(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TACL))
-#define tsetccl(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TCCL))
+#define tsetclo(T,o,x) trsetvalx(T, o, tnewref(x, _rttype(x)))
+#define tsetacl(T,o,x) trsetvalx(T, o, tnewref(x, ALO_VACL))
+#define tsetccl(T,o,x) trsetvalx(T, o, tnewref(x, ALO_VCCL))
 #define tsetthr(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TTHREAD))
-#define tsetrdt(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TRAWDATA))
+#define tsetrdt(T,o,x) trsetvalx(T, o, tnewref(x, ALO_TUSER))
 
-#define tsetobj(T,o1,o2) ({ atval_t* io = (o1); *io = *(o2); checklive(T, io); })
+#define tsetobj(T,o1,o2) ({ alo_TVal* io = (o1); *io = *(o2); checklive(T, io); })
 
-#define tchgbool(o,x) ({ atval_t* io = (o); aloE_check(ttisbool(io), "'"#o"' is not boolean value", (io)->v.b = (x)); })
-#define tchgint(o,x)  ({ atval_t* io = (o); aloE_check(ttisint(io) , "'"#o"' is not integer value", (io)->v.i = (x)); })
-#define tchgflt(o,x)  ({ atval_t* io = (o); aloE_check(ttisflt(io) , "'"#o"' is not float value"  , (io)->v.n = (x)); })
+#define tchgbool(o,x) ({ alo_TVal* io = (o); aloE_check(tisbool(io), "'"#o"' is not boolean value", (io)->v.b = (x)); })
+#define tchgint(o,x)  ({ alo_TVal* io = (o); aloE_check(tisint(io) , "'"#o"' is not integer value", (io)->v.i = (x)); })
+#define tchgflt(o,x)  ({ alo_TVal* io = (o); aloE_check(tisflt(io) , "'"#o"' is not float value"  , (io)->v.n = (x)); })
 
 /* internal test macros. */
 
-#define rfittt(o) (ttype(o) == rttype((o)->v.g))
-#define checklive(T,o) aloE_assert(!ttisref(o) || \
-		(rfittt(o) && ((T) == NULL || aloG_isalive(aloE_cast(astate, T)->g, tgetref(o)))), "'"#o"' might not be alive.")
+#define rfittt(o) (ttype(o) == _rttype((o)->v.g))
+#define checklive(T,o) aloE_assert(!tisref(o) || \
+		(rfittt(o) && ((T) == NULL || aloG_isalive(aloE_cast(alo_State, T)->g, tasobj(o)))), "'"#o"' might not be alive.")
 
 /* GC target access macros. */
-#define g2s(g) aloE_check(ttisstr(g), "'"#g"' is not string value"  , aloE_cast(astring_t* , g))
-#define g2a(g) aloE_check(ttistup(g), "'"#g"' is not tuple value"   , aloE_cast(atuple_t*  , g))
-#define g2l(g) aloE_check(ttislis(g), "'"#g"' is not list value"    , aloE_cast(alist_t*   , g))
-#define g2m(g) aloE_check(ttistab(g), "'"#g"' is not table value"   , aloE_cast(atable_t*  , g))
-#define g2c(g) aloE_check(ttisfun(g), "'"#g"' is not closure value" , aloE_cast(aclosure_t*, g))
-#define g2t(g) aloE_check(ttisthr(g), "'"#g"' is not thread value"  , aloE_cast(athread_t* , g))
-#define g2r(g) aloE_check(ttisrdt(g), "'"#g"' is not raw data value", aloE_cast(arawdata_t*, g))
-#define g2p(g) aloE_check(ttispro(g), "'"#g"' is not prototype"     , aloE_cast(aproto_t*  , g))
+#define g2s(g) aloE_check(tisstr(g), "'"#g"' is not string value"  , aloE_cast(alo_Str* , g))
+#define g2a(g) aloE_check(tistup(g), "'"#g"' is not tuple value"   , aloE_cast(alo_Tuple*, g))
+#define g2l(g) aloE_check(tislis(g), "'"#g"' is not list value"    , aloE_cast(alo_List*, g))
+#define g2m(g) aloE_check(tistab(g), "'"#g"' is not table value"   , aloE_cast(atable_t*, g))
+#define g2c(g) aloE_check(tisfun(g), "'"#g"' is not closure value" , aloE_cast(alo_Closure*, g))
+#define g2t(g) aloE_check(tisthr(g), "'"#g"' is not thread value"  , aloE_cast(alo_Thread* , g))
+#define g2r(g) aloE_check(tisusr(g), "'"#g"' is not raw data value", aloE_cast(alo_User*, g))
+#define g2p(g) aloE_check(tispro(g), "'"#g"' is not prototype"     , aloE_cast(alo_Proto*  , g))
 
-#define g2ac(g) aloE_check(ttisacl(g), "'"#g"' is not closure value" , aloE_cast(aacl_t*, g))
-#define g2cc(g) aloE_check(ttisccl(g), "'"#g"' is not closure value" , aloE_cast(accl_t*, g))
+#define g2ac(g) aloE_check(tisacl(g), "'"#g"' is not closure value" , aloE_cast(alo_ACl*, g))
+#define g2cc(g) aloE_check(tisccl(g), "'"#g"' is not closure value" , aloE_cast(alo_CCl*, g))
 
-#define r2g(g) aloE_cast(agct, g)
-#define wrf(t) ((t) | ALO_REFERENCE)
+#define r2g(g) aloE_cast(alo_Obj*, g)
+#define wrf(t) ((t) | ALO_REF_BIT)
 
 /**
  ** types definition.
@@ -199,8 +203,8 @@ typedef atval_t *askid_t;
 /**
  ** GC header for all collectible objects.
  */
-struct alo_GCHead {
-	RefHeader();
+struct alo_Obj {
+	ALO_AGGR_HEADER();
 };
 
 /**
@@ -208,40 +212,40 @@ struct alo_GCHead {
  */
 union alo_Value {
 	int b;
-	aint i;
-	afloat n;
-	acfun f;
-	amem p;
-	agct g;
+	a_int i;
+	a_float n;
+	a_cfun f;
+	a_mem p;
+	alo_Obj* g;
 };
 
 /**
  ** tagged value
  */
 struct alo_TagValue {
-	TValHeader;
+	ALO_TVAL_HEADER;
 };
 
 /**
  ** string value
  */
-typedef struct alo_String astring_t;
+typedef struct alo_Str alo_Str;
 
-struct alo_String {
-	CommonHeader;
-	abyte shtlen;
-	abyte extra;
+struct alo_Str {
+	ALO_OBJ_HEADER;
+	a_byte shtlen;
+	a_byte extra;
 	union {
 		struct {
-			abyte fhash : 1; /* mark hash value are already calculated. */
-			abyte freserved : 1; /* mark string value is reserved word. */
-			abyte ftagname : 1; /* mark string value tagged method name. */
+			a_byte fhash : 1; /* mark hash value are already calculated. */
+			a_byte freserved : 1; /* mark string value is reserved word. */
+			a_byte ftagname : 1; /* mark string value tagged method name. */
 		};
-		abyte flags;
+		a_byte flags;
 	};
-	ahash_t hash;
+	a_hash hash;
 	union {
-		astring_t* shtlist;
+		alo_Str* shtlist;
 		size_t lnglen;
 	};
 	char array[];
@@ -252,77 +256,77 @@ typedef struct alo_Table atable_t;
 /**
  ** raw data value.
  */
-typedef struct alo_RawData {
-	RefHeader();
+typedef struct alo_User {
+	ALO_AGGR_HEADER();
 	atable_t* metatable;
 	size_t length;
-	abyte array[];
-} arawdata_t;
+	a_byte array[];
+} alo_User;
 
 /**
  ** tuple value.
  */
 typedef struct alo_Tuple {
-	RefHeader(uint16_t length);
-	atval_t array[];
-} atuple_t;
+	ALO_AGGR_HEADER(uint16_t length);
+	alo_TVal array[];
+} alo_Tuple;
 
 /**
  ** list value.
  */
 typedef struct alo_List {
-	RefHeader();
+	ALO_AGGR_HEADER();
 	atable_t* metatable;
 	size_t capacity;
 	size_t length;
-	atval_t* array;
-} alist_t;
+	alo_TVal* array;
+} alo_List;
 
 /**
  ** entry of table value.
  */
 typedef struct alo_Entry {
-	atval_t value;
+	alo_TVal value;
 	union {
 		struct {
-			TValHeader;
+			ALO_TVAL_HEADER;
 		};
-		atval_t key;
+		alo_TVal key;
 	};
 	int prev;
 	int next;
-	ahash_t hash;
-} aentry_t;
+	a_hash hash;
+} alo_Entry;
 
 /**
  ** table value.
  */
 struct alo_Table {
-	RefHeader(abyte reserved); /* for fast searching tagged methods. */
+	ALO_AGGR_HEADER(a_byte reserved); /* for fast searching tagged methods. */
 	atable_t* metatable;
 	size_t capacity;
 	size_t length;
-	aentry_t* array;
-	aentry_t* lastfree; /* the starting slot of searching next free slot, any free slot are after this slot. */
+	alo_Entry* array;
+	alo_Entry* lastfree; /* the starting slot of searching next free slot, any free slot are after this slot. */
 };
 
 /**
  ** thread value, defined in astate.h
  */
-typedef struct alo_Thread athread_t;
+typedef struct alo_Thread alo_Thread;
 
-typedef struct alo_Proto aproto_t;
+typedef struct alo_Proto alo_Proto;
 
 /**
  ** captured reference, only appear in closure capture value.
  */
 struct alo_Capture {
-	atval_t* p;
+	alo_TVal* p;
 	size_t counter;
 	union {
-		atval_t slot;
+		alo_TVal slot;
 		struct {
-			acap_t* prev;
+			alo_Capture* prev;
 			int mark; /* capture GC marker, true when can be traced. */
 		};
 	};
@@ -330,25 +334,25 @@ struct alo_Capture {
 
 #define aloO_isclosed(c) ((c)->p == &(c)->slot)
 
-#define ClosureHeader RefHeader(abyte length; abyte fenv : 1)
+#define ClosureHeader ALO_AGGR_HEADER(a_byte length; a_byte fenv : 1)
 
 /**
  ** Alopecurus closure value.
  */
 typedef struct alo_AClosure {
 	ClosureHeader;
-	aproto_t* proto;
-	acap_t* array[];
-} aacl_t;
+	alo_Proto* proto;
+	alo_Capture* array[];
+} alo_ACl;
 
 /**
  ** C closure value.
  */
 typedef struct alo_CClosure {
 	ClosureHeader;
-	acfun handle;
-	atval_t array[];
-} accl_t;
+	a_cfun handle;
+	alo_TVal array[];
+} alo_CCl;
 
 /**
  ** closure value.
@@ -356,60 +360,60 @@ typedef struct alo_CClosure {
 typedef struct {
 	union {
 		struct { ClosureHeader; };
-		aacl_t a;
-		accl_t c;
+		alo_ACl a;
+		alo_CCl c;
 	};
-} aclosure_t;
+} alo_Closure;
 
-typedef struct alo_LocalVariable {
-	astring_t* name;
+typedef struct alo_LocVarInfo {
+	alo_Str* name;
 	int start;
 	int end;
 	uint16_t index;
-} alocvar_t;
+} alo_LocVarInfo;
 
-typedef struct alo_CaptureInfo {
-	astring_t* name;
+typedef struct alo_CapInfo {
+	alo_Str* name;
 	uint16_t index;
-	abyte finstack : 1;
-} acapinfo_t;
+	a_byte finstack : 1;
+} alo_CapInfo;
 
 typedef struct alo_LineInfo {
 	int begin;
 	int line;
-} alineinfo_t;
+} alo_LineInfo;
 
 /**
  ** prototype.
  */
 struct alo_Proto {
-	RefHeader(
+	ALO_AGGR_HEADER(
 		union {
 			struct {
-				abyte fvararg : 1; /* is variable parameters prototype */
+				a_byte fvararg : 1; /* is variable parameters prototype */
 			};
-			abyte flags;
+			a_byte flags;
 		}
 	);
 	int ncode; /* code size */
 	int nconst; /* constant size */
 	int nlineinfo; /* line information size */
 	int nchild; /* children prototype count */
-	astring_t* name;
+	alo_Str* name;
 	uint16_t nargs; /* fixed parameters count */
 	uint16_t nstack; /* max stack size */
 	uint16_t ncap; /* capture count */
 	uint16_t nlocvar; /* local variable count */
 	int linefdef; /* first line defined (debug) */
 	int lineldef; /* last line defined (debug) */
-	atval_t* consts;
-	ainsn_t* code; /* opcodes */
-	alineinfo_t* lineinfo; /* line informations (debug) */
-	alocvar_t* locvars; /* local variable informations (debug) */
-	acapinfo_t* captures; /* capture informations */
-	aproto_t** children;
-	aacl_t* cache; /* closure cache */
-	astring_t* src; /* (debug) */
+	alo_TVal* consts;
+	a_insn* code; /* opcodes */
+	alo_LineInfo* lineinfo; /* line informations (debug) */
+	alo_LocVarInfo* locvars; /* local variable informations (debug) */
+	alo_CapInfo* captures; /* capture informations */
+	alo_Proto** children;
+	alo_ACl* cache; /* closure cache */
+	alo_Str* src; /* (debug) */
 };
 
 /**
@@ -417,19 +421,19 @@ struct alo_Proto {
  */
 
 /* nil value */
-ALO_VDEC const atval_t aloO_nil;
+ALO_VDEC const alo_TVal aloO_nil;
 
 #define aloO_tnil (&aloO_nil)
 
 #define aloO_boolhash(v) ((v) ? 0x41 : 0x31)
-#define aloO_inthash(v) aloE_cast(ahash_t, v)
+#define aloO_inthash(v) aloE_cast(a_hash, v)
 
-ALO_IFUN ahash_t aloO_flthash(afloat);
-ALO_IFUN int aloO_str2int(astr, atval_t*);
-ALO_IFUN int aloO_str2num(astr, atval_t*);
-ALO_IFUN int aloO_flt2int(afloat, aint*, int);
-ALO_IFUN int aloO_tostring(astate, awriter, void*, const atval_t*);
-ALO_IFUN int aloO_escape(astate, awriter, void*, const char*, size_t);
-ALO_IFUN const atval_t* aloO_get(astate, const atval_t*, const atval_t*);
+ALO_IFUN a_hash aloO_flthash(a_float);
+ALO_IFUN int aloO_str2int(a_cstr, alo_TVal*);
+ALO_IFUN int aloO_str2num(a_cstr, alo_TVal*);
+ALO_IFUN int aloO_flt2int(a_float, a_int*, int);
+ALO_IFUN int aloO_tostring(alo_State, alo_Writer, void*, const alo_TVal*);
+ALO_IFUN int aloO_escape(alo_State, alo_Writer, void*, const char*, size_t);
+ALO_IFUN const alo_TVal* aloO_get(alo_State, const alo_TVal*, const alo_TVal*);
 
 #endif /* AOBJ_H_ */

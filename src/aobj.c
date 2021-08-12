@@ -8,7 +8,7 @@
 #define AOBJ_C_
 #define ALO_CORE
 
-#include "achr.h"
+#include "actype.h"
 #include "aobj.h"
 #include "astr.h"
 #include "atup.h"
@@ -25,18 +25,18 @@
 #include <string.h>
 #include <math.h>
 
-ALO_VDEF const atval_t aloO_nil = tnewnil();
+ALO_VDEF const alo_TVal aloO_nil = tnewnil();
 
 #define ALOO_FLT_MASK 0x932280AB7E9DBE8A
 
-ahash_t aloO_flthash(afloat f) {
-	ahash_t* hash = aloE_cast(ahash_t*, &f);
+a_hash aloO_flthash(a_float f) {
+	a_hash* hash = aloE_cast(a_hash*, &f);
 	return *hash ^ ALOO_FLT_MASK;
 }
 
-static int str2int(astr in, aint* out) {
+static int str2int(a_cstr in, a_int* out) {
 	char* s;
-	aint v = strtoll(in, &s, 0);
+	a_int v = strtoll(in, &s, 0);
 	if (!errno && s && s != in && *s == '\0') {
 		*out = v;
 		return true;
@@ -44,9 +44,9 @@ static int str2int(astr in, aint* out) {
 	return false;
 }
 
-static int str2flt(astr in, afloat* out) {
+static int str2flt(a_cstr in, a_float* out) {
 	char* s;
-	afloat v = strtod(in, &s);
+	a_float v = strtod(in, &s);
 	if (!errno && s && s != in && *s == '\0') {
 		*out = v;
 		return true;
@@ -54,8 +54,8 @@ static int str2flt(astr in, afloat* out) {
 	return false;
 }
 
-int aloO_str2int(astr in, atval_t* out) {
-	aint i;
+int aloO_str2int(a_cstr in, alo_TVal* out) {
+	a_int i;
 	if (str2int(in, &i)) {
 		tsetint(out, i);
 		return true;
@@ -63,8 +63,8 @@ int aloO_str2int(astr in, atval_t* out) {
 	return false;
 }
 
-int aloO_str2num(astr in, atval_t* out) {
-	aint i; afloat f;
+int aloO_str2num(a_cstr in, alo_TVal* out) {
+	a_int i; a_float f;
 	if (str2int(in, &i)) { /* try to cast to integer. */
 		tsetint(out, i);
 		return true;
@@ -76,8 +76,8 @@ int aloO_str2num(astr in, atval_t* out) {
 	return false;
 }
 
-int aloO_flt2int(afloat in, aint* out, int mode) {
-	afloat x = floor(in);
+int aloO_flt2int(a_float in, a_int* out, int mode) {
+	a_float x = floor(in);
 	if (x != in) {
 		if (mode > 0)
 			x += 1; /* in ceiling mode */
@@ -93,7 +93,7 @@ int aloO_flt2int(afloat in, aint* out, int mode) {
 	return true;
 }
 
-int alo_format(astate T, awriter writer, void* context, astr fmt, ...) {
+int alo_format(alo_State T, alo_Writer writer, void* context, a_cstr fmt, ...) {
 	va_list varg;
 	va_start(varg, fmt);
 	int r = alo_vformat(T, writer, context, fmt, varg);
@@ -108,14 +108,14 @@ int alo_format(astate T, awriter writer, void* context, astr fmt, ...) {
 
 #define UTF8BUFSIZE 8
 
-int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg) {
+int alo_vformat(alo_State T, alo_Writer writer, void* context, a_cstr fmt, va_list varg) {
 	char buf[ALO_SPRIBUFLEN];
-	astr p = fmt, q;
+	a_cstr p = fmt, q;
 	while ((q = strchr(p, '%'))) {
 		write(T, writer, context, p, q - p);
 		switch (q[1]) {
 		case 's': { /* a string value */
-			astr s = va_arg(varg, astr);
+			a_cstr s = va_arg(varg, a_cstr);
 			write(T, writer, context, s, strlen(s));
 			break;
 		}
@@ -126,7 +126,7 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 			break;
 		}
 		case '"': { /* a escaped string */
-			const char* s = va_arg(varg, astr);
+			const char* s = va_arg(varg, a_cstr);
 			size_t l = va_arg(varg, size_t);
 			int state = aloO_escape(T, writer, context, s, l);
 			if (state) return state;
@@ -144,13 +144,13 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 			break;
 		}
 		case 'i': { /* an alo_Integer value */
-			aint i = va_arg(varg, aint);
+			a_int i = va_arg(varg, a_int);
 			int len = ALO_SPRIINT(buf, i);
 			write(T, writer, context, buf, len);
 			break;
 		}
 		case 'f': { /* an alo_Float value */
-			afloat i = va_arg(varg, afloat);
+			a_float i = va_arg(varg, a_float);
 			int len = ALO_SPRIFLT(buf, i);
 			write(T, writer, context, buf, len);
 			break;
@@ -174,7 +174,7 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 				*p = aloE_byte(ch);
 			}
 			else { /* need continuation bytes */
-				abyte mfb = 0x3f; /* first byte mask */
+				a_byte mfb = 0x3f; /* first byte mask */
 				do {
 					*(p--) = 0x80 | (ch & 0x3F);
 					ch >>= 6;
@@ -198,30 +198,30 @@ int alo_vformat(astate T, awriter writer, void* context, astr fmt, va_list varg)
 	return 0;
 }
 
-int aloO_tostring(astate T, awriter writer, void* context, const atval_t* o) {
+int aloO_tostring(alo_State T, alo_Writer writer, void* context, const alo_TVal* o) {
 	switch (ttype(o)) {
 	case ALO_TBOOL:
-		return alo_format(T, writer, context, "%s", tgetbool(o) ? "true" : "false");
+		return alo_format(T, writer, context, "%s", tasbool(o) ? "true" : "false");
 	case ALO_TINT:
-		return alo_format(T, writer, context, "%i", tgetint(o));
+		return alo_format(T, writer, context, "%i", tasint(o));
 	case ALO_TFLOAT:
-		return alo_format(T, writer, context, "%f", tgetflt(o));
-	case ALO_TISTRING: {
-		astring_t* s = tgetstr(o);
+		return alo_format(T, writer, context, "%f", tasflt(o));
+	case ALO_VISTR: {
+		alo_Str* s = tasstr(o);
 		write(T, writer, context, s->array, s->shtlen);
 		break;
 	}
-	case ALO_THSTRING: {
-		astring_t* s = tgetstr(o);
+	case ALO_VHSTR: {
+		alo_Str* s = tasstr(o);
 		write(T, writer, context, s->array, s->lnglen);
 		break;
 	}
 	default: {
 		if (aloT_tryunr(T, o, TM_TOSTR)) {
-			if (!ttisstr(T->top)) {
+			if (!tisstr(T->top)) {
 				aloU_rterror(T, "'__tostr' must return string value");
 			}
-			astring_t* s = tgetstr(T->top);
+			alo_Str* s = tasstr(T->top);
 			write(T, writer, context, s->array, aloS_len(s));
 		}
 		else {
@@ -275,7 +275,7 @@ static size_t efill(char* out, int ch) {
 	return 1;
 }
 
-int aloO_escape(astate T, awriter writer, void* context, const char* src, size_t len) {
+int aloO_escape(alo_State T, alo_Writer writer, void* context, const char* src, size_t len) {
 	const char* const end = src + len;
 	char buf[256];
 	char* const btp = buf + (256 - MAX_ESCAPE_LEN); /* buffer top limit */
@@ -292,14 +292,14 @@ int aloO_escape(astate T, awriter writer, void* context, const char* src, size_t
 	return 0;
 }
 
-const atval_t* aloO_get(astate T, const atval_t* o, const atval_t* k) {
+const alo_TVal* aloO_get(alo_State T, const alo_TVal* o, const alo_TVal* k) {
 	switch (ttpnv(o)) {
 	case ALO_TTUPLE:
-		return aloA_get(T, tgettup(o), k);
+		return aloA_get(T, tastup(o), k);
 	case ALO_TLIST:
-		return aloI_get(T, tgetlis(o), k);
+		return aloI_get(T, taslis(o), k);
 	case ALO_TTABLE:
-		return aloH_get(T, tgettab(o), k);
+		return aloH_get(T, tastab(o), k);
 	default:
 		aloi_check(T, false, "illegal owner for 'get'");
 		return aloO_tnil;
