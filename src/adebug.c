@@ -207,7 +207,7 @@ int alo_getinfo(alo_State T, int from, a_cstr what, alo_DbgInfo* info) {
 		aloi_check(T, false, "invalid 'from' for alo_getinfo.");
 	}
 	}
-	getinfo(frame, what, tasclo(fun) ? tasclo(fun) : NULL, info);
+	getinfo(frame, what, tisclo(fun) ? tasclo(fun) : NULL, info);
 	return true;
 }
 

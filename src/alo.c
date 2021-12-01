@@ -163,6 +163,7 @@ static int runc(alo_State T) {
 			runscript(T);
 		}
 		alo_settop(T, 0);
+		l_msg("\n");
 	}
 	return 0;
 }
